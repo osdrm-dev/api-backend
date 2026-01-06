@@ -1,0 +1,11 @@
+commit_msg=$(cat "$1")
+
+RED='\033[0;31m'
+NC='\033[0m'
+
+if ! echo "$commit_msg" | grep -qE '^[A-Z]+-[0-9]+ '; then
+  echo -e "${RED}✖ Commit message validation failed.${NC}"
+  echo -e "${RED}  Expected format:${NC} UPPERCASELETTER-NUMBER short description"
+  echo -e "${RED}  Example:${NC} OSDRM-5 fix authentication flow"
+  exit 1
+fi
