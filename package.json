@@ -18,7 +18,12 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "prepare": "husky"
+    "prepare": "husky",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev --name init",
+    "prisma:studio": "prisma studio",
+    "db:push:dev": "NODE_ENV=development prisma db push",
+    "db:push:prod": "echo 'DB push disabled in production!'"
   },
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx,json,md,css,scss}": [
