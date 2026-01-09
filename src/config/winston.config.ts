@@ -4,11 +4,11 @@ import { getIPAdress } from './hostinfo.util';
 
 
 const isProd = process.env.NODE_ENV === 'production';
-
+const logLevel = process.env.LOG_LEVEL;
 
 
 export const winstonConfig = {
-  
+  level : logLevel,
   levels : {
     error : 0,
     warn :1,
@@ -17,7 +17,6 @@ export const winstonConfig = {
     debug :4,
   },
 
-  level: isProd ? 'info' : 'debug',
 
   format: winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss'}),
@@ -39,12 +38,14 @@ export const winstonConfig = {
     ),
   ),
   transports : [
-      new winston.transports.Console(),
+      new winston.transports.Console({
+        level: process.env.LOG_LEVEL || 'info',
+      }),
 
       ...(isProd
         ?[
           new winston.transports.File({ filename: 'logs/error.log', level: 'error', }),
-          new winston.transports.File({filename: 'logs/combined.log' }),
+          new winston.transports.File({ filename: 'logs/combined.log', }),
         ]
 
         : []
