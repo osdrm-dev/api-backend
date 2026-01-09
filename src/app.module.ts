@@ -7,9 +7,7 @@ import { winstonConfig } from './config/winston.config';
 
 @Module({
   imports: [
-    WinstonModule.forRoot(winstonConfig,
-      //ici on met les options exactes pour Winston
-    ),
+    WinstonModule.forRoot(winstonConfig),
   ],
   controllers: [AppController],
   providers: [AppService],
