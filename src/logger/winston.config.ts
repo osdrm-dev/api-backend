@@ -1,11 +1,29 @@
 import * as winston from 'winston';
 import { getHostname } from './hostname.util';
 import { getIPAdress } from './hostinfo.util';
+import 'winston-daily-rotate-file';
 
 
 const isProd = process.env.NODE_ENV === 'production';
 const logLevel = process.env.LOG_LEVEL;
 
+const errorRotateTransport = new (winston.transports as any).DailyRotateFile({
+  filename: 'logs/error-%DATE%.log',
+  datePattern: 'YYYY-MM-DD-HH',
+  level: 'error',
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '72h',
+});
+
+const combinedRotateTransport = new (winston.transports as any).DailyRotateFile({
+  filename: 'logs/combined-%DATE%.log',
+  datePattern: 'YYYY-MM-DD-HH',
+  level: logLevel,
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '72h',
+});
 
 export const winstonConfig = {
   level : logLevel,
@@ -37,6 +55,8 @@ export const winstonConfig = {
       ]
     ),
   ),
+
+  
   transports : [
       new winston.transports.Console({
         level: process.env.LOG_LEVEL || 'info',
@@ -44,8 +64,8 @@ export const winstonConfig = {
 
       ...(isProd
         ?[
-          new winston.transports.File({ filename: 'logs/error.log', level: 'error', }),
-          new winston.transports.File({ filename: 'logs/combined.log', }),
+          errorRotateTransport,
+          combinedRotateTransport
         ]
 
         : []

@@ -3,7 +3,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { WinstonModule } from 'nest-winston';
 import { ConfigModule } from '@nestjs/config'; 
-import { winstonConfig } from './config/winston.config';
+import { winstonConfig } from './logger/winston.config';
 
 @Module({
   imports: [
