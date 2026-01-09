@@ -1,18 +1,27 @@
 import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { WinstonModule } from 'nest-winston';
-import { winstonConfig } from './config/winston.config';
 import * as dotenv from 'dotenv';
+import * as path from 'path';
 
-dotenv.config();
+// Charger les variables d'environnement en premier
+import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+
+const envResult = dotenv.config({
+  path: path.resolve(__dirname, '../.env'),
+});
+
+if (envResult.error && ((envResult.error as NodeJS.ErrnoException).code ?? '') !== 'ENOENT') {
+  console.warn('Avertissement: Impossible de charger le fichier .env');
+}
+import { AppModule } from './app.module';
 
 async function bootstrap() {
 
   
   const app = await NestFactory.create(AppModule, {
-    logger: WinstonModule.createLogger(winstonConfig),
+    bufferLogs: true,
   });
 
+  app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
   await app.listen(process.env.PORT ?? 3000);
 }
 bootstrap();
