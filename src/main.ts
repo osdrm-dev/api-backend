@@ -13,6 +13,15 @@ async function bootstrap() {
       .setTitle('OSDRM API')
       .setDescription('REST API OSDRM project 2026')
       .setVersion('1.0')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          in: 'header',
+        },
+        'access-token',
+      )
       .build();
 
     const documentFactory = () => SwaggerModule.createDocument(app, config);
