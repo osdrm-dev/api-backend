@@ -14,4 +14,4 @@ Once the application is running, the API documentation is available at: http://l
 
 ### Accessing screenshot of swagger ui
 
-docs/swagger_ui.png
+![Swagger UI](./docs/swagger_ui.PNG)

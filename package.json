@@ -26,11 +26,9 @@
     "db:push:prod": "echo 'DB push disabled in production!'"
   },
   "lint-staged": {
-    "**/*.{ts,tsx,js,jsx}": [
+    "**/*.{ts,tsx,js,jsx,json,md,css,scss}": [
+      "prettier --write",
       "eslint --fix"
-    ],
-    "**/*.{json,md,css,scss}": [
-      "prettier --write"
     ]
   },
   "dependencies": {
