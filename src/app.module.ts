@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { WinstonModule } from 'nest-winston';
-import { ConfigModule } from '@nestjs/config'; 
+import { ConfigModule } from '@nestjs/config';
 import { winstonConfig } from './logger/winston.config';
 import { TaskModule } from './tasks/task.module';
 
@@ -12,7 +12,7 @@ import { TaskModule } from './tasks/task.module';
       isGlobal: true,
     }),
     TaskModule,
-  
+
     ConfigModule.forRoot({
       isGlobal: true,
 
@@ -20,13 +20,12 @@ import { TaskModule } from './tasks/task.module';
         '.env.${process.env.NODE_ENV}.local',
         '.env.${process.env.NODE_ENV}',
         '.env',
-      ]
+      ],
     }),
 
     WinstonModule.forRoot(winstonConfig),
   ],
   controllers: [AppController],
   providers: [AppService],
-  
 })
 export class AppModule {}
