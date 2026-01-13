@@ -1,6 +1,9 @@
 import { NestFactory } from '@nestjs/core';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
+import { AppModule } from './app.module';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
 
 // Charger les variables d'environnement en premier
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
@@ -15,11 +18,7 @@ if (
 ) {
   console.warn('Avertissement: Impossible de charger le fichier .env');
 }
-import { AppModule } from './app.module';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ConfigService } from '@nestjs/config';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import { ConfigService } from '@nestjs/config';
+
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
