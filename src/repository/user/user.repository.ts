@@ -16,7 +16,9 @@ export class UserRepository {
     }
   }
 
-  async create(data: Prisma.UserCreateInput): Promise<User> {
+  async create(
+    data: Prisma.UserCreateInput & { password: string },
+  ): Promise<User> {
     try {
       return await this.prismaService.user.create({ data });
     } catch (error) {
