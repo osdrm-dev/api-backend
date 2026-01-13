@@ -6,7 +6,7 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'prisma/prisma.service';
-import { User } from 'generated/prisma';
+import { User } from '@prisma/client';
 import * as crypto from 'crypto';
 
 @Injectable()

@@ -5,7 +5,7 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
-import { User } from 'generated/prisma';
+import { User } from '@prisma/client';
 
 interface RateLimitStore {
   [key: string]: {
