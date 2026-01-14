@@ -5,6 +5,7 @@ import { WinstonModule } from 'nest-winston';
 import { ConfigModule } from '@nestjs/config';
 import { winstonConfig } from './logger/winston.config';
 import { TaskModule } from './tasks/task.module';
+import { MailModule } from './mail/mail.module';
 
 @Module({
   imports: [
@@ -12,6 +13,8 @@ import { TaskModule } from './tasks/task.module';
       isGlobal: true,
     }),
     TaskModule,
+
+    MailModule,
 
     ConfigModule.forRoot({
       isGlobal: true,
