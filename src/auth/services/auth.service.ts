@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { PrismaService } from 'prisma/prisma.service';
 import { TokenService } from './token.service';
 import { AuditService } from './audit.service';
@@ -25,10 +26,13 @@ export class AuthService {
     private readonly configService: ConfigService,
   ) {}
 
-  async register(registerDto: RegisterDto, ipAddress?: string) {
-    const { email, password, name } = registerDto;
+  async register(
+    registerDto: RegisterDto,
+    ipAddress?: string,
+    adminId?: number,
+  ) {
+    const { email, password, name, fonction, role } = registerDto;
 
-    // Vérifier si l'utilisateur existe déjà
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
     });
@@ -37,40 +41,40 @@ export class AuthService {
       throw new ConflictException('User already exists with this email');
     }
 
-    // Hasher le mot de passe
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Créer l'utilisateur
     const user = await this.prisma.user.create({
       data: {
         email,
         password: hashedPassword,
         name,
+        fonction,
+        role,
       },
     });
 
-    // Audit log
     await this.auditService.log({
-      userId: user.id,
-      action: 'USER_REGISTERED',
+      userId: adminId,
+      action: 'USER_CREATED',
       resource: 'User',
       resourceId: user.id.toString(),
+      details: {
+        createdUserId: user.id,
+        createdUserEmail: email,
+        createdUserRole: role,
+      },
       ipAddress,
     });
 
-    // Générer les tokens
-    const tokens = await this.tokenService.generateTokens(user, ipAddress);
-
     return {
       user: this.excludePassword(user),
-      ...tokens,
+      message: 'User successfully created',
     };
   }
 
   async login(loginDto: LoginDto, ipAddress?: string, userAgent?: string) {
     const { email, password } = loginDto;
 
-    // Trouver l'utilisateur
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
@@ -79,25 +83,21 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Vérifier si l'utilisateur est actif
     if (!user.isActive) {
       throw new UnauthorizedException('Account is deactivated');
     }
 
-    // Vérifier le mot de passe
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Mettre à jour la dernière connexion
     await this.prisma.user.update({
       where: { id: user.id },
       data: { lastLoginAt: new Date() },
     });
 
-    // Audit log
     await this.auditService.log({
       userId: user.id,
       action: 'USER_LOGIN',
@@ -107,7 +107,6 @@ export class AuthService {
       userAgent,
     });
 
-    // Générer les tokens
     const tokens = await this.tokenService.generateTokens(
       user,
       ipAddress,
@@ -129,7 +128,6 @@ export class AuthService {
       await this.tokenService.revokeToken(refreshToken);
     }
 
-    // Audit log
     await this.auditService.log({
       userId,
       action: 'USER_LOGOUT',
@@ -143,7 +141,6 @@ export class AuthService {
   async logoutAll(userId: number) {
     await this.tokenService.revokeAllUserTokens(userId);
 
-    // Audit log
     await this.auditService.log({
       userId,
       action: 'USER_LOGOUT_ALL',
@@ -165,26 +162,21 @@ export class AuthService {
       throw new NotFoundException('User not found');
     }
 
-    // Vérifier l'ancien mot de passe
     const isOldPasswordValid = await bcrypt.compare(oldPassword, user.password);
 
     if (!isOldPasswordValid) {
       throw new BadRequestException('Old password is incorrect');
     }
 
-    // Hasher le nouveau mot de passe
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-    // Mettre à jour le mot de passe
     await this.prisma.user.update({
       where: { id: userId },
       data: { password: hashedPassword },
     });
 
-    // Révoquer tous les refresh tokens
     await this.tokenService.revokeAllUserTokens(userId);
 
-    // Audit log
     await this.auditService.log({
       userId,
       action: 'PASSWORD_CHANGED',
@@ -195,83 +187,48 @@ export class AuthService {
     return { message: 'Password changed successfully' };
   }
 
-  async requestPasswordReset(email: string) {
+  async resetPassword(
+    resetPasswordDto: ResetPasswordDto,
+    adminId: number,
+    ipAddress?: string,
+  ) {
+    const { email } = resetPasswordDto;
+
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
-      // Ne pas révéler si l'utilisateur existe
-      return { message: 'If the email exists, a reset link will be sent' };
+      throw new NotFoundException('User not found');
     }
 
-    // Générer un token de réinitialisation
-    const resetToken = await this.tokenService.generatePasswordResetToken(
-      user.id,
-    );
-
-    // TODO: Envoyer un email avec le token
-    // await this.emailService.sendPasswordResetEmail(user.email, resetToken);
-
-    // Audit log
-    await this.auditService.log({
-      userId: user.id,
-      action: 'PASSWORD_RESET_REQUESTED',
-      resource: 'User',
-      resourceId: user.id.toString(),
-    });
-
-    return { message: 'If the email exists, a reset link will be sent' };
-  }
-
-  async resetPassword(resetPasswordDto: ResetPasswordDto) {
-    const { token, newPassword } = resetPasswordDto;
-
-    // Vérifier le token
-    const passwordReset = await this.prisma.passwordReset.findUnique({
-      where: { token },
-      include: { user: true },
-    });
-
-    if (!passwordReset) {
-      throw new BadRequestException('Invalid or expired reset token');
-    }
-
-    if (passwordReset.usedAt) {
-      throw new BadRequestException('Reset token has already been used');
-    }
-
-    if (passwordReset.expiresAt < new Date()) {
-      throw new BadRequestException('Reset token has expired');
-    }
-
-    // Hasher le nouveau mot de passe
+    const newPassword = this.generateRandomPassword();
     const hashedPassword = await bcrypt.hash(newPassword, 12);
 
-    // Mettre à jour le mot de passe
     await this.prisma.user.update({
-      where: { id: passwordReset.userId },
+      where: { id: user.id },
       data: { password: hashedPassword },
     });
 
-    // Marquer le token comme utilisé
-    await this.prisma.passwordReset.update({
-      where: { id: passwordReset.id },
-      data: { usedAt: new Date() },
-    });
+    await this.tokenService.revokeAllUserTokens(user.id);
 
-    // Révoquer tous les refresh tokens
-    await this.tokenService.revokeAllUserTokens(passwordReset.userId);
-
-    // Audit log
     await this.auditService.log({
-      userId: passwordReset.userId,
-      action: 'PASSWORD_RESET_COMPLETED',
+      userId: adminId,
+      action: 'PASSWORD_RESET_BY_ADMIN',
       resource: 'User',
-      resourceId: passwordReset.userId.toString(),
+      resourceId: user.id.toString(),
+      details: {
+        targetUserId: user.id,
+        targetUserEmail: email,
+      },
+      ipAddress,
     });
 
-    return { message: 'Password reset successfully' };
+    return {
+      message: 'Password reset successfully',
+      newPassword,
+      email: user.email,
+    };
   }
 
   async validateUser(email: string, password: string): Promise<User | null> {
@@ -304,8 +261,30 @@ export class AuthService {
     return this.excludePassword(user);
   }
 
+  private generateRandomPassword(length: number = 12): string {
+    const lowercase = 'abcdefghijklmnopqrstuvwxyz';
+    const uppercase = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    const numbers = '0123456789';
+    const symbols = '!@#$%^&*';
+    const allChars = lowercase + uppercase + numbers + symbols;
+
+    let password = '';
+    password += lowercase[Math.floor(Math.random() * lowercase.length)];
+    password += uppercase[Math.floor(Math.random() * uppercase.length)];
+    password += numbers[Math.floor(Math.random() * numbers.length)];
+    password += symbols[Math.floor(Math.random() * symbols.length)];
+
+    for (let i = password.length; i < length; i++) {
+      password += allChars[Math.floor(Math.random() * allChars.length)];
+    }
+
+    return password
+      .split('')
+      .sort(() => Math.random() - 0.5)
+      .join('');
+  }
+
   private excludePassword(user: User) {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password, ...userWithoutPassword } = user;
     return userWithoutPassword;
   }

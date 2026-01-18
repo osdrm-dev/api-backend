@@ -79,7 +79,6 @@ export class TokenService {
       throw new UnauthorizedException('Account is deactivated');
     }
 
-    // Générer de nouveaux tokens
     const newAccessToken = this.jwtService.sign({
       sub: storedToken.user.id,
       email: storedToken.user.email,
@@ -92,7 +91,6 @@ export class TokenService {
       storedToken.userAgent ?? undefined,
     );
 
-    // Révoquer l'ancien refresh token
     await this.prisma.refreshToken.update({
       where: { id: storedToken.id },
       data: {
@@ -139,34 +137,8 @@ export class TokenService {
     });
   }
 
-  async generatePasswordResetToken(userId: number): Promise<string> {
-    const token = crypto.randomBytes(32).toString('hex');
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + 1); // Expire dans 1 heure
-
-    await this.prisma.passwordReset.create({
-      data: {
-        userId,
-        token,
-        expiresAt,
-      },
-    });
-
-    return token;
-  }
-
   async cleanupExpiredTokens() {
-    // Nettoyer les refresh tokens expirés
     await this.prisma.refreshToken.deleteMany({
-      where: {
-        expiresAt: {
-          lt: new Date(),
-        },
-      },
-    });
-
-    // Nettoyer les tokens de réinitialisation expirés
-    await this.prisma.passwordReset.deleteMany({
       where: {
         expiresAt: {
           lt: new Date(),

@@ -2,36 +2,36 @@ generator client {
   provider = "prisma-client-js"
 }
 
-
 datasource db {
   provider = "postgresql"
 }
 
 enum Role {
-  USER
+  DEMANDEUR
+  OM
+  CFO
+  CEO
+  DP
   ADMIN
-  MODERATOR
 }
 
 model User {
   id                Int                @id @default(autoincrement())
   email             String             @unique
   password          String
-  name              String?
-  role              Role               @default(USER)
+  name              String
+  fonction          String
+  role              Role               @default(DEMANDEUR)
   isActive          Boolean            @default(true)
-  isEmailVerified   Boolean            @default(false)
-  emailVerifiedAt   DateTime?
   lastLoginAt       DateTime?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   
-  // Relations
   refreshTokens     RefreshToken[]
-  passwordResets    PasswordReset[]
   auditLogs         AuditLog[]
   
   @@index([email])
+  @@index([role])
   @@map("users")
 }
 
@@ -51,21 +51,6 @@ model RefreshToken {
   @@index([userId])
   @@index([token])
   @@map("refresh_tokens")
-}
-
-model PasswordReset {
-  id          Int       @id @default(autoincrement())
-  userId      Int
-  token       String    @unique
-  expiresAt   DateTime
-  usedAt      DateTime?
-  createdAt   DateTime  @default(now())
-  
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
-  @@index([token])
-  @@map("password_resets")
 }
 
 model AuditLog {

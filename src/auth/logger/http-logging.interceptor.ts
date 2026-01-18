@@ -17,10 +17,8 @@ export class HttpLoggingInterceptor implements NestInterceptor {
     const { method, url, body, headers } = request;
     const startTime = Date.now();
 
-    // Logger la requête entrante
-    this.logger.log(`➡️  Incoming ${method} ${url}`, 'HTTP');
+    this.logger.log(`Incoming ${method} ${url}`, 'HTTP');
 
-    // Logger le body en développement (sans les mots de passe)
     if (process.env.NODE_ENV !== 'production' && body) {
       const sanitizedBody = { ...body };
       if (sanitizedBody.password) sanitizedBody.password = '***';
@@ -40,7 +38,7 @@ export class HttpLoggingInterceptor implements NestInterceptor {
         error: (error) => {
           const duration = Date.now() - startTime;
           this.logger.error(
-            `❌  ${method} ${url} failed after ${duration}ms: ${error.message}`,
+            `${method} ${url} failed after ${duration}ms: ${error.message}`,
             error.stack,
             'HTTP',
           );
