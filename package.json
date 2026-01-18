@@ -42,8 +42,10 @@
     "class-validator": "^0.14.3",
     "dotenv": "^17.2.3",
     "nest-winston": "^1.10.2",
+    "pdf-lib": "^1.17.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "sharp": "^0.34.5",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0"
   },
