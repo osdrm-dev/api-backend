@@ -24,9 +24,8 @@ jobs:
           cache: 'npm'
 
       - name: Install backend dependencies
-        run: |
-          cd api-backend 
-          npm ci
+        run:
+          npm ci --ignore-scripts
 
       # - name: Run lint
       #   run: npm run lint
