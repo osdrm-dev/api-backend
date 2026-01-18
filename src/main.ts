@@ -19,7 +19,6 @@ if (
   console.warn('Avertissement: Impossible de charger le fichier .env');
 }
 
-
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bufferLogs: true,

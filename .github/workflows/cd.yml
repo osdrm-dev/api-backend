@@ -1,0 +1,51 @@
+name: CD - OSDRM REST API PRODUCTION
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      SSH_USER: ${{ secrets.SSH_USER }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      APP_DIR: ${{ secrets.APP_DIR }}
+      PM2_APP_NAME: ${{ secrets.PM2_APP_NAME }}
+
+    steps:
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H $SSH_HOST >> ~/.ssh/known_hosts
+
+      - name: Deploy to production
+        run: |
+          ssh $SSH_USER@$SSH_HOST << 'EOF'
+            set -e 
+
+            echo "Ensure application directory exists"
+            cd $APP_DIR
+
+            echo "Clone or update repository"
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/osdrm-dev/api-backend.git
+            else
+              git pull origin main
+            fi
+
+            echo "Install production dependencies"
+            npm ci --only=production
+
+            echo "Build application"
+            npm run build
+
+            echo "Start or restart application with PM2"
+            pm2 restart $PM2_APP_NAME || pm2 start dist/main.js --name $PM2_APP_NAME
+
+            echo "Deployment completed successfully"
+          EOF
