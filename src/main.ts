@@ -1,4 +1,7 @@
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { ConfigService } from '@nestjs/config';
+import { AppModule } from './app.module';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { AppModule } from './app.module';
@@ -18,7 +21,6 @@ if (
 ) {
   console.warn('Avertissement: Impossible de charger le fichier .env');
 }
-
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
