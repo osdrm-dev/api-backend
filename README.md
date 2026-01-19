@@ -16,17 +16,17 @@ Once the application is running, the API documentation is available at: http://l
 
 ![Swagger UI](./docs/swagger_ui.PNG)
 
+---
 
--------------------------------------------------
-
-## Mail Notification 
+## Mail Notification
 
 This project uses **MailHog** for the mail notification in local
 
 ## installation of mailhog (for each user)
+
 if linux (in the terminal):
-    -Download Mailhog:
-    => wget https://github.com/mailhog/MailHog/releases/latest/download/MailHog_linux_amd64
+-Download Mailhog:
+=> wget https://github.com/mailhog/MailHog/releases/latest/download/MailHog_linux_amd64
 
     -Make the binary executable:
     chmod +x MailHog_linux_amd64
@@ -46,17 +46,16 @@ if windows :
 
     -install and web interface available on http://localhost:8025
 
-
 .env need these variables:
-    MAIL_HOST=localhost
-    MAIL_PORT=1025
-    MAIL_SECURE=false
-    MAIL_FROM="Dev <dev@test.com>"
-
+MAIL_HOST=localhost
+MAIL_PORT=1025
+MAIL_SECURE=false
+MAIL_FROM="Dev <dev@test.com>"
 
 ## how to use
+
 in the mail.controller.ts
-    put the decorator @POST('') and call the function you wanna use , sendSimpleMail()/ sendWithAttachement()
+put the decorator @POST('') and call the function you wanna use , sendSimpleMail()/ sendWithAttachement()
 
     for exemple:
 
@@ -71,4 +70,3 @@ in the mail.controller.ts
 
     then the terminal you launch the command :
     => curl -X POST http://localhost:3000/mail/send-simple
-    
