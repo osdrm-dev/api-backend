@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NestMiddleware,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -38,7 +34,9 @@ export class AuthMiddleware implements NestMiddleware {
         email: payload.email,
         role: payload.role,
       };
-    } catch (error) {}
+    } catch {
+      // Ignore invalid tokens for optional auth
+    }
 
     next();
   }

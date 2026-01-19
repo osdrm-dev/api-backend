@@ -5,7 +5,6 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
-import { User } from '@prisma/client';
 
 interface RateLimitStore {
   [key: string]: {
@@ -61,10 +60,10 @@ export class RateLimitMiddleware implements NestMiddleware {
   }
 
   private getKey(req: Request): string {
-    const user = req['user'] as User | undefined;
+    const user = req['user'];
     const ip = this.getClientIp(req);
 
-    return user?.id ? `user:${user.id}` : `ip:${ip}`;
+    return (user as any)?.id ? `user:${(user as any).id}` : `ip:${ip}`;
   }
 
   private getClientIp(req: Request): string {

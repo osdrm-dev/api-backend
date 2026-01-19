@@ -23,7 +23,7 @@ import { RateLimitMiddleware } from './middlewares/rate-limit.middleware';
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('JWT_SECRET') || 'your-secret-key',
         signOptions: {
-          expiresIn: configService.get<string>('JWT_EXPIRES_IN') || '15m',
+          expiresIn: 900,
         },
       }),
       inject: [ConfigService],

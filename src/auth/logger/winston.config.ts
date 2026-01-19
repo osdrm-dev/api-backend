@@ -1,12 +1,12 @@
 import * as winston from 'winston';
+import DailyRotateFile from 'winston-daily-rotate-file';
 import { getHostname } from './hostname.util';
 import { getIPAdress } from './hostinfo.util';
-import 'winston-daily-rotate-file';
 
 const isProd = process.env.NODE_ENV === 'production';
 const logLevel = process.env.LOG_LEVEL;
 
-const errorRotateTransport = new (winston.transports as any).DailyRotateFile({
+const errorRotateTransport = new DailyRotateFile({
   filename: 'logs/error-%DATE%.log',
   datePattern: 'YYYY-MM-DD-HH',
   level: 'error',
@@ -15,16 +15,14 @@ const errorRotateTransport = new (winston.transports as any).DailyRotateFile({
   maxFiles: '72h',
 });
 
-const combinedRotateTransport = new (winston.transports as any).DailyRotateFile(
-  {
-    filename: 'logs/combined-%DATE%.log',
-    datePattern: 'YYYY-MM-DD-HH',
-    level: logLevel,
-    zippedArchive: true,
-    maxSize: '20m',
-    maxFiles: '72h',
-  },
-);
+const combinedRotateTransport = new DailyRotateFile({
+  filename: 'logs/combined-%DATE%.log',
+  datePattern: 'YYYY-MM-DD-HH',
+  level: logLevel,
+  zippedArchive: true,
+  maxSize: '20m',
+  maxFiles: '72h',
+});
 
 export const winstonConfig = {
   level: logLevel,
@@ -52,7 +50,7 @@ export const winstonConfig = {
           winston.format.colorize({ all: true }),
           winston.format.printf(
             ({ timestamp, level, message, ip, hostname, context }) => {
-              return `[${timestamp}] [${context ?? 'App'}] [${hostname}] [${ip}]${level}: ${message}`;
+              return `[${String(timestamp)}] [${typeof context === 'string' ? context : 'App'}] [${String(hostname)}] [${String(ip)}]${String(level)}: ${String(message)}`;
             },
           ),
         ]),
