@@ -16,17 +16,14 @@ export class MailService {
       });
       this.logger.log('Email envoyé');
     } catch (error) {
-      this.logger.error(
-        'Error sending email:',
-         error.stack
-      );
+      this.logger.error('Error sending email:', (error as Error).stack);
 
       throw new InternalServerErrorException();
     }
   }
 
   async sendWithAttachment(to: string, filePath: string) {
-    try{ 
+    try {
       await this.mailer.sendMail({
         to,
         subject: 'Document joint',
@@ -38,13 +35,9 @@ export class MailService {
           },
         ],
       });
-    }catch (error){
-      this.logger.error(
-        'Erreur, email non envoyé',
-        error.stack 
-      );
+    } catch (error) {
+      this.logger.error('Erreur, email non envoyé', (error as Error).stack);
       throw new InternalServerErrorException();
-
     }
   }
 
@@ -58,10 +51,10 @@ export class MailService {
           link: `http://localhost:3000/confirm?token=${token}`,
         },
       });
-    }catch (error) {
+    } catch (error) {
       this.logger.error(
         'email de confirmation non envoyé',
-        error.stack
+        (error as Error).stack,
       );
     }
   }

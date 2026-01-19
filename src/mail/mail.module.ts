@@ -12,12 +12,16 @@ import { MailController } from './mail.controller';
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
         transport: {
-          host: config.get('MAIL_HOST'),
-          port: Number(config.get('MAIL_PORT')),
-          secure: config.get('MAIL_SECURE') === 'true',
+          host: config.get<string>('MAIL_HOST'),
+          port: Number(config.get<string>('MAIL_PORT')),
+          secure: config.get<string>('MAIL_SECURE') === 'true',
+          auth: {
+            user: config.get<string>('MAIL_USER'),
+            pass: config.get<string>('MAIL_PASS'),
+          },
         },
         defaults: {
-          from: config.get('MAIL_FROM'),
+          from: config.get<string>('MAIL_FROM'),
         },
         template: {
           dir: join(__dirname, 'templates'),

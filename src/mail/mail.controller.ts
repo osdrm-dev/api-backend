@@ -10,7 +10,7 @@ export class MailController {
     return this.mailService.sendSimpleMail(
       'test@test.com',
       'Test MailHog',
-      '<p>Email OK 🚀</p>',
+      '<p>Email OK </p>',
     );
   }
 }
