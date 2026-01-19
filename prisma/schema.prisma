@@ -1,14 +1,73 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  DEMANDEUR
+  OM
+  CFO
+  CEO
+  DP
+  ADMIN
+}
+
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+  id                Int                @id @default(autoincrement())
+  email             String             @unique
+  password          String
+  name              String
+  fonction          String
+  role              Role               @default(DEMANDEUR)
+  isActive          Boolean            @default(true)
+  lastLoginAt       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+  
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id          Int       @id @default(autoincrement())
+  token       String    @unique
+  userId      Int
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+  replacedBy  String?
+  ipAddress   String?
+  userAgent   String?
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id          Int       @id @default(autoincrement())
+  userId      Int?
+  action      String
+  resource    String
+  resourceId  String?
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+  
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
 }
