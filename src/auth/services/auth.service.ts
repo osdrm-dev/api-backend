@@ -15,7 +15,9 @@ import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
-import { User } from '@prisma/client';
+import type { User } from '@prisma/client';
+
+type UserWithoutPassword = Omit<User, 'password'>;
 
 @Injectable()
 export class AuthService {
@@ -231,7 +233,10 @@ export class AuthService {
     };
   }
 
-  async validateUser(email: string, password: string): Promise<User | null> {
+  async validateUser(
+    email: string,
+    password: string,
+  ): Promise<UserWithoutPassword | null> {
     const user = await this.prisma.user.findUnique({
       where: { email },
     });
@@ -284,7 +289,7 @@ export class AuthService {
       .join('');
   }
 
-  private excludePassword(user: User) {
+  private excludePassword(user: User): UserWithoutPassword {
     const { password, ...userWithoutPassword } = user;
     return userWithoutPassword;
   }

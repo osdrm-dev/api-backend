@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { User } from '@prisma/client';
-import { Prisma } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
+import type { User } from '@prisma/client';
 
 @Injectable()
 export class UserRepository {
@@ -9,21 +8,21 @@ export class UserRepository {
 
   async findById(id: number): Promise<User | null> {
     try {
-      return await this.prismaService.user.findUnique({ where: { id } });
+      return await (this.prismaService as any).user.findUnique({
+        where: { id },
+      });
     } catch (error) {
       console.error('Error finding user by ID:', error);
       throw new Error('Database operation failed');
     }
   }
 
-  async create(
-    data: Prisma.UserCreateInput & { password: string },
-  ): Promise<User> {
+  async create(data: any): Promise<any> {
     try {
-      return await this.prismaService.user.create({ data });
+      return await (this.prismaService as any).user.create({ data });
     } catch (error) {
       console.error('Error creating user:', error);
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      if (error.code === 'P2002') {
         throw new Error('User already exists');
       }
       throw new Error('Database operation failed');

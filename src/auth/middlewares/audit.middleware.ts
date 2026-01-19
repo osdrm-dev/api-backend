@@ -1,7 +1,6 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { AuditService } from '../services/audit.service';
-import { User } from '@prisma/client';
 
 @Injectable()
 export class AuditMiddleware implements NestMiddleware {
@@ -12,13 +11,13 @@ export class AuditMiddleware implements NestMiddleware {
 
     res.on('finish', async () => {
       const duration = Date.now() - startTime;
-      const user = req['user'] as User | undefined;
+      const user = req['user'];
 
       const shouldLog = this.shouldLogRequest(req.method, req.path);
 
       if (shouldLog && res.statusCode < 400) {
         await this.auditService.log({
-          userId: user?.id,
+          userId: (user as any)?.id,
           action: `${req.method}_${req.path}`,
           resource: this.extractResource(req.path),
           resourceId: this.extractResourceId(req.path),
