@@ -97,7 +97,7 @@ jobs:
 
             echo "Restart or start application"
             pm2 restart ${{ secrets.PM2_APP_NAME }} --update-env || \
-            pm2 start dist/main.js --name ${{ secrets.PM2_APP_NAME }} --update-env
+            pm2 start dist --name ${{ secrets.PM2_APP_NAME }} --update-env
 
             echo "Save PM2 process list"
             pm2 save
