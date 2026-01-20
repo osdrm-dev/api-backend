@@ -23,6 +23,7 @@ import { HttpLoggingInterceptor } from 'src/auth/logger/http-logging.interceptor
         `.env.${process.env.NODE_ENV}.local`,
         `.env.${process.env.NODE_ENV}`,
         '.env',
+        '.env.prod',
       ],
     }),
     WinstonModule.forRoot(winstonConfig),
