@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - feature/OSDRM-16-CI-CD-TESTING
 
 jobs:
   deploy:
