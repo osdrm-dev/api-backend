@@ -56,8 +56,8 @@ jobs:
 
             cd current
 
-            echo "Create .env.prod file"
-            cat <<EOF > .env.prod
+            echo "Create .env file"
+            cat <<EOF > .env
             NODE_ENV=production
             PORT=3000
             DATABASE_URL=${{ secrets.DATABASE_URL }}
