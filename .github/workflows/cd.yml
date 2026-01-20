@@ -72,6 +72,15 @@ jobs:
               exit 1
             }
 
+            echo "=== Generate Prisma Client ==="
+            npx prisma generate || {
+              echo "Prisma generate failed"
+              cd ..
+              rm -rf current
+              mv previous current || true
+              exit 1
+            }
+
             echo "Build application "
             npm run build || {
               echo "Build failed, rollback"
