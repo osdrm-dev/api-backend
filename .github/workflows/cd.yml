@@ -34,7 +34,7 @@ jobs:
             fi
 
             echo "Clone new version"
-            git clone https://github.com/osdrm/api-backend.git current || {
+            git clone -b feature/OSDRM-16-CI-CD-TESTING https://github.com/osdrm-dev/api-backend.git current || {
               echo "Git clone failed, rollback"
               mv previous current
               exit 1
