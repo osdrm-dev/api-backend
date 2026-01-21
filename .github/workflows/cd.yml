@@ -97,6 +97,9 @@ jobs:
               exit 1
             fi
 
+            echo "Load environment variables from .env" 
+            export $(cat .env | xargs)
+
             echo "Restart application with PM2"
             pm2 delete ${{ secrets.PM2_APP_NAME }} || true
 
