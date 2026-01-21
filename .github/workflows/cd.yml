@@ -100,7 +100,7 @@ jobs:
             echo "Restart application with PM2"
             pm2 delete ${{ secrets.PM2_APP_NAME }} || true
 
-            pm2 start dist/main.js \
+            pm2 start dist/src/main.js \
               --name ${{ secrets.PM2_APP_NAME }} \
               --update-env
 
