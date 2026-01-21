@@ -44,12 +44,14 @@ jobs:
 
             if [ -d "current" ]; then
               echo "Backup current version"
+              rm -rf previous
               mv current previous
             fi
 
             echo "Clone new version"
             git clone -b feature/OSDRM-16-CI-CD-TESTING https://github.com/osdrm-dev/api-backend.git current || {
               echo "Git clone failed, rollback"
+              rm -rf current
               mv previous current
               exit 1
             }
@@ -74,14 +76,14 @@ jobs:
 
             echo "=== Generate Prisma Client ==="
             npx prisma generate || {
-              echo "Prisma generate failed"
+              echo "Prisma generate failed, rollback"
               cd ..
               rm -rf current
-              mv previous current || true
+              mv previous current
               exit 1
             }
 
-            echo "Build application "
+            echo "Build application"
             npm run build || {
               echo "Build failed, rollback"
               cd ..
@@ -96,7 +98,6 @@ jobs:
             fi
 
             echo "Restart application with PM2"
-
             pm2 delete ${{ secrets.PM2_APP_NAME }} || true
 
             pm2 start dist/main.js \
