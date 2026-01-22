@@ -16,8 +16,8 @@ export class PrismaService
   constructor() {
     const isProd = process.env.NODE_ENV === 'production';
     const connectionString = isProd
-      ? process.env.DATABASE_URL_PROD
-      : process.env.DATABASE_URL_DEV;
+      ? process.env.DATABASE_URL
+      : process.env.DATABASE_URL;
 
     if (!connectionString) {
       throw new Error('DATABASE_URL environment variable is missing');
