@@ -14,10 +14,7 @@ export class PrismaService
   implements OnModuleInit, OnModuleDestroy
 {
   constructor() {
-    const isProd = process.env.NODE_ENV === 'production';
-    const connectionString = isProd
-      ? process.env.DATABASE_URL
-      : process.env.DATABASE_URL;
+    const connectionString = process.env.DATABASE_URL;
 
     if (!connectionString) {
       throw new Error('DATABASE_URL environment variable is missing');

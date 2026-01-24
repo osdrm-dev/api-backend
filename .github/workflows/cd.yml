@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - feature/OSDRM-16-CI-CD-TESTING
 
 jobs:
   deploy:
@@ -49,7 +48,7 @@ jobs:
             fi
 
             echo "Clone new version"
-            git clone -b feature/OSDRM-16-CI-CD-TESTING https://github.com/osdrm-dev/api-backend.git current || {
+            git clone https://github.com/osdrm-dev/api-backend.git current || {
               echo "Git clone failed, rollback"
               rm -rf current
               mv previous current
