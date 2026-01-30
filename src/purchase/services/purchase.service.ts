@@ -6,10 +6,9 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
-import {
-  ValidatePurchaseDto,
-  ValidationDecision,
-} from '../dto/validate-purchase.dto';
+import { ValidatePurchaseDto } from '../dto/validate-purchase.dto';
+import { RejectPurchaseDto } from '../dto/reject-purchase.dto';
+import { RequestChangesDto } from '../dto/request-change.dto';
 
 @Injectable()
 export class PurchaseService {
@@ -25,11 +24,21 @@ export class PurchaseService {
     } = filters;
     const skip = (page - 1) * Limit;
 
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException(`Utilisateur non trouvé.`);
+    }
+
     const where: any = {
+      status: 'PUBLISHED',
       validationWorkflow: {
         validators: {
           some: {
-            userId: userId,
+            role: user.role as any,
             isValidated: false,
           },
         },
@@ -99,7 +108,7 @@ export class PurchaseService {
         take: Limit,
         orderBy: { [sortBy]: sortByOrder },
       }),
-      (this.prisma as any).purchase.count({ where }),
+      this.prisma.purchase.count({ where }),
     ]);
 
     return {
@@ -159,7 +168,7 @@ export class PurchaseService {
   }
 
   //valider une demande d'achat ainsi que verifier que l'utilisateur est bien le validateur actuel dans le workflow
-  async validate(
+  async validatePurchase(
     purchaseId: string,
     userId: number,
     validateDto: ValidatePurchaseDto,
@@ -206,7 +215,7 @@ export class PurchaseService {
         data: {
           isValidated: true,
           validatedAt: new Date(),
-          decision: validateDto.decision,
+          decision: 'VALIDATED',
           comment: validateDto.comment,
           userId: userId,
           name: user.name,
@@ -214,28 +223,13 @@ export class PurchaseService {
         },
       });
 
-      let newStatus: any;
-      let currentStep: any = purchase.currentStep;
-
-      if (validateDto.decision === ValidationDecision.VALIDATED) {
-        newStatus = 'VALIDATED';
-        currentStep = 'QR';
-      } else if (validateDto.decision === ValidationDecision.REJECTED) {
-        newStatus = 'REJECTED';
-      } else if (validateDto.decision === ValidationDecision.CHANGE_REQUESTED) {
-        newStatus = 'CHANGE_REQUESTED';
-      }
-
-      //mettre a jour la demande d'achat avec le nouveau statut et l'etape actuelle
+      //mise a jour de la DA et passage à QR
       const updatedPurchase = await prisma.purchase.update({
         where: { id: purchaseId },
         data: {
-          status: newStatus,
-          currentStep: currentStep,
-          validatedAt:
-            validateDto.decision === ValidationDecision.VALIDATED
-              ? new Date()
-              : null,
+          status: 'VALIDATED',
+          currentStep: 'QR',
+          validatedAt: new Date(),
         },
         include: {
           creator: true,
@@ -243,9 +237,7 @@ export class PurchaseService {
           validationWorkflow: {
             include: {
               validators: {
-                include: {
-                  user: true,
-                },
+                include: { user: true },
                 orderBy: { order: 'asc' },
               },
             },
@@ -253,31 +245,194 @@ export class PurchaseService {
         },
       });
 
-      //Mettre a jour le workflow comme complet si approuvé ou rejeté
-      if (
-        validateDto.decision === ValidationDecision.VALIDATED ||
-        (validateDto.decision === ValidationDecision.REJECTED &&
-          purchase.validationWorkflow !== null)
-      ) {
+      if (purchase.validationWorkflow) {
         await prisma.validationWorkflow.update({
-          where: { id: purchase.validationWorkflow!.id },
+          where: { id: purchase.validationWorkflow.id },
           data: { isComplete: true },
         });
       }
 
-      //creation d'un log d'audit
+      // creation d'un audit log
       await prisma.auditLog.create({
         data: {
           userId,
           action: 'VALIDATE_PURCHASE',
-          resource: 'purchase',
+          resource: 'PURCHASE',
           resourceId: purchaseId,
           details: {
-            decision: validateDto.decision,
+            decision: 'VALIDATED',
             comment: validateDto.comment,
             validatorRole: user.role,
-            newStatus: newStatus,
-            currentStep: currentStep,
+            previousStatus: 'PUBLISHED',
+            newStatus: 'VALIDATED',
+            newStep: 'QR',
+          },
+        },
+      });
+
+      return updatedPurchase;
+    });
+  }
+
+  async requestChanges(
+    purchaseId: string,
+    userId: number,
+    requestChangesDto: RequestChangesDto,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, name: true, email: true },
+    });
+
+    if (!user) {
+      throw new ForbiddenException(`Utilisateur introuvable`);
+    }
+
+    const purchase = await this.findOne(purchaseId);
+
+    if (purchase.status !== 'PUBLISHED') {
+      throw new BadRequestException(
+        `cette DA n'est pas en attente de validation`,
+      );
+    }
+
+    if (!purchase.validationWorkflow) {
+      throw new NotFoundException(`cette DA n'a pas de workflow de validation`);
+    }
+
+    const authorizedValidator = purchase.validationWorkflow.validators.find(
+      (v) => v.role === user.role && !v.isValidated,
+    );
+
+    if (!authorizedValidator) {
+      throw new ForbiddenException(
+        `Vous n'etes pas autorisé à faire cette action`,
+      );
+    }
+
+    // voici le tranaction de rejet
+    return this.prisma.$transaction(async (prisma) => {
+      await prisma.validator.update({
+        where: { id: authorizedValidator.id },
+        data: {
+          isValidated: true,
+          validatedAt: new Date(),
+          decision: 'CHANGE_REQUESTED',
+          comment: requestChangesDto.reason,
+          userId: userId,
+          name: user.name,
+          email: user.email,
+        },
+      });
+
+      const updatedPurchase = await prisma.purchase.update({
+        where: { id: purchaseId },
+        data: {
+          status: 'CHANGE_REQUESTED',
+          observations: requestChangesDto.reason,
+          closedAt: new Date(),
+        },
+        include: {
+          creator: true,
+          items: true,
+          validationWorkflow: {
+            include: {
+              validators: {
+                include: { user: true },
+                orderBy: { order: 'asc' },
+              },
+            },
+          },
+        },
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          userId,
+          action: 'CHANGE_REQUESTED',
+          resource: 'PURCHASE',
+          resourceId: purchaseId,
+          details: {
+            decision: 'REJECTED',
+            comment: requestChangesDto.reason,
+            validatorRole: user.role,
+            previousStatus: 'PUBLISHED',
+            newStatus: 'CHANGE_REQUESTED',
+          },
+        },
+      });
+
+      return updatedPurchase;
+    });
+  }
+
+  async rejectPurchase(
+    purchaseId: string,
+    userId: number,
+    rejectDto: RejectPurchaseDto,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true, name: true, email: true },
+    });
+
+    if (!user) {
+      throw new ForbiddenException(`Utilisateur introuvable`);
+    }
+
+    const purchase = await this.findOne(purchaseId);
+
+    if (purchase.status !== 'PUBLISHED') {
+      throw new BadRequestException(
+        `cette DA n'est pas en attente de validation`,
+      );
+    }
+
+    if (!purchase.validationWorkflow) {
+      throw new NotFoundException(`cette DA n'a pas de workflow de validation`);
+    }
+
+    const authorizedValidator = purchase.validationWorkflow.validators.find(
+      (v) => v.role === user.role && v.isValidated,
+    );
+
+    if (!authorizedValidator) {
+      throw new ForbiddenException(
+        `vous n'etes pas autorisé à rejeter cette demande`,
+      );
+    }
+
+    return this.prisma.$transaction(async (prisma) => {
+      await prisma.validator.update({
+        where: { id: authorizedValidator.id },
+        data: {
+          isValidated: true,
+          validatedAt: new Date(),
+          decision: 'REJECTED',
+          comment: rejectDto.comment,
+          userId: userId,
+          name: user.name,
+          email: user.email,
+        },
+      });
+
+      const updatedPurchase = await prisma.purchase.update({
+        where: { id: purchaseId },
+        data: {
+          status: 'REJECTED',
+          observations: rejectDto.comment,
+          closedAt: new Date(),
+        },
+        include: {
+          creator: true,
+          items: true,
+          validationWorkflow: {
+            include: {
+              validators: {
+                include: { user: true },
+                orderBy: { order: 'asc' },
+              },
+            },
           },
         },
       });
