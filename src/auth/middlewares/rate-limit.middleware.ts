@@ -16,19 +16,20 @@ interface RateLimitStore {
 @Injectable()
 export class RateLimitMiddleware implements NestMiddleware {
   private store: RateLimitStore = {};
-  private readonly limit = 100; // Nombre de requêtes
-  private readonly windowMs = 15 * 60 * 1000; // 15 minutes
-
+  private readonly limit = 100;
+  private readonly windowMs = 15 * 60 * 1000;
   use(req: Request, res: Response, next: NextFunction) {
+    if (req.method === 'OPTIONS') {
+      return next();
+    }
+
     const key = this.getKey(req);
     const now = Date.now();
 
-    // Nettoyer les entrées expirées
     if (this.store[key] && this.store[key].resetTime < now) {
       delete this.store[key];
     }
 
-    // Initialiser ou incrémenter le compteur
     if (!this.store[key]) {
       this.store[key] = {
         count: 1,
@@ -44,7 +45,6 @@ export class RateLimitMiddleware implements NestMiddleware {
     res.setHeader('X-RateLimit-Remaining', Math.max(0, this.limit - count));
     res.setHeader('X-RateLimit-Reset', new Date(resetTime).toISOString());
 
-    // Vérifier si la limite est dépassée
     if (count > this.limit) {
       throw new HttpException(
         {
