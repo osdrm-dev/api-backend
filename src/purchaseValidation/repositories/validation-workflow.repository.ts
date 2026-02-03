@@ -2,6 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { ValidationWorkflow, Prisma } from '@prisma/client';
 
+// Type pour ValidationWorkflow avec toutes les relations
+export type ValidationWorkflowWithRelations = ValidationWorkflow & {
+  validators: any[];
+  purchase?: any;
+};
+
 /**
  * Repository pour gérer l'accès aux données ValidationWorkflow
  */
@@ -32,11 +38,11 @@ export class ValidationWorkflowRepository {
   /**
    * Trouve un workflow par ID
    */
-  async findById(id: string): Promise<ValidationWorkflow | null> {
+  async findById(id: string): Promise<ValidationWorkflowWithRelations | null> {
     return this.prisma.validationWorkflow.findUnique({
       where: { id },
       include: this.standardInclude,
-    });
+    }) as Promise<ValidationWorkflowWithRelations | null>;
   }
 
   /**
@@ -44,11 +50,11 @@ export class ValidationWorkflowRepository {
    */
   async findByPurchaseId(
     purchaseId: string,
-  ): Promise<ValidationWorkflow | null> {
+  ): Promise<ValidationWorkflowWithRelations | null> {
     return this.prisma.validationWorkflow.findUnique({
       where: { purchaseId },
       include: this.standardInclude,
-    });
+    }) as Promise<ValidationWorkflowWithRelations | null>;
   }
 
   /**
@@ -59,7 +65,7 @@ export class ValidationWorkflowRepository {
     take?: number;
     where?: Prisma.ValidationWorkflowWhereInput;
     orderBy?: Prisma.ValidationWorkflowOrderByWithRelationInput;
-  }): Promise<ValidationWorkflow[]> {
+  }): Promise<ValidationWorkflowWithRelations[]> {
     const { skip, take, where, orderBy } = params;
 
     return this.prisma.validationWorkflow.findMany({
@@ -68,7 +74,7 @@ export class ValidationWorkflowRepository {
       where,
       orderBy,
       include: this.standardInclude,
-    });
+    }) as Promise<ValidationWorkflowWithRelations[]>;
   }
 
   /**
@@ -76,11 +82,11 @@ export class ValidationWorkflowRepository {
    */
   async create(
     data: Prisma.ValidationWorkflowCreateInput,
-  ): Promise<ValidationWorkflow> {
+  ): Promise<ValidationWorkflowWithRelations> {
     return this.prisma.validationWorkflow.create({
       data,
       include: this.standardInclude,
-    });
+    }) as Promise<ValidationWorkflowWithRelations>;
   }
 
   /**
@@ -89,14 +95,14 @@ export class ValidationWorkflowRepository {
   async update(params: {
     where: Prisma.ValidationWorkflowWhereUniqueInput;
     data: Prisma.ValidationWorkflowUpdateInput;
-  }): Promise<ValidationWorkflow> {
+  }): Promise<ValidationWorkflowWithRelations> {
     const { where, data } = params;
 
     return this.prisma.validationWorkflow.update({
       where,
       data,
       include: this.standardInclude,
-    });
+    }) as Promise<ValidationWorkflowWithRelations>;
   }
 
   /**
@@ -118,7 +124,7 @@ export class ValidationWorkflowRepository {
   /**
    * Trouve les workflows complets
    */
-  async findCompleted(): Promise<ValidationWorkflow[]> {
+  async findCompleted(): Promise<ValidationWorkflowWithRelations[]> {
     return this.findMany({
       where: { isComplete: true },
       orderBy: { updatedAt: 'desc' },
@@ -128,7 +134,7 @@ export class ValidationWorkflowRepository {
   /**
    * Trouve les workflows en cours
    */
-  async findPending(): Promise<ValidationWorkflow[]> {
+  async findPending(): Promise<ValidationWorkflowWithRelations[]> {
     return this.findMany({
       where: { isComplete: false },
       orderBy: { createdAt: 'asc' },
@@ -141,7 +147,7 @@ export class ValidationWorkflowRepository {
   async updateStep(params: {
     id: string;
     currentStep: number;
-  }): Promise<ValidationWorkflow> {
+  }): Promise<ValidationWorkflowWithRelations> {
     const { id, currentStep } = params;
 
     return this.update({
@@ -153,7 +159,7 @@ export class ValidationWorkflowRepository {
   /**
    * Marque un workflow comme complet
    */
-  async markAsComplete(id: string): Promise<ValidationWorkflow> {
+  async markAsComplete(id: string): Promise<ValidationWorkflowWithRelations> {
     return this.update({
       where: { id },
       data: {
@@ -166,7 +172,7 @@ export class ValidationWorkflowRepository {
   /**
    * Réinitialise un workflow
    */
-  async reset(id: string): Promise<ValidationWorkflow> {
+  async reset(id: string): Promise<ValidationWorkflowWithRelations> {
     return this.update({
       where: { id },
       data: {

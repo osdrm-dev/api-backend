@@ -2,11 +2,26 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { Purchase, Prisma, PurchaseStatus, PurchaseStep } from '@prisma/client';
 
+// Type pour Purchase avec toutes les relations
+type PurchaseWithRelations = Purchase & {
+  creator: any;
+  items: any[];
+  attachments: any[];
+  derogation: any;
+  validationWorkflow: any;
+};
+
+/**
+ * Repository pour gérer l'accès aux données Purchase
+ * Suit le pattern Repository pour séparer la logique métier de l'accès aux données
+ */
 @Injectable()
 export class PurchaseRepository {
   constructor(private prisma: PrismaService) {}
 
-  //Include standard pour recuperer toutes les relations
+  /**
+   * Include standard pour récupérer toutes les relations
+   */
   private readonly standardInclude: Prisma.PurchaseInclude = {
     creator: {
       select: {
@@ -39,29 +54,37 @@ export class PurchaseRepository {
     },
   };
 
-  //trouver une purchase par ID
-  async findById(id: string): Promise<Purchase | null> {
+  /**
+   * Trouve une purchase par ID
+   */
+  async findById(id: string): Promise<PurchaseWithRelations | null> {
     return this.prisma.purchase.findUnique({
       where: { id },
       include: this.standardInclude,
-    });
+    }) as Promise<PurchaseWithRelations | null>;
   }
 
-  //Trouve une purchase par reference
-  async findByReference(reference: string): Promise<Purchase | null> {
+  /**
+   * Trouve une purchase par référence
+   */
+  async findByReference(
+    reference: string,
+  ): Promise<PurchaseWithRelations | null> {
     return this.prisma.purchase.findUnique({
       where: { reference },
       include: this.standardInclude,
-    });
+    }) as Promise<PurchaseWithRelations | null>;
   }
 
-  //trouve plusieurs purchases avec filtres
+  /**
+   * Trouve plusieurs purchases avec filtres
+   */
   async findMany(params: {
     skip?: number;
     take?: number;
     where?: Prisma.PurchaseWhereInput;
     orderBy?: Prisma.PurchaseOrderByWithRelationInput;
-  }): Promise<Purchase[]> {
+  }): Promise<PurchaseWithRelations[]> {
     const { skip, take, where, orderBy } = params;
 
     return this.prisma.purchase.findMany({
@@ -70,15 +93,19 @@ export class PurchaseRepository {
       where,
       orderBy,
       include: this.standardInclude,
-    });
+    }) as Promise<PurchaseWithRelations[]>;
   }
 
-  //Compte les purchases selon les criteres
+  /**
+   * Compte les purchases selon un critère
+   */
   async count(where?: Prisma.PurchaseWhereInput): Promise<number> {
     return this.prisma.purchase.count({ where });
   }
 
-  //creer une nouvelle purchase
+  /**
+   * Crée une nouvelle purchase
+   */
   async create(data: Prisma.PurchaseCreateInput): Promise<Purchase> {
     return this.prisma.purchase.create({
       data,
@@ -86,7 +113,9 @@ export class PurchaseRepository {
     });
   }
 
-  //Mettre a jour une purchase
+  /**
+   * Met à jour une purchase
+   */
   async update(params: {
     where: Prisma.PurchaseWhereUniqueInput;
     data: Prisma.PurchaseUpdateInput;
@@ -100,7 +129,9 @@ export class PurchaseRepository {
     });
   }
 
-  //supprimer une purchase
+  /**
+   * Supprime une purchase
+   */
   async delete(where: Prisma.PurchaseWhereUniqueInput): Promise<Purchase> {
     return this.prisma.purchase.delete({
       where,
@@ -108,7 +139,9 @@ export class PurchaseRepository {
     });
   }
 
-  //Trouver les purchases par createurs
+  /**
+   * Trouve les purchases par créateur
+   */
   async findByCreator(params: {
     creatorId: number;
     skip?: number;
@@ -126,12 +159,14 @@ export class PurchaseRepository {
     return this.findMany({ skip, take, where, orderBy });
   }
 
-  //Trouver les purchases en attente de validation
-  async findPendingvalidation(params: {
+  /**
+   * Trouve les purchases en attente de validation
+   */
+  async findPendingValidation(params: {
     skip?: number;
     take?: number;
     orderBy?: Prisma.PurchaseOrderByWithRelationInput;
-  }): Promise<Purchase[] | null> {
+  }): Promise<Purchase[]> {
     const { skip, take, orderBy } = params;
 
     return this.findMany({
@@ -142,7 +177,9 @@ export class PurchaseRepository {
     });
   }
 
-  //Trouver les purchases par status
+  /**
+   * Trouve les purchases par statut
+   */
   async findByStatus(params: {
     status: PurchaseStatus;
     skip?: number;
@@ -159,11 +196,13 @@ export class PurchaseRepository {
     });
   }
 
-  // Mettre a jour le status d'une purchase
+  /**
+   * Met à jour le statut d'une purchase
+   */
   async updateStatus(params: {
     id: string;
     status: PurchaseStatus;
-    additionalData: Partial<Prisma.PurchaseUpdateInput>;
+    additionalData?: Partial<Prisma.PurchaseUpdateInput>;
   }): Promise<Purchase> {
     const { id, status, additionalData = {} } = params;
 
@@ -176,7 +215,9 @@ export class PurchaseRepository {
     });
   }
 
-  //Mettre a jour le currentStep d'un purchase
+  /**
+   * Met à jour le currentStep d'une purchase
+   */
   async updateStep(params: {
     id: string;
     currentStep: PurchaseStep;
@@ -189,7 +230,9 @@ export class PurchaseRepository {
     });
   }
 
-  //Rechercher des purchases par terme
+  /**
+   * Recherche des purchases par terme
+   */
   async search(params: {
     searchTerm: string;
     skip?: number;
@@ -218,12 +261,16 @@ export class PurchaseRepository {
     });
   }
 
-  //Compte le purchase par status
+  /**
+   * Compte les purchases par statut
+   */
   async countByStatus(status: PurchaseStatus): Promise<number> {
     return this.count({ status });
   }
 
-  //Trouve les purchases créees entre deux dates
+  /**
+   * Trouve les purchases créées entre deux dates
+   */
   async findByDateRange(params: {
     startDate: Date;
     endDate: Date;
@@ -241,7 +288,7 @@ export class PurchaseRepository {
           lte: endDate,
         },
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: 'desc' },
     });
   }
 }
