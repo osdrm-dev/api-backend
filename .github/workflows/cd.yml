@@ -1,0 +1,114 @@
+name: CD - OSDRM REST API PRODUCTION
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to OVH server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          debug: true
+          script: |
+            set -e
+
+            echo "=== Load environment ==="
+            export HOME=/home/dev
+            export NVM_DIR="$HOME/.nvm"
+
+            if [ -s "$NVM_DIR/nvm.sh" ]; then
+              . "$NVM_DIR/nvm.sh"
+              nvm use 24
+            else
+              echo "NVM not found"
+              exit 1
+            fi
+
+            export PATH="$NVM_DIR/versions/node/v24.12.0/bin:/usr/local/bin:/usr/bin:$PATH"
+
+            echo "Ensure app directory exists"
+            mkdir -p ${{ secrets.APP_DIR }}
+            cd ${{ secrets.APP_DIR }}
+
+            echo "Prepare rollback directories"
+            rm -rf failed || true
+
+            if [ -d "current" ]; then
+              echo "Backup current version"
+              rm -rf previous
+              mv current previous
+            fi
+
+            echo "Clone new version"
+            git clone https://github.com/osdrm-dev/api-backend.git current || {
+              echo "Git clone failed, rollback"
+              rm -rf current
+              mv previous current
+              exit 1
+            }
+
+            cd current
+
+            echo "Create .env file"
+            cat <<EOF > .env
+            NODE_ENV=production
+            PORT=3000
+            DATABASE_URL=${{ secrets.DATABASE_URL }}
+            EOF
+
+            echo "Install production dependencies"
+            npm install || {
+              echo "npm install failed, rollback"
+              cd ..
+              rm -rf current
+              mv previous current
+              exit 1
+            }
+
+            echo "=== Generate Prisma Client ==="
+            npx prisma generate || {
+              echo "Prisma generate failed, rollback"
+              cd ..
+              rm -rf current
+              mv previous current
+              exit 1
+            }
+
+            echo "Build application"
+            npm run build || {
+              echo "Build failed, rollback"
+              cd ..
+              rm -rf current
+              mv previous current
+              exit 1
+            }
+
+            if ! pm2 list >/dev/null 2>&1; then
+              echo "PM2 is not installed or not working"
+              exit 1
+            fi
+
+            echo "Load environment variables from .env" 
+            export $(cat .env | xargs)
+
+            echo "Restart application with PM2"
+            pm2 delete ${{ secrets.PM2_APP_NAME }} || true
+
+            pm2 start dist/src/main.js \
+              --name ${{ secrets.PM2_APP_NAME }} \
+              --update-env
+
+            pm2 save
+
+            echo "Cleanup old backup"
+            rm -rf previous
+
+            echo "Deployment successful"
