@@ -1,14 +1,14 @@
 services:
- postgres-db:
-  image: postgres:latest
-  container_name: postgres-osdrm
-  environment:
-   - POSTGRES_USER=myuser
-   - POSTGRES_PASSWORD=mypassword
-   - POSTGRES_DB=osdrm
-  ports:
-   - "5432:5432"
-  volumes:
-   - postgres_data:/var/lib/postgresql
+  postgres-db:
+    image: postgres:latest
+    container_name: postgres-osdrm
+    environment:
+      - POSTGRES_USER=myuser
+      - POSTGRES_PASSWORD=mypassword
+      - POSTGRES_DB=osdrm
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql
 volumes:
- postgres_data:
+  postgres_data:
