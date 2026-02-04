@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { ValidatorRole, PurchaseStatus } from '@prisma/client';
-import { PurchaseRepository } from '../repositories/purchase.repository';
+import { PurchaseRepository } from '../../repository/purchase/purchase.repository';
 
 export interface FilterOptions {
   page?: number;

@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { OperationType, ValidatorRole, PurchaseStep } from '@prisma/client';
 import { WorkflowConfigService } from './workflow-config.service';
-import { ValidationWorkflowRepository } from '../repositories/validation-workflow.repository';
-import { ValidatorRepository } from '../repositories/validator.repository';
-import { UserRepository } from '../repositories/user.repository';
+import { ValidationWorkflowRepository } from '../../repository/purchase/validation-workflow.repository';
+import { ValidatorRepository } from '../../repository/purchase/validator.repository';
+import { UserRepository } from '../../repository/user/user.repository';
 
 /**
  * Service pour gérer les workflows de validation

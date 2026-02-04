@@ -7,8 +7,8 @@ import {
 import { PurchaseStatus, ValidatorRole } from '@prisma/client';
 import { ValidationWorkflowService } from './validation-workflow.service';
 import { WorkflowConfigService } from './workflow-config.service';
-import { PurchaseRepository } from '../repositories/purchase.repository';
-import { AuditLogRepository } from '../repositories/audit-log.repository';
+import { PurchaseRepository } from '../../repository/purchase/purchase.repository';
+import { AuditLogRepository } from '../../repository/audit/audit-log.repository';
 
 export interface ValidationContext {
   purchaseId: string;
