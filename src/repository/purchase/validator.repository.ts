@@ -2,6 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { Validator, Prisma, ValidatorRole } from '@prisma/client';
 
+// Type pour Validator avec toutes les relations
+export type ValidatorWithRelations = Validator & {
+  user: any;
+  workflow: any;
+};
+
 /**
  * Repository pour gérer l'accès aux données Validator
  */
@@ -46,7 +52,7 @@ export class ValidatorRepository {
     take?: number;
     where?: Prisma.ValidatorWhereInput;
     orderBy?: Prisma.ValidatorOrderByWithRelationInput;
-  }): Promise<Validator[]> {
+  }): Promise<ValidatorWithRelations[]> {
     const { skip, take, where, orderBy } = params;
 
     return this.prisma.validator.findMany({
@@ -185,12 +191,13 @@ export class ValidatorRepository {
       data: {
         isValidated: true,
         validatedAt: new Date(),
-        userId,
+        userId: userId,
         decision,
         comment,
         name: userName,
         email: userEmail,
       },
+      include: this.standardInclude,
     });
   }
 
@@ -198,20 +205,17 @@ export class ValidatorRepository {
    * Réinitialise les validateurs d'un workflow
    */
   async resetByWorkflow(workflowId: string): Promise<number> {
-    const result = this.prisma.validator.updateMany({
+    return this.updateMany({
       where: { workflowId },
       data: {
         isValidated: false,
         validatedAt: null,
         decision: null,
         comment: null,
-        userId: null,
         name: null,
         email: null,
       },
     });
-
-    return (await result).count;
   }
 
   /**
@@ -237,7 +241,7 @@ export class ValidatorRepository {
     userId: number;
     skip?: number;
     take?: number;
-  }): Promise<Validator[]> {
+  }): Promise<ValidatorWithRelations[]> {
     const { userId, skip, take } = params;
 
     return this.findMany({
