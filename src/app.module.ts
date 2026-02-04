@@ -1,15 +1,13 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { WinstonModule } from 'nest-winston';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { winstonConfig } from 'src/auth/logger/winston.config';
+import { winstonConfig } from './auth/logger/winston.config';
 import { AuthModule } from './auth/auth.module';
 import { PrismaModule } from 'prisma/prisma.module';
 import { LoggerModule } from 'src/auth/logger/logger.module';
-import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
-import { RolesGuard } from './auth/guards/roles.guard';
 import { AuthMiddleware } from './auth/middlewares/auth.middleware';
 import { AuditMiddleware } from './auth/middlewares/audit.middleware';
 import { RateLimitMiddleware } from './auth/middlewares/rate-limit.middleware';
@@ -34,14 +32,15 @@ import { HttpLoggingInterceptor } from 'src/auth/logger/http-logging.interceptor
   controllers: [AppController],
   providers: [
     AppService,
-    {
-      provide: APP_GUARD,
-      useClass: JwtAuthGuard,
-    },
-    {
-      provide: APP_GUARD,
-      useClass: RolesGuard,
-    },
+    // NE PAS mettre les guards en global - les appliquer au niveau des contrôleurs
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: JwtAuthGuard,
+    // },
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: RolesGuard,
+    // },
     {
       provide: APP_INTERCEPTOR,
       useClass: HttpLoggingInterceptor,
