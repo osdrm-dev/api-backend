@@ -12,6 +12,7 @@ import { AuthMiddleware } from './auth/middlewares/auth.middleware';
 import { AuditMiddleware } from './auth/middlewares/audit.middleware';
 import { RateLimitMiddleware } from './auth/middlewares/rate-limit.middleware';
 import { HttpLoggingInterceptor } from 'src/auth/logger/http-logging.interceptor';
+import { AuditModule } from './audit/audit.module';
 import { PurchaseModule } from './purchaseValidation/purchase.module';
 
 @Module({
@@ -29,6 +30,7 @@ import { PurchaseModule } from './purchaseValidation/purchase.module';
     PrismaModule,
     LoggerModule,
     AuthModule,
+    AuditModule,
     PurchaseModule,
   ],
   controllers: [AppController],

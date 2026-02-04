@@ -9,10 +9,11 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { JwtRefreshStrategy } from './strategies/jwt-refresh.strategy';
 import { PrismaModule } from 'prisma/prisma.module';
-import { AuditService } from './services/audit.service';
+import { AuditService } from '../audit/services/audit.service';
 import { AuthMiddleware } from './middlewares/auth.middleware';
 import { AuditMiddleware } from './middlewares/audit.middleware';
 import { RateLimitMiddleware } from './middlewares/rate-limit.middleware';
+import { AuditModule } from 'src/audit/audit.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { RateLimitMiddleware } from './middlewares/rate-limit.middleware';
       }),
       inject: [ConfigService],
     }),
+    AuditModule,
   ],
   controllers: [AuthController],
   providers: [
