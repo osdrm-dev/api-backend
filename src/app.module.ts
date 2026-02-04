@@ -12,8 +12,10 @@ import { AuthMiddleware } from './auth/middlewares/auth.middleware';
 import { AuditMiddleware } from './auth/middlewares/audit.middleware';
 import { RateLimitMiddleware } from './auth/middlewares/rate-limit.middleware';
 import { HttpLoggingInterceptor } from 'src/auth/logger/http-logging.interceptor';
+
 import { AuditModule } from './audit/audit.module';
-import { PurchaseModule } from './purchaseValidation/purchase.module';
+import { PurchaseValidationModule } from './purchaseValidation/purchase.module';
+import { PurchaseModule } from './purchase/purchase.module';
 
 @Module({
   imports: [
@@ -31,6 +33,7 @@ import { PurchaseModule } from './purchaseValidation/purchase.module';
     LoggerModule,
     AuthModule,
     AuditModule,
+    PurchaseValidationModule,
     PurchaseModule,
   ],
   controllers: [AppController],

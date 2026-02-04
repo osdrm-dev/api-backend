@@ -5,7 +5,6 @@ import {
   IsNumber,
   IsOptional,
   IsBoolean,
-  Min,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
