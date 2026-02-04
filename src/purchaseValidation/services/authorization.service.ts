@@ -4,7 +4,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { ValidatorRole } from '@prisma/client';
-import { UserRepository } from '../repositories';
+import { UserRepository } from '../../repository/purchase';
 import { WorkflowConfigService } from './workflow-config.service';
 import { ValidationWorkflowService } from './validation-workflow.service';
 
