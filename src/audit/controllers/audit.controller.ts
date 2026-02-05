@@ -26,6 +26,12 @@ export class AuditController {
     description: 'Filtrer par action (ex: LOGIN, CREATE)',
   })
   @ApiQuery({
+    name: 'userName',
+    required: false,
+    type: String,
+    description: "Filtrer par nom d'utilisateur",
+  })
+  @ApiQuery({
     name: 'startDate',
     required: false,
     type: String,
