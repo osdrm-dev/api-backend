@@ -8,8 +8,12 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { WorkflowService } from './workflow.service';
 import { CreatePurchaseDto } from '../dto/create-purchase.dto';
 import { AddPurchaseItemsDto } from '../dto/purchase-item.dto';
-
+import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
 import { PurchaseStatus, PurchaseStep } from '@prisma/client';
+import {
+  buildPaginatedResponse,
+  parsePaginationParams,
+} from 'src/common/pagination.utils';
 
 @Injectable()
 export class PurchaseService {
@@ -220,16 +224,54 @@ export class PurchaseService {
   }
 
   /**
-   * Recuperer les DA de l'utilisateur
+   * Recuperer les DA de l'utilisateur avec pagination centralisée
    */
-  async getMyPurchases(userId: number, filters: any = {}) {
-    const { page = 1, limit = 10, status, currentStep } = filters;
-    const skip = (page - 1) * limit;
+  async getMyPurchases(userId: number, filters: FilterPurchaseDto = {}) {
+    const pagination = parsePaginationParams(filters, {
+      defaultPage: 1,
+      defaultLimit: 10,
+      maxLimit: 100,
+    });
 
+    // Construire les conditions where
     const where: any = { creatorId: userId };
-    if (status) where.status = status;
-    if (currentStep) where.currentStep = currentStep;
 
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.currentStep) {
+      where.currentStep = filters.currentStep;
+    }
+
+    if (filters.search) {
+      where.OR = [
+        { reference: { contains: filters.search, mode: 'insensitive' } },
+        { title: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    if (filters.minAmount !== undefined || filters.maxAmount !== undefined) {
+      where.amount = {};
+      if (filters.minAmount !== undefined) {
+        where.amount.gte = filters.minAmount;
+      }
+      if (filters.maxAmount !== undefined) {
+        where.amount.lte = filters.maxAmount;
+      }
+    }
+
+    if (filters.startDate || filters.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) {
+        where.createdAt.gte = new Date(filters.startDate);
+      }
+      if (filters.endDate) {
+        where.createdAt.lte = new Date(filters.endDate);
+      }
+    }
+
+    // Exécuter les requêtes
     const [purchases, total] = await Promise.all([
       this.prisma.purchase.findMany({
         where,
@@ -244,26 +286,15 @@ export class PurchaseService {
           },
         },
         orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
+        skip: pagination.skip,
+        take: pagination.limit,
       }),
       this.prisma.purchase.count({ where }),
     ]);
 
-    return {
-      data: purchases,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return buildPaginatedResponse(purchases, total, pagination);
   }
 
-  /**
-   * Supprimer une DA en brouillon
-   */
   async deleteDraftPurchase(purchaseId: string, userId: number) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },

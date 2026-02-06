@@ -15,11 +15,11 @@ import {
   ApiBearerAuth,
   ApiParam,
   ApiBody,
-  ApiQuery,
 } from '@nestjs/swagger';
 import { PurchaseService } from '../services/purchase.service';
 import { CreatePurchaseDto } from '../dto/create-purchase.dto';
 import { AddPurchaseItemsDto } from '../dto/purchase-item.dto';
+import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import {
   ApiSuccessResponse,
@@ -139,19 +139,16 @@ export class PurchaseController {
   @Get()
   @ApiOperation({
     summary: 'Lister mes DA',
-    description: "Recupere la liste des DA creees par l'utilisateur connecte",
+    description:
+      "Recupere la liste des DA creees par l'utilisateur connecte avec filtres et pagination",
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiQuery({ name: 'status', required: false, type: String })
-  @ApiQuery({ name: 'currentStep', required: false, type: String })
   @ApiPaginatedResponse({
     id: 'da-123',
     reference: 'DA-2024-0001',
     title: 'Achat materiel',
   })
   @ApiCommonResponses()
-  async getMyPurchases(@Request() req, @Query() filters: any) {
+  async getMyPurchases(@Request() req, @Query() filters: FilterPurchaseDto) {
     return this.purchaseService.getMyPurchases(req.user.id, filters);
   }
 

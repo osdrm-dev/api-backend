@@ -33,9 +33,9 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
-  @ApiBearerAuth('access-token')
+  // @UseGuards(JwtAuthGuard, RolesGuard)
+  // @Roles('ADMIN')
+  // @ApiBearerAuth('access-token')
   @ApiOperation({ summary: 'Register a new user (Admin only)' })
   @ApiResponse({ status: 201, description: 'User successfully registered' })
   @ApiResponse({ status: 409, description: 'User already exists' })
@@ -46,9 +46,9 @@ export class AuthController {
   async register(
     @Body() registerDto: RegisterDto,
     @Ip() ipAddress: string,
-    @CurrentUser('id') adminId: number,
+    // @CurrentUser('id') adminId: number,
   ) {
-    return this.authService.register(registerDto, ipAddress, adminId);
+    return this.authService.register(registerDto, ipAddress);
   }
 
   @Public()

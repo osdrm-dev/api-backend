@@ -6,14 +6,16 @@ import {
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ValidateDerogationDto } from '../dto/derogation.dto';
 import { DerogationStatus, PurchaseStatus } from '@prisma/client';
+import {
+  parsePaginationParams,
+  buildPaginatedResponse,
+  PaginationParams,
+} from 'src/common/pagination.utils';
 
 @Injectable()
 export class DerogationService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /**
-   * Recuperer les details d'une derogation
-   */
   async getDerogationById(derogationId: string) {
     const derogation = await this.prisma.derogation.findUnique({
       where: { id: derogationId },
@@ -39,7 +41,7 @@ export class DerogationService {
     return derogation;
   }
 
-  async getPendingDerogations(userId: number, filters: any = {}) {
+  async getPendingDerogations(userId: number, filters: PaginationParams = {}) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -48,8 +50,12 @@ export class DerogationService {
       throw new NotFoundException('Utilisateur non trouve');
     }
 
-    const { page = 1, limit = 10 } = filters;
-    const skip = (page - 1) * limit;
+    // Parser et valider les paramètres de pagination
+    const pagination = parsePaginationParams(filters, {
+      defaultPage: 1,
+      defaultLimit: 10,
+      maxLimit: 100,
+    });
 
     const where: any = {
       status: DerogationStatus.PENDING,
@@ -73,21 +79,13 @@ export class DerogationService {
           },
         },
         orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
+        skip: pagination.skip,
+        take: pagination.limit,
       }),
       this.prisma.derogation.count({ where }),
     ]);
 
-    return {
-      data: derogations,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return buildPaginatedResponse(derogations, total, pagination);
   }
 
   /**
@@ -167,9 +165,13 @@ export class DerogationService {
   /**
    * Recuperer l'historique des derogations
    */
-  async getDerogationHistory(userId: number, filters: any = {}) {
-    const { page = 1, limit = 10 } = filters;
-    const skip = (page - 1) * limit;
+  async getDerogationHistory(userId: number, filters: PaginationParams = {}) {
+    // Parser et valider les paramètres de pagination
+    const pagination = parsePaginationParams(filters, {
+      defaultPage: 1,
+      defaultLimit: 10,
+      maxLimit: 100,
+    });
 
     const [derogations, total] = await Promise.all([
       this.prisma.derogation.findMany({
@@ -192,8 +194,8 @@ export class DerogationService {
           },
         },
         orderBy: [{ approvedAt: 'desc' }, { rejectedAt: 'desc' }],
-        skip,
-        take: limit,
+        skip: pagination.skip,
+        take: pagination.limit,
       }),
       this.prisma.derogation.count({
         where: {
@@ -204,14 +206,6 @@ export class DerogationService {
       }),
     ]);
 
-    return {
-      data: derogations,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return buildPaginatedResponse(derogations, total, pagination);
   }
 }
