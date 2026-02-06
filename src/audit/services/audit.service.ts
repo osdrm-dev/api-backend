@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { AuditRepository } from 'src/repository/audit/audit.repository';
+import { AuditLogRepository } from 'src/repository/purchase';
 
 interface AuditLogData {
   userId?: number;
@@ -14,18 +14,18 @@ interface AuditLogData {
 
 @Injectable()
 export class AuditService {
-  constructor(private readonly auditRepository: AuditRepository) {}
+  constructor(private readonly auditLogRepository: AuditLogRepository) {}
 
   async log(data: AuditLogData) {
-    return this.auditRepository.log(data);
+    return this.auditLogRepository.log(data);
   }
 
   async getUserAuditLogs(userId: number, limit = 50) {
-    return this.auditRepository.findUserAuditLogs(userId, limit);
+    return this.auditLogRepository.findUserAuditLogs(userId, limit);
   }
 
   async getResourceAuditLogs(resource: string, resourceId: string, limit = 50) {
-    return this.auditRepository.findResourceAuditLogs(
+    return this.auditLogRepository.findResourceAuditLogs(
       resource,
       resourceId,
       limit,
@@ -33,6 +33,8 @@ export class AuditService {
   }
 
   async getAllAuditLogs(filters: any) {
-    return this.auditRepository.findAllAuditLogs(filters);
+    return this.auditLogRepository.findMany({
+      filters,
+    });
   }
 }
