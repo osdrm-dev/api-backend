@@ -1,4 +1,11 @@
-import { IsString, IsInt, IsOptional, IsEnum, Min } from 'class-validator';
+import {
+  IsString,
+  IsInt,
+  IsOptional,
+  IsEnum,
+  Min,
+  IsIn,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum PurchaseStatus {
@@ -47,20 +54,25 @@ export class FilterPurchaseDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  page?;
-  number = 1;
+  page?: number = 1;
 
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  Limit?: number = 10;
+  number?: number = 1;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number = 10;
 
   @IsOptional()
   @IsString()
   sortBy?: string = 'createdAt';
 
   @IsOptional()
-  @IsString()
-  sortByOrder?: 'asc' | 'desc' = 'desc';
+  @IsIn(['asc', 'desc'])
+  sortOrder?: 'asc' | 'desc' = 'desc';
 }
