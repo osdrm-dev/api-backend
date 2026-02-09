@@ -5,6 +5,9 @@
   "author": "osdrm-dev",
   "private": true,
   "license": "UNLICENSED",
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -24,7 +27,11 @@
     "prisma:migrate:prod": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "db:push:dev": "cross-env NODE_ENV=development prisma db push",
-    "db:push:prod": "echo 'DB push disabled in production!'"
+    "db:push:prod": "echo 'DB push disabled in production!'",
+    "db:seed": "ts-node prisma/seed.ts",
+    "db:seed:dev": "cross-env NODE_ENV=development ts-node prisma/seed.ts",
+    "db:reset": "prisma migrate reset",
+    "db:reset:seed": "prisma migrate reset --skip-seed && npm run db:seed"
   },
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx,json,md,css,scss}": [
