@@ -26,8 +26,9 @@ export class DAValidationService {
     //on utlise les service de query pour recuperer les DA
     return this.queryService.findForValidator(userRole, {
       page: filters.page,
-      limit: filters.Limit,
+      limit: filters.limit,
       sortBy: filters.sortBy,
+      sortOrder: filters.sortOrder,
       status: filters.status,
       project: filters.project,
       region: filters.region,
@@ -118,14 +119,14 @@ export class DAValidationService {
   async getMyValidationHistory(userId: number, filters: FilterPurchaseDto) {
     await this.authService.validateUser(userId);
 
-    const { page = 1, Limit = 10 } = filters;
-    const skip = (page - 1) * Limit;
+    const { page = 1, limit = 10 } = filters;
+    const skip = (page - 1) * limit;
 
     const [validations, total] = await Promise.all([
       this.validatorRepo.findValidationHistory({
         userId,
         skip,
-        take: Limit,
+        take: limit,
       }),
       this.validatorRepo.count({
         userId,
@@ -145,8 +146,8 @@ export class DAValidationService {
       pagination: {
         total,
         page,
-        Limit,
-        totalPages: Math.ceil(total / Limit),
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }

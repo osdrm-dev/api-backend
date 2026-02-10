@@ -17,12 +17,12 @@ export class PurchaseService {
   async findAllForValidator(userId: number, filters: FilterPurchaseDto) {
     const {
       page = 1,
-      Limit = 10,
+      limit = 10,
       sortBy = 'createdAt',
-      sortByOrder = 'desc',
+      sortOrder = 'desc',
       ...filterParams
     } = filters;
-    const skip = (page - 1) * Limit;
+    const skip = (page - 1) * limit;
 
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -105,8 +105,8 @@ export class PurchaseService {
           },
         },
         skip,
-        take: Limit,
-        orderBy: { [sortBy]: sortByOrder },
+        take: limit,
+        orderBy: { [sortBy]: sortOrder },
       }),
       this.prisma.purchase.count({ where }),
     ]);
@@ -116,8 +116,8 @@ export class PurchaseService {
       pagination: {
         total,
         page,
-        Limit,
-        totalPages: Math.ceil(total / Limit),
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
@@ -444,12 +444,12 @@ export class PurchaseService {
   async findAllByUser(userId: number, filters: FilterPurchaseDto) {
     const {
       page = 1,
-      Limit = 10,
+      limit = 10,
       sortBy = 'createdAt',
-      sortByOrder = 'desc',
+      sortOrder = 'desc',
       ...filterParams
     } = filters;
-    const skip = (page - 1) * Limit;
+    const skip = (page - 1) * limit;
 
     const where: any = {
       creatorId: { id: userId },
@@ -488,8 +488,8 @@ export class PurchaseService {
           },
         },
         skip,
-        take: Limit,
-        orderBy: { [sortBy]: sortByOrder },
+        take: limit,
+        orderBy: { [sortBy]: sortOrder },
       }),
       this.prisma.purchase.count({ where }),
     ]);
@@ -499,16 +499,16 @@ export class PurchaseService {
       pagination: {
         total,
         page,
-        Limit,
-        totalPages: Math.ceil(total / Limit),
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
 
   // Historiques des validations
   async getValidationHistory(userId: number, filters: FilterPurchaseDto) {
-    const { page = 1, Limit = 10 } = filters;
-    const skip = (page - 1) * Limit;
+    const { page = 1, limit = 10 } = filters;
+    const skip = (page - 1) * limit;
 
     const [validations, total] = await Promise.all([
       this.prisma.validator.findMany({
@@ -534,7 +534,7 @@ export class PurchaseService {
           },
         },
         skip,
-        take: Limit,
+        take: limit,
         orderBy: { validatedAt: 'desc' },
       }),
 
@@ -558,8 +558,8 @@ export class PurchaseService {
       pagination: {
         total,
         page,
-        Limit,
-        totalPages: Math.ceil(total / Limit),
+        limit,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
