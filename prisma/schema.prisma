@@ -153,6 +153,7 @@ model Purchase {
 
   processingDuration    Int?
   priority              String?
+  justification         String  
 
   deliveryAddress       String?             @db.Text
 

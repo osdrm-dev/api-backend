@@ -43,4 +43,4 @@ import { DAValidationController } from './controllers/da-validation.controller';
     DAValidationService,
   ],
 })
-export class PurchaseModule {}
+export class PurchaseValidationModule {}

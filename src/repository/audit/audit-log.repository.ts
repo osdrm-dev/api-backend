@@ -39,10 +39,36 @@ export class AuditLogRepository {
   async findMany(params: {
     skip?: number;
     take?: number;
-    where?: Prisma.AuditLogWhereInput;
+    filters?: {
+      userId?: number;
+      action?: string;
+      startDate?: string;
+      endDate?: string;
+      resource?: string;
+      resourceId?: string;
+      userName?: string;
+    };
     orderBy?: Prisma.AuditLogOrderByWithRelationInput;
   }): Promise<AuditLog[]> {
-    const { skip, take, where, orderBy } = params;
+    const { skip, take, filters, orderBy } = params;
+
+    const where: Prisma.AuditLogWhereInput = {
+      ...(filters?.userId && { userId: filters.userId }),
+      ...(filters?.action && {
+        action: { contains: filters.action, mode: 'insensitive' },
+      }),
+      ...(filters?.resource && { resource: filters.resource }),
+      ...(filters?.resourceId && { resourceId: filters.resourceId }),
+      ...(filters?.userName && {
+        user: { name: { contains: filters.userName, mode: 'insensitive' } },
+      }),
+      ...((filters?.startDate || filters?.endDate) && {
+        createdAt: {
+          ...(filters?.startDate && { gte: new Date(filters.startDate) }),
+          ...(filters?.endDate && { lte: new Date(filters.endDate) }),
+        },
+      }),
+    };
 
     return this.prisma.auditLog.findMany({
       skip,
@@ -83,7 +109,7 @@ export class AuditLogRepository {
     return this.findMany({
       skip,
       take,
-      where: { userId },
+      filters: { userId },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -101,7 +127,7 @@ export class AuditLogRepository {
     return this.findMany({
       skip,
       take,
-      where: { action },
+      filters: { action },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -117,15 +143,15 @@ export class AuditLogRepository {
   }): Promise<AuditLog[]> {
     const { resource, resourceId, skip, take } = params;
 
-    const where: Prisma.AuditLogWhereInput = { resource };
-    if (resourceId) {
-      where.resourceId = resourceId;
-    }
+    // const where: Prisma.AuditLogWhereInput = { resource };
+    // if (resourceId) {
+    //   where.resourceId = resourceId;
+    // }
 
     return this.findMany({
       skip,
       take,
-      where,
+      filters: { resource, resourceId },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -144,11 +170,9 @@ export class AuditLogRepository {
     return this.findMany({
       skip,
       take,
-      where: {
-        createdAt: {
-          gte: startDate,
-          lte: endDate,
-        },
+      filters: {
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -185,7 +209,7 @@ export class AuditLogRepository {
 
     return this.findMany({
       take: limit,
-      where: userId ? { userId } : undefined,
+      filters: userId ? { userId } : undefined,
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -202,11 +226,54 @@ export class AuditLogRepository {
    */
   async findPurchaseLogs(purchaseId: string): Promise<AuditLog[]> {
     return this.findMany({
-      where: {
+      filters: {
         resource: 'PURCHASE',
         resourceId: purchaseId,
       },
       orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  // method by Kevin
+  async log(data: any) {
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: data.userId,
+          action: data.action,
+          resource: data.resource,
+          resourceId: data.resourceId,
+          details: data.details,
+          ipAddress: data.ipAddress,
+          userAgent: data.userAgent,
+        },
+      });
+    } catch (error) {
+      console.error('Failed to create audit log:', error);
+      // Ne pas faire échouer l'opération principale si l'audit échoue
+    }
+  }
+
+  async findUserAuditLogs(userId: number, limit: number) {
+    return this.prisma.auditLog.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  async findResourceAuditLogs(
+    resource: string,
+    resourceId: string,
+    limit: number,
+  ) {
+    return this.prisma.auditLog.findMany({
+      where: {
+        resource,
+        resourceId,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
     });
   }
 }
