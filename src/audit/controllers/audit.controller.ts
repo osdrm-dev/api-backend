@@ -1,4 +1,5 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, UseGuards, Res } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuditService } from 'src/audit/services/audit.service';
 import { Roles } from '../decorators/roles.decorator';
 import { RolesGuard } from '../guards/roles.guard';
@@ -56,5 +57,23 @@ export class AuditController {
   @ApiResponse({ status: 403, description: 'Accès interdit (non-admin)' })
   async getAllAuditLogs(@Query() filters: any) {
     return this.auditService.getAllAuditLogs(filters);
+  }
+
+  @Get('export')
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Export audits as CSV (Admin only)' })
+  @ApiResponse({
+    status: 200,
+    description: 'Export CSV des audits',
+  })
+  async exportAuditsCsv(@Query() filters: any, @Res() res: Response) {
+    const csvBuffer = await this.auditService.generateAuditsCsv(filters);
+
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="audits.csv"');
+    res.setHeader('Content-Length', String(csvBuffer.length));
+
+    res.end(csvBuffer);
   }
 }

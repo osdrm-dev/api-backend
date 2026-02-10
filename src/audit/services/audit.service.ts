@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { AuditLogRepository } from 'src/repository/purchase';
 
@@ -36,5 +37,64 @@ export class AuditService {
     return this.auditLogRepository.findMany({
       filters,
     });
+  }
+
+  /**
+   * Génère un CSV des audits et l'envoie via l'objet Response
+   */
+  async generateAuditsCsv(filters: any): Promise<Buffer> {
+    const audits = await this.getAllAuditLogs(filters);
+
+    const header = [
+      "Numéro d'identification",
+      'Date de création',
+      "Numéro d'identification de l'utilisateur",
+      "Nom de l'utilisateur",
+      "Email de l'utilisateur",
+      'Action',
+      'Ressource',
+      "Numéro d'identification du ressource",
+      'Détails',
+      'Adresse IP',
+      "Agent de l'utilisateur",
+    ];
+
+    const escape = (value: any) => {
+      if (value === null || value === undefined) return '';
+      let s = typeof value === 'string' ? value : JSON.stringify(value);
+      s = s.replace(/\r?\n/g, ' ');
+      if (
+        s.includes('"') ||
+        s.includes(',') ||
+        s.includes('\n') ||
+        s.includes('\r')
+      ) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    };
+
+    const rows = audits
+      .map((a: any) => {
+        const values = [
+          a.id,
+          a.createdAt?.toISOString ? a.createdAt.toISOString() : a.createdAt,
+          a.user?.id ?? '',
+          a.user?.name ?? '',
+          a.user?.email ?? '',
+          a.action ?? '',
+          a.resource ?? '',
+          a.resourceId ?? '',
+          a.details ? JSON.stringify(a.details) : '',
+          a.ipAddress ?? '',
+          a.userAgent ?? '',
+        ];
+        return values.map(escape).join(',');
+      })
+      .join('\r\n');
+
+    const csv = header.join(',') + '\r\n' + rows;
+
+    return Buffer.from('\ufeff' + csv, 'utf8');
   }
 }
