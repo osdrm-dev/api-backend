@@ -6,9 +6,9 @@ import {
   Body,
   Query,
   UseGuards,
-  Request,
   HttpStatus,
 } from '@nestjs/common';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import {
   ApiTags,
   ApiOperation,
@@ -114,8 +114,10 @@ export class DAValidationController {
     status: HttpStatus.NOT_FOUND,
     description: 'Utilisateur non trouvé',
   })
-  async getPendingDA(@Request() req, @Query() filters: FilterPurchaseDto) {
-    const userId = req.user.id;
+  async getPendingDA(
+    @CurrentUser('id') userId: number,
+    @Query() filters: FilterPurchaseDto,
+  ) {
     return this.daValidationService.getPendingDAForValidator(userId, filters);
   }
 
@@ -259,10 +261,9 @@ export class DAValidationController {
   })
   async validateDA(
     @Param('id') id: string,
-    @Request() req,
+    @CurrentUser('id') userId: number,
     @Body() validateDto: ValidatePurchaseDto,
   ) {
-    const userId = req.user.id;
     return this.daValidationService.validateDA(id, userId, validateDto);
   }
 
@@ -322,10 +323,9 @@ export class DAValidationController {
   })
   async rejectDA(
     @Param('id') id: string,
-    @Request() req,
+    @CurrentUser('id') userId: number,
     @Body() rejectDto: RejectPurchaseDto,
   ) {
-    const userId = req.user.id;
     return this.daValidationService.rejectDA(id, userId, rejectDto);
   }
 
@@ -386,10 +386,9 @@ export class DAValidationController {
   })
   async requestChanges(
     @Param('id') id: string,
-    @Request() req,
+    @CurrentUser('id') userId: number,
     @Body() requestChangesDto: RequestChangesDto,
   ) {
-    const userId = req.user.id;
     return this.daValidationService.requestChangesOnDA(
       id,
       userId,
@@ -437,8 +436,10 @@ export class DAValidationController {
       },
     },
   })
-  async getMyHistory(@Request() req, @Query() filters: FilterPurchaseDto) {
-    const userId = req.user.id;
+  async getMyHistory(
+    @CurrentUser('id') userId: number,
+    @Query() filters: FilterPurchaseDto,
+  ) {
     return this.daValidationService.getMyValidationHistory(userId, filters);
   }
 
@@ -473,8 +474,7 @@ export class DAValidationController {
       },
     },
   })
-  async getMyStats(@Request() req) {
-    const userId = req.user.id;
+  async getStats(@CurrentUser('id') userId: number) {
     return this.daValidationService.getMyValidationStats(userId);
   }
 }
