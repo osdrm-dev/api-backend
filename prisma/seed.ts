@@ -454,7 +454,7 @@ async function main() {
     },
   });
 
-  // Workflow pour purchase4: DEMANDEUR validé → OM en attente
+  // Workflow pour purchase4: DEMANDEUR validé → DP en attente (PROGRAMME 12M: pas d'OM)
   await prisma.validationWorkflow.create({
     data: {
       purchaseId: purchase4.id,
@@ -474,25 +474,17 @@ async function main() {
             comment: 'Fourniture conforme aux spécifications',
           },
           {
-            role: ValidatorRole.OM,
-            order: 2,
-            userId: om.id,
-            name: om.name,
-            email: om.email,
-            isValidated: false,
-            decision: 'PENDING',
-          },
-          {
             role: ValidatorRole.DP,
-            order: 3,
+            order: 2,
             userId: dp.id,
             name: dp.name,
             email: dp.email,
             isValidated: false,
+            decision: 'PENDING',
           },
           {
             role: ValidatorRole.CFO,
-            order: 4,
+            order: 3,
             userId: cfo.id,
             name: cfo.name,
             email: cfo.email,
@@ -500,7 +492,7 @@ async function main() {
           },
           {
             role: ValidatorRole.CEO,
-            order: 5,
+            order: 4,
             userId: ceo.id,
             name: ceo.name,
             email: ceo.email,
@@ -511,11 +503,11 @@ async function main() {
     },
   });
 
-  // Workflow pour purchase5: DEMANDEUR + OM validés → DP en attente
+  // Workflow pour purchase5: DEMANDEUR validé → OM en attente (OPERATION 18M: pas de DP)
   await prisma.validationWorkflow.create({
     data: {
       purchaseId: purchase5.id,
-      currentStep: 2,
+      currentStep: 1,
       isComplete: false,
       validators: {
         create: [
@@ -536,23 +528,12 @@ async function main() {
             userId: om.id,
             name: om.name,
             email: om.email,
-            isValidated: true,
-            validatedAt: new Date('2026-02-08'),
-            decision: 'APPROVED',
-            comment: 'Enveloppe budgétaire disponible',
-          },
-          {
-            role: ValidatorRole.DP,
-            order: 3,
-            userId: dp.id,
-            name: dp.name,
-            email: dp.email,
             isValidated: false,
             decision: 'PENDING',
           },
           {
             role: ValidatorRole.CFO,
-            order: 4,
+            order: 3,
             userId: cfo.id,
             name: cfo.name,
             email: cfo.email,
@@ -560,7 +541,7 @@ async function main() {
           },
           {
             role: ValidatorRole.CEO,
-            order: 5,
+            order: 4,
             userId: ceo.id,
             name: ceo.name,
             email: ceo.email,
@@ -571,11 +552,11 @@ async function main() {
     },
   });
 
-  // Workflow pour purchase6: DEMANDEUR + OM + DP validés → CFO en attente
+  // Workflow pour purchase6: DEMANDEUR + DP validés → CFO en attente (PROGRAMME 22M: pas d'OM)
   await prisma.validationWorkflow.create({
     data: {
       purchaseId: purchase6.id,
-      currentStep: 3,
+      currentStep: 2,
       isComplete: false,
       validators: {
         create: [
@@ -591,40 +572,28 @@ async function main() {
             comment: 'Demande initiale validée',
           },
           {
-            role: ValidatorRole.OM,
-            order: 2,
-            userId: om.id,
-            name: om.name,
-            email: om.email,
-            isValidated: true,
-            validatedAt: new Date('2026-02-08'),
-            decision: 'APPROVED',
-            comment: 'Budget alloué',
-          },
-          {
             role: ValidatorRole.DP,
-            order: 3,
+            order: 2,
             userId: dp.id,
             name: dp.name,
             email: dp.email,
             isValidated: true,
-            validatedAt: new Date('2026-02-08T15:00:00Z'),
+            validatedAt: new Date('2026-02-08'),
             decision: 'APPROVED',
             comment: 'Alignement avec les priorités du programme vérifié',
           },
           {
             role: ValidatorRole.CFO,
-            order: 4,
+            order: 3,
             userId: cfo.id,
             name: cfo.name,
             email: cfo.email,
             isValidated: false,
             decision: 'PENDING',
-            comment: null,
           },
           {
             role: ValidatorRole.CEO,
-            order: 5,
+            order: 4,
             userId: ceo.id,
             name: ceo.name,
             email: ceo.email,
@@ -721,12 +690,14 @@ async function main() {
   console.log(`   • ${2} Attachments créés`);
   console.log(`   • ${4} Audit Logs créés\n`);
   console.log(' 🧪 TEST WORKFLOWS:');
-  console.log(`   • purchase4 (DA-2026-004): DEMANDEUR validé → OM en attente`);
   console.log(
-    `   • purchase5 (DA-2026-005): DEMANDEUR + OM validés → DP en attente`,
+    `   • purchase4 (DA-2026-004): DEMANDEUR validé → DP en attente (PROGRAMME 12M)`,
   );
   console.log(
-    `   • purchase6 (DA-2026-006): DEMANDEUR + OM + DP validés → CFO en attente\n`,
+    `   • purchase5 (DA-2026-005): DEMANDEUR validé → OM en attente (OPERATION 18M)`,
+  );
+  console.log(
+    `   • purchase6 (DA-2026-006): DEMANDEUR + DP validés → CFO en attente (PROGRAMME 22M)\n`,
   );
   console.log(' 👤 USER CREDENTIALS (mot de passe pour tous: Password123!)');
   console.log(`   • admin@osdrm.mg (ADMIN)`);
