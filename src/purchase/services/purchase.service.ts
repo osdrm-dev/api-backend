@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { WorkflowService } from './workflow.service';
+import { WorkflowConfigService } from '../../purchaseValidation/services/workflow-config.service';
 import { CreatePurchaseDto } from '../dto/create-purchase.dto';
 import { AddPurchaseItemsDto } from '../dto/purchase-item.dto';
 import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
@@ -20,6 +21,7 @@ export class PurchaseService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly workflowService: WorkflowService,
+    private readonly workflowConfigService: WorkflowConfigService,
   ) {}
 
   async createPurchase(userId: number, createDto: CreatePurchaseDto) {
@@ -136,8 +138,10 @@ export class PurchaseService {
       );
     }
 
-    // Determiner les validateurs selon le montant
-    const validatorConfigs = this.workflowService.getDerogationValidators(
+    // Determiner les validateurs selon le type d'operation et le montant
+    const requiredRoles = this.workflowConfigService.getRequireValidators(
+      purchase.currentStep,
+      purchase.operationType,
       Number(purchase.amount),
     );
 
@@ -152,9 +156,9 @@ export class PurchaseService {
         purchaseId,
         currentStep: 0,
         validators: {
-          create: validatorConfigs.map((config, index) => ({
-            role: config.role,
-            order: config.order,
+          create: requiredRoles.map((role, index) => ({
+            role,
+            order: index,
             userId: index === 0 ? userId : null,
             name: index === 0 ? user?.name : null,
             email: index === 0 ? user?.email : null,
