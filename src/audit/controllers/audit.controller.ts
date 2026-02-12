@@ -50,6 +50,20 @@ export class AuditController {
     type: Number,
     description: 'Nombre maximum de résultats',
   })
+  @ApiQuery({
+    name: 'skip',
+    required: false,
+    type: Number,
+    description:
+      "Nombre d'enregistrements à sauter (offset) pour la pagination",
+  })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    type: Number,
+    description:
+      "Nombre d'enregistrements à récupérer (limit) pour la pagination",
+  })
   @ApiResponse({
     status: 200,
     description: 'Liste des logs d’audit récupérée avec succès',
