@@ -45,10 +45,18 @@ export class AuditController {
     description: 'Date de fin (ISO)',
   })
   @ApiQuery({
-    name: 'limit',
+    name: 'skip',
     required: false,
     type: Number,
-    description: 'Nombre maximum de résultats',
+    description:
+      "Nombre d'enregistrements à sauter (offset) pour la pagination",
+  })
+  @ApiQuery({
+    name: 'take',
+    required: false,
+    type: Number,
+    description:
+      "Nombre d'enregistrements à récupérer (limit) pour la pagination",
   })
   @ApiResponse({
     status: 200,

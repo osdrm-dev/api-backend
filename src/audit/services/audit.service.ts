@@ -34,8 +34,19 @@ export class AuditService {
   }
 
   async getAllAuditLogs(filters: any) {
+    const maybeSkip = filters?.skip;
+    const maybeTake = filters?.take;
+
+    const skip = maybeSkip !== undefined ? Number(maybeSkip) : undefined;
+    const take = maybeTake !== undefined ? Number(maybeTake) : undefined;
+
+    const { skip: _s, take: _t, ...restFilters } = filters || {};
+
     return this.auditLogRepository.findMany({
-      filters,
+      skip,
+      take,
+      filters: Object.keys(restFilters).length ? restFilters : undefined,
+      orderBy: { createdAt: 'desc' },
     });
   }
 
