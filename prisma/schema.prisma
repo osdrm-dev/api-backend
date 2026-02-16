@@ -168,7 +168,7 @@ model Purchase {
   items                 PurchaseItem[]
   attachments           Attachment[]
   derogation            Derogation?
-  validationWorkflow    ValidationWorkflow?
+  validationWorkflows   ValidationWorkflow[]
 
   updatedAt             DateTime            @updatedAt
 
@@ -253,19 +253,22 @@ model Derogation {
 }
 
 model ValidationWorkflow {
-  id              String      @id @default(cuid())
-  purchaseId      String      @unique
+  id              String        @id @default(cuid())
+  purchaseId      String
+  step            PurchaseStep
 
-  currentStep     Int         @default(0)
-  isComplete      Boolean     @default(false)
+  currentStep     Int           @default(0)
+  isComplete      Boolean       @default(false)
 
-  purchase        Purchase    @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  purchase        Purchase      @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   validators      Validator[]
 
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
 
+  @@unique([purchaseId, step])
   @@index([purchaseId])
+  @@index([step])
   @@map("validation_workflows")
 }
 

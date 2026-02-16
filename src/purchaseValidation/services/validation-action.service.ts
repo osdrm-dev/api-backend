@@ -67,7 +67,17 @@ export class ValidationActionService {
     });
 
     // Avancer le workflow
-    await this.workflowService.advanceWorkflow(purchase.validationWorkflow!.id);
+    const currentWorkflow = purchase.validationWorkflows?.find(
+      (w) => w.step === purchase.currentStep,
+    );
+
+    if (!currentWorkflow) {
+      throw new BadRequestException(
+        `Cette demande n'a pas de workflow pour l'étape actuelle`,
+      );
+    }
+
+    await this.workflowService.advanceWorkflow(currentWorkflow.id);
 
     // Vérifier si le workflow est complet
     const updatedWorkflow = await this.workflowService.getWorkflow(purchaseId);
@@ -238,9 +248,13 @@ export class ValidationActionService {
       );
     }
 
-    if (!purchase.validationWorkflow) {
+    const currentWorkflow = purchase.validationWorkflows?.find(
+      (w) => w.step === purchase.currentStep,
+    );
+
+    if (!currentWorkflow) {
       throw new BadRequestException(
-        `Cette demande n'a pas de workflow de validation`,
+        `Cette demande n'a pas de workflow de validation pour l'étape actuelle`,
       );
     }
   }

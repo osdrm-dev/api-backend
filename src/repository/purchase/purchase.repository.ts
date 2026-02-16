@@ -8,7 +8,7 @@ type PurchaseWithRelations = Purchase & {
   items: any[];
   attachments: any[];
   derogation: any;
-  validationWorkflow: any;
+  validationWorkflows: any[];
 };
 
 /**
@@ -35,7 +35,7 @@ export class PurchaseRepository {
     items: true,
     attachments: true,
     derogation: true,
-    validationWorkflow: {
+    validationWorkflows: {
       include: {
         validators: {
           include: {
@@ -51,6 +51,7 @@ export class PurchaseRepository {
           orderBy: { order: 'asc' },
         },
       },
+      orderBy: { createdAt: 'desc' },
     },
   };
 

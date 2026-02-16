@@ -36,9 +36,10 @@ export class ValidationWorkflowService {
       amount,
     );
 
-    // Crée le workflow
+    // Crée le workflow avec step
     const workflow = await this.workflowRepo.create({
       purchase: { connect: { id: purchaseId } },
+      step,
       currentStep: 0,
       isComplete: false,
     });

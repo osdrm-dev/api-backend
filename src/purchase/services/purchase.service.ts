@@ -115,7 +115,7 @@ export class PurchaseService {
   async publishPurchaseForValidation(purchaseId: string, userId: number) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
-      include: { items: true, validationWorkflow: true },
+      include: { items: true, validationWorkflows: true },
     });
 
     if (!purchase) {
@@ -150,10 +150,11 @@ export class PurchaseService {
       where: { id: userId },
     });
 
-    // Creer le workflow de validation
+    // Creer le workflow de validation avec step
     const workflow = await this.prisma.validationWorkflow.create({
       data: {
         purchaseId,
+        step: PurchaseStep.DA,
         currentStep: 0,
         validators: {
           create: requiredRoles.map((role, index) => ({
@@ -202,12 +203,13 @@ export class PurchaseService {
         items: true,
         attachments: true,
         derogation: true,
-        validationWorkflow: {
+        validationWorkflows: {
           include: {
             validators: {
               orderBy: { order: 'asc' },
             },
           },
+          orderBy: { createdAt: 'desc' },
         },
         creator: {
           select: {
@@ -281,12 +283,13 @@ export class PurchaseService {
         where,
         include: {
           items: true,
-          validationWorkflow: {
+          validationWorkflows: {
             include: {
               validators: {
                 orderBy: { order: 'asc' },
               },
             },
+            orderBy: { createdAt: 'desc' },
           },
         },
         orderBy: { createdAt: 'desc' },

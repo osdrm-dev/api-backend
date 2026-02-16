@@ -403,6 +403,7 @@ async function main() {
   await prisma.validationWorkflow.create({
     data: {
       purchaseId: purchase2.id,
+      step: PurchaseStep.DA,
       currentStep: 2,
       isComplete: false,
       validators: {
@@ -455,6 +456,7 @@ async function main() {
   await prisma.validationWorkflow.create({
     data: {
       purchaseId: purchase4.id,
+      step: PurchaseStep.DA,
       currentStep: 1,
       isComplete: false,
       validators: {
@@ -504,6 +506,7 @@ async function main() {
   await prisma.validationWorkflow.create({
     data: {
       purchaseId: purchase5.id,
+      step: PurchaseStep.DA,
       currentStep: 1,
       isComplete: false,
       validators: {
@@ -553,6 +556,7 @@ async function main() {
   await prisma.validationWorkflow.create({
     data: {
       purchaseId: purchase6.id,
+      step: PurchaseStep.DA,
       currentStep: 2,
       isComplete: false,
       validators: {

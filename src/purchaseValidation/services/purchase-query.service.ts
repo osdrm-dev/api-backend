@@ -69,11 +69,13 @@ export class PurchaseQueryService {
     // Récupérer toutes les DA publiées où le validateur est présent
     const where = this.buildWhereClause(filters, {
       status: 'PUBLISHED',
-      validationWorkflow: {
-        validators: {
-          some: {
-            role: userRole,
-            isValidated: false,
+      validationWorkflows: {
+        some: {
+          validators: {
+            some: {
+              role: userRole,
+              isValidated: false,
+            },
           },
         },
       },
@@ -86,10 +88,21 @@ export class PurchaseQueryService {
 
     // Filtrer pour ne garder que celles où c'est son tour
     const validPurchases = allPurchases.filter((purchase) => {
-      // Vérifier que validationWorkflow existe
-      if (!purchase.validationWorkflow) return false;
+      // Vérifier que validationWorkflows existe
+      if (
+        !purchase.validationWorkflows ||
+        purchase.validationWorkflows.length === 0
+      )
+        return false;
 
-      const validators = purchase.validationWorkflow.validators;
+      // Trouver le workflow du step actuel
+      const currentWorkflow = purchase.validationWorkflows.find(
+        (w) => w.step === purchase.currentStep,
+      );
+
+      if (!currentWorkflow) return false;
+
+      const validators = currentWorkflow.validators;
 
       // Vérifier que validators existe
       if (!validators || validators.length === 0) return false;

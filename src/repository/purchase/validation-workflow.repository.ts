@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
-import { ValidationWorkflow, Prisma } from '@prisma/client';
+import { ValidationWorkflow, Prisma, PurchaseStep } from '@prisma/client';
 
 // Type pour ValidationWorkflow avec toutes les relations
 export type ValidationWorkflowWithRelations = ValidationWorkflow & {
@@ -46,15 +46,33 @@ export class ValidationWorkflowRepository {
   }
 
   /**
-   * Trouve un workflow par Purchase ID
+   * Trouve un workflow par Purchase ID et Step
+   */
+  async findByPurchaseIdAndStep(
+    purchaseId: string,
+    step: PurchaseStep,
+  ): Promise<ValidationWorkflowWithRelations | null> {
+    return this.prisma.validationWorkflow.findUnique({
+      where: {
+        purchaseId_step: { purchaseId, step },
+      },
+      include: this.standardInclude,
+    }) as Promise<ValidationWorkflowWithRelations | null>;
+  }
+
+  /**
+   * Trouve un workflow par Purchase ID (retourne le plus récent)
    */
   async findByPurchaseId(
     purchaseId: string,
   ): Promise<ValidationWorkflowWithRelations | null> {
-    return this.prisma.validationWorkflow.findUnique({
+    const workflows = await this.prisma.validationWorkflow.findMany({
       where: { purchaseId },
       include: this.standardInclude,
-    }) as Promise<ValidationWorkflowWithRelations | null>;
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    });
+    return workflows[0] || null;
   }
 
   /**
