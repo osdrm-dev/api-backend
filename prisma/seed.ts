@@ -14,10 +14,7 @@ import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 
-const connectionString =
-  process.env.NODE_ENV === 'development'
-    ? process.env.DATABASE_URL_DEV
-    : process.env.DATABASE_URL_PROD;
+const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
   throw new Error(
