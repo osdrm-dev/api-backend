@@ -165,4 +165,35 @@ export class PurchaseController {
   async deletePurchase(@Param('id') id: string, @Request() req) {
     return this.purchaseService.deleteDraftPurchase(id, req.user.id);
   }
+
+  @Post(':id/update-and-republish')
+  @ApiOperation({
+    summary: 'Modifier et republier une DA avec modifications demandees',
+    description:
+      'Permet au demandeur de modifier une DA avec status CHANGE_REQUESTED et la republier',
+  })
+  @ApiParam({ name: 'id', description: 'ID de la DA' })
+  @ApiBody({ type: CreatePurchaseDto })
+  @ApiSuccessResponse('DA modifiee', {
+    id: 'da-123',
+    reference: 'DA-2024-0001',
+    status: 'DRAFT',
+    message: 'DA modifiee avec succes. Vous pouvez maintenant la republier.',
+  })
+  @ApiNotFoundResponse('DA')
+  @ApiBadRequestResponse(
+    'Seules les DA avec modifications demandees peuvent etre republiees',
+  )
+  @ApiCommonResponses()
+  async updateAndRepublish(
+    @Param('id') id: string,
+    @Request() req,
+    @Body() updateDto: CreatePurchaseDto,
+  ) {
+    return this.purchaseService.updateAndRepublishPurchase(
+      id,
+      req.user.id,
+      updateDto,
+    );
+  }
 }

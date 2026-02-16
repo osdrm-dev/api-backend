@@ -155,7 +155,7 @@ export class PurchaseService {
       data: {
         purchaseId,
         step: PurchaseStep.DA,
-        currentStep: 0,
+        currentStep: 1, // Passe au validateur suivant car DEMANDEUR valide automatiquement
         validators: {
           create: requiredRoles.map((role, index) => ({
             role,
@@ -329,6 +329,72 @@ export class PurchaseService {
 
     return {
       message: 'DA supprimee avec succes',
+    };
+  }
+
+  async updateAndRepublishPurchase(
+    purchaseId: string,
+    userId: number,
+    updateDto: CreatePurchaseDto,
+    itemsDto?: AddPurchaseItemsDto,
+  ) {
+    const purchase = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+      include: { validationWorkflows: true },
+    });
+
+    if (!purchase) {
+      throw new NotFoundException("Demande d'achat non trouvee");
+    }
+
+    if (purchase.creatorId !== userId) {
+      throw new ForbiddenException(
+        "Vous n'etes pas autorise a modifier cette DA",
+      );
+    }
+
+    if (purchase.status !== PurchaseStatus.CHANGE_REQUESTED) {
+      throw new BadRequestException(
+        'Seules les DA avec modifications demandees peuvent etre republiees',
+      );
+    }
+
+    // Mettre à jour les informations de la DA
+    const updateData: any = {
+      ...updateDto,
+      status: PurchaseStatus.DRAFT,
+      observations: null,
+      closedAt: null,
+    };
+
+    // Supprimer les champs vides pour éviter les erreurs de validation
+    if (!updateData.requestedDeliveryDate) {
+      delete updateData.requestedDeliveryDate;
+    }
+    if (!updateData.deliveryAddress) {
+      delete updateData.deliveryAddress;
+    }
+
+    await this.prisma.purchase.update({
+      where: { id: purchaseId },
+      data: updateData,
+    });
+
+    // Mettre à jour les items si fournis
+    if (itemsDto) {
+      await this.addPurchaseItems(purchaseId, userId, itemsDto);
+    }
+
+    // Supprimer les anciens workflows
+    await this.prisma.validationWorkflow.deleteMany({
+      where: { purchaseId },
+    });
+
+    return {
+      id: purchase.id,
+      reference: purchase.reference,
+      status: PurchaseStatus.DRAFT,
+      message: 'DA modifiee avec succes. Vous pouvez maintenant la republier.',
     };
   }
 }
