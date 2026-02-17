@@ -74,6 +74,32 @@ export class WorkflowConfigService {
         ],
       },
     },
+    {
+      step: PurchaseStep.QR,
+      rules: {
+        [OperationType.OPERATION]: [
+          {
+            roles: [
+              ValidatorRole.OM,
+              ValidatorRole.CFO,
+              ValidatorRole.CEO,
+              ValidatorRole.DEMANDEUR,
+            ],
+          },
+        ],
+        [OperationType.PROGRAMME]: [
+          {
+            roles: [
+              ValidatorRole.OM,
+              ValidatorRole.DP,
+              ValidatorRole.CEO,
+              ValidatorRole.CFO,
+              ValidatorRole.DEMANDEUR,
+            ],
+          },
+        ],
+      },
+    },
 
     //ici on peut ajouter d'autre étapes selon le step avec leur règles
   ];

@@ -109,6 +109,49 @@ export class QuotationService {
   }
 
   /**
+   * Upload plusieurs devis en une seule fois
+   */
+  async uploadMultipleQuotes(
+    purchaseId: string,
+    userId: number,
+    quoteDtos: UploadQuoteDto[],
+  ) {
+    const purchase = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+    });
+
+    if (!purchase) {
+      throw new NotFoundException("Demande d'achat non trouvee");
+    }
+
+    if (purchase.creatorId !== userId) {
+      throw new ForbiddenException('Acces refuse');
+    }
+
+    if (purchase.currentStep !== PurchaseStep.QR) {
+      throw new BadRequestException("Cette DA n'est pas a l'etape QR");
+    }
+
+    const attachments = await this.prisma.attachment.createMany({
+      data: quoteDtos.map((dto) => ({
+        purchaseId,
+        type: AttachmentType.QUOTE,
+        fileName: dto.fileName,
+        fileUrl: dto.fileUrl,
+        fileSize: dto.fileSize,
+        mimeType: dto.mimeType,
+        description: dto.description,
+        uploadedBy: dto.uploadedBy,
+      })),
+    });
+
+    return {
+      count: attachments.count,
+      message: `${attachments.count} devis telecharges avec succes`,
+    };
+  }
+
+  /**
    * Lister les devis d'une DA
    */
   async listQuotes(purchaseId: string, userId: number) {
@@ -286,6 +329,7 @@ export class QuotationService {
       where: { id: purchaseId },
       data: {
         currentStep: PurchaseStep.PV,
+        status: PurchaseStatus.VALIDATED,
       },
     });
 
@@ -293,6 +337,105 @@ export class QuotationService {
       id: purchaseId,
       currentStep: PurchaseStep.PV,
       message: "Devis valides. Passage a l'etape suivante.",
+    };
+  }
+
+  /**
+   * PHASE A -> PHASE B: Soumettre les devis pour validation
+   */
+  async submitQuotesForValidation(purchaseId: string, userId: number) {
+    const purchase = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+      include: {
+        attachments: {
+          where: { type: AttachmentType.QUOTE },
+        },
+        derogation: true,
+      },
+    });
+
+    if (!purchase) {
+      throw new NotFoundException("Demande d'achat non trouvee");
+    }
+
+    if (purchase.creatorId !== userId) {
+      throw new ForbiddenException('Acces refuse');
+    }
+
+    if (purchase.currentStep !== PurchaseStep.QR) {
+      throw new BadRequestException("Cette DA n'est pas a l'etape QR");
+    }
+
+    if (purchase.status !== PurchaseStatus.VALIDATED) {
+      throw new BadRequestException(
+        'La DA doit etre validee (etape DA) avant de soumettre les devis',
+      );
+    }
+
+    const amount = Number(purchase.amount);
+    const level = this.workflowService.getQuoteLevel(amount);
+    const required = this.workflowService.getRequiredQuotesCount(level);
+    const uploaded = purchase.attachments.length;
+
+    // Verifier devis ou derogation
+    const hasEnoughQuotes = uploaded >= required;
+    const hasDerogation = !!purchase.derogation;
+
+    if (!hasEnoughQuotes && !hasDerogation) {
+      throw new BadRequestException(
+        `Devis insuffisants (${uploaded}/${required}). Uploadez plus de devis ou demandez une derogation.`,
+      );
+    }
+
+    // Creer workflow QR selon operationType
+    const requiredRoles = this.workflowService.getQRValidators(
+      purchase.operationType,
+      amount,
+    );
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    const workflow = await this.prisma.validationWorkflow.create({
+      data: {
+        purchaseId,
+        step: PurchaseStep.QR,
+        currentStep: 0,
+        validators: {
+          create: requiredRoles.map((role, index) => ({
+            role,
+            order: index,
+            userId: null,
+            name: null,
+            email: null,
+            isValidated: false,
+            validatedAt: null,
+            decision: null,
+          })),
+        },
+      },
+      include: {
+        validators: {
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+
+    await this.prisma.purchase.update({
+      where: { id: purchaseId },
+      data: {
+        status: PurchaseStatus.PUBLISHED,
+      },
+    });
+
+    return {
+      id: purchase.id,
+      reference: purchase.reference,
+      status: PurchaseStatus.PUBLISHED,
+      currentStep: PurchaseStep.QR,
+      workflow: workflow.validators,
+      message: 'Devis soumis pour validation.',
     };
   }
 }

@@ -13,6 +13,7 @@ enum Role {
   CEO
   DP
   ADMIN
+  ACHETEUR
 }
 
 model User {

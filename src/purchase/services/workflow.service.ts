@@ -176,4 +176,25 @@ export class WorkflowService {
 
     return configs[level] || configs[1];
   }
+
+  /**
+   * Determine les validateurs QR selon operationType
+   * OPERATION: OM -> CFO -> CEO
+   * PROGRAMME: DP -> CFO -> CEO
+   */
+  getQRValidators(
+    operationType: OperationType,
+    amount: number,
+  ): ValidatorRole[] {
+    if (operationType === OperationType.OPERATION) {
+      return [ValidatorRole.OM, ValidatorRole.CFO, ValidatorRole.CEO];
+    } else {
+      // PROGRAMME
+      if (amount >= 50000000) {
+        return [ValidatorRole.OM, ValidatorRole.CFO, ValidatorRole.CEO];
+      } else {
+        return [ValidatorRole.DP, ValidatorRole.CFO, ValidatorRole.CEO];
+      }
+    }
+  }
 }

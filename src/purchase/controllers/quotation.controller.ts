@@ -90,6 +90,32 @@ export class QuotationController {
     return this.quotationService.uploadQuote(purchaseId, req.user.id, quoteDto);
   }
 
+  @Post('bulk')
+  @ApiOperation({
+    summary: 'Uploader plusieurs devis en une fois',
+    description: 'Ajoute plusieurs devis a la DA en une seule requete',
+  })
+  @ApiParam({ name: 'purchaseId', description: 'ID de la DA' })
+  @ApiBody({ type: [UploadQuoteDto] })
+  @ApiCreatedResponse('Devis uploades avec succes', {
+    count: 3,
+    message: '3 devis telecharges avec succes',
+  })
+  @ApiNotFoundResponse('DA')
+  @ApiBadRequestResponse("DA pas a l'etape QR")
+  @ApiCommonResponses()
+  async uploadMultipleQuotes(
+    @Param('purchaseId') purchaseId: string,
+    @Request() req,
+    @Body() quoteDtos: UploadQuoteDto[],
+  ) {
+    return this.quotationService.uploadMultipleQuotes(
+      purchaseId,
+      req.user.id,
+      quoteDtos,
+    );
+  }
+
   @Get()
   @ApiOperation({
     summary: "Lister les devis d'une DA",
@@ -130,10 +156,8 @@ export class QuotationController {
   @Post('derogation')
   @ApiOperation({
     summary: 'Demander une derogation pour devis insuffisants',
-    description: `
-      Demande une derogation si le nombre de devis est insuffisant.
-      La DA passe en statut IN_DEROGATION.
-    `,
+    description:
+      'Demande une derogation si le nombre de devis est insuffisant. La DA passe en statut IN_DEROGATION.',
   })
   @ApiParam({ name: 'purchaseId', description: 'ID de la DA' })
   @ApiBody({ type: CreateDerogationDto })
@@ -158,13 +182,38 @@ export class QuotationController {
     );
   }
 
+  @Post('submit')
+  @ApiOperation({
+    summary: 'Soumettre les devis pour validation (PHASE A -> PHASE B)',
+    description:
+      'Cree un workflow QR et publie pour validation par OM/DP/CFO/CEO',
+  })
+  @ApiParam({ name: 'purchaseId', description: 'ID de la DA' })
+  @ApiSuccessResponse('Devis soumis', {
+    id: 'da-123',
+    status: 'PUBLISHED',
+    currentStep: 'QR',
+    workflow: [],
+    message: 'Devis soumis pour validation.',
+  })
+  @ApiNotFoundResponse('DA')
+  @ApiBadRequestResponse('Devis insuffisants')
+  @ApiCommonResponses()
+  async submitForValidation(
+    @Param('purchaseId') purchaseId: string,
+    @Request() req,
+  ) {
+    return this.quotationService.submitQuotesForValidation(
+      purchaseId,
+      req.user.id,
+    );
+  }
+
   @Post('validate')
   @ApiOperation({
     summary: "Valider les devis et passer a l'etape suivante",
-    description: `
-      Valide que les devis sont complets et fait passer la DA a l'etape suivante.
-      Verifie qu'il y a assez de devis ou qu'une derogation est validee.
-    `,
+    description:
+      "Valide que les devis sont complets et fait passer la DA a l'etape suivante. Verifie qu'il y a assez de devis ou qu'une derogation est validee.",
   })
   @ApiParam({ name: 'purchaseId', description: 'ID de la DA' })
   @ApiSuccessResponse('Devis valides', {

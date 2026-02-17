@@ -172,6 +172,44 @@ export class PurchaseQueryService {
   }
 
   /**
+   * Récupère les DA validées en étape QR pour les acheteurs
+   */
+  async findValidatedForQR(filters: FilterOptions) {
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = filters;
+    const skip = (page - 1) * limit;
+
+    const where = this.buildWhereClause(filters, {
+      status: 'VALIDATED',
+      currentStep: 'QR',
+    });
+
+    const [purchases, total] = await Promise.all([
+      this.purchaseRepo.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { [sortBy]: sortOrder },
+      }),
+      this.purchaseRepo.count(where),
+    ]);
+
+    return {
+      data: purchases,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  /**
    * Récupère des demandes selon des critères personnalisés
    */
   async findMany(filters: FilterOptions, additionalWhere?: any) {
