@@ -1,7 +1,13 @@
-import { Controller, Get, Req, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiOkResponse } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Req,
+  UseGuards,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { StatisticsService } from '../services/statistics.service';
 import { RolesGuard } from '../guards/roles.guard';
+import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Statistics')
 @Controller('statistics')
@@ -26,6 +32,11 @@ export class StatisticsController {
   })
   async getTotalPurchasesCount(@Req() req: any) {
     const user = req.user;
+
+    if (!user) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
     return this.statisticsService.getPurchaseCount(user);
   }
 }
