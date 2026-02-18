@@ -79,23 +79,12 @@ export class WorkflowConfigService {
       rules: {
         [OperationType.OPERATION]: [
           {
-            roles: [
-              ValidatorRole.OM,
-              ValidatorRole.CFO,
-              ValidatorRole.CEO,
-              ValidatorRole.DEMANDEUR,
-            ],
+            roles: [ValidatorRole.OM, ValidatorRole.CFO, ValidatorRole.CEO],
           },
         ],
         [OperationType.PROGRAMME]: [
           {
-            roles: [
-              ValidatorRole.OM,
-              ValidatorRole.DP,
-              ValidatorRole.CEO,
-              ValidatorRole.CFO,
-              ValidatorRole.DEMANDEUR,
-            ],
+            roles: [ValidatorRole.DP, ValidatorRole.CFO, ValidatorRole.CEO],
           },
         ],
       },
@@ -197,5 +186,28 @@ export class WorkflowConfigService {
     } else {
       this.stepconfigs.push(config);
     }
+  }
+
+  //Obtenir le message de status selon l'étape et le status
+  getStatusMessage(status: string, currentStep: string): string {
+    if (status === 'DRAFT') return 'Brouillon';
+    if (status === 'REJECTED') return 'Rejetée';
+    if (status === 'CHANGE_REQUESTED') return 'Modifications demandées';
+
+    if (status === 'PUBLISHED') {
+      return `${currentStep} en cours de validation`;
+    }
+
+    if (status === 'VALIDATED') {
+      const stepMessages = {
+        QR: 'DA validée - En attente de devis',
+        PV: 'Devis validés - En attente de PV',
+        BC: 'PV validé - En attente de BC',
+        LIV: 'BC validé - En attente de livraison',
+      };
+      return stepMessages[currentStep] || `${currentStep} validé`;
+    }
+
+    return status;
   }
 }

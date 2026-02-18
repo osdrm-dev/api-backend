@@ -80,10 +80,6 @@ export class QuotationService {
       throw new NotFoundException("Demande d'achat non trouvee");
     }
 
-    if (purchase.creatorId !== userId) {
-      throw new ForbiddenException('Acces refuse');
-    }
-
     if (purchase.currentStep !== PurchaseStep.QR) {
       throw new BadRequestException("Cette DA n'est pas a l'etape QR");
     }
@@ -122,10 +118,6 @@ export class QuotationService {
 
     if (!purchase) {
       throw new NotFoundException("Demande d'achat non trouvee");
-    }
-
-    if (purchase.creatorId !== userId) {
-      throw new ForbiddenException('Acces refuse');
     }
 
     if (purchase.currentStep !== PurchaseStep.QR) {
@@ -358,10 +350,6 @@ export class QuotationService {
       throw new NotFoundException("Demande d'achat non trouvee");
     }
 
-    if (purchase.creatorId !== userId) {
-      throw new ForbiddenException('Acces refuse');
-    }
-
     if (purchase.currentStep !== PurchaseStep.QR) {
       throw new BadRequestException("Cette DA n'est pas a l'etape QR");
     }
@@ -392,10 +380,6 @@ export class QuotationService {
       purchase.operationType,
       amount,
     );
-
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
 
     const workflow = await this.prisma.validationWorkflow.create({
       data: {

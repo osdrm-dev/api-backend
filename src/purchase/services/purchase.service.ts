@@ -226,7 +226,16 @@ export class PurchaseService {
       throw new NotFoundException("Demande d'achat non trouvee");
     }
 
-    return purchase;
+    // Ajouter le message de status lisible
+    const statusMessage = this.workflowConfigService.getStatusMessage(
+      purchase.status,
+      purchase.currentStep,
+    );
+
+    return {
+      ...purchase,
+      statusMessage,
+    };
   }
 
   /**
@@ -299,7 +308,16 @@ export class PurchaseService {
       this.prisma.purchase.count({ where }),
     ]);
 
-    return buildPaginatedResponse(purchases, total, pagination);
+    // Ajouter statusMessage à chaque purchase
+    const purchasesWithStatus = purchases.map((purchase) => ({
+      ...purchase,
+      statusMessage: this.workflowConfigService.getStatusMessage(
+        purchase.status,
+        purchase.currentStep,
+      ),
+    }));
+
+    return buildPaginatedResponse(purchasesWithStatus, total, pagination);
   }
 
   async deleteDraftPurchase(purchaseId: string, userId: number) {
