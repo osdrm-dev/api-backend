@@ -10,7 +10,7 @@ import { ValidationWorkflowService } from './services/validation-workflow.servic
 import { ValidationActionService } from './services/validation-action.service';
 import { PurchaseQueryService } from './services/purchase-query.service';
 import { AuthorizationService } from './services/authorization.service';
-import { DAValidationService } from './services/da-validation.service';
+import { DAValidationService } from './services/validation.service';
 import { DAValidationController } from './controllers/da-validation.controller';
 
 @Module({
