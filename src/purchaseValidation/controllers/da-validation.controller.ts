@@ -18,7 +18,7 @@ import {
   ApiBearerAuth,
   ApiBody,
 } from '@nestjs/swagger';
-import { DAValidationService } from '../services/da-validation.service';
+import { DAValidationService } from '../services/validation.service';
 import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
 import { ValidatePurchaseDto } from '../dto/validate-purchase.dto';
 import { RejectPurchaseDto } from '../dto/reject-purchase.dto';

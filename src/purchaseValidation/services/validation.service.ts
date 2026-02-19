@@ -58,6 +58,13 @@ export class DAValidationService {
       userId,
     );
 
+    const purchase = await this.purchaseRepo.findById(purchaseId);
+    if (!purchase) {
+      throw new NotFoundException(`Demande d'achat non trouvé.`);
+    }
+
+    const currentStep = purchase.currentStep;
+
     const result = await this.validationAction.validate({
       purchaseId,
       userId,
@@ -66,16 +73,33 @@ export class DAValidationService {
     });
 
     if (result.wasCompleted) {
-      await this.purchaseRepo.updateStep({
-        id: purchaseId,
-        currentStep: PurchaseStep.QR,
-      });
+      const nextStepMap = {
+        [PurchaseStep.DA]: PurchaseStep.QR,
+        [PurchaseStep.QR]: PurchaseStep.PV,
+        [PurchaseStep.PV]: PurchaseStep.BC,
+        [PurchaseStep.BC]: PurchaseStep.BR,
+      };
+
+      const nextStep = nextStepMap[currentStep];
+      if (nextStep) {
+        await this.purchaseRepo.updateStep({
+          id: purchaseId,
+          currentStep: nextStep,
+        });
+      }
     }
+
+    const stepMessages = {
+      [PurchaseStep.DA]: `DA validée avec succès, Passage à l'étape de QR.`,
+      [PurchaseStep.QR]: `QR validée avec succès, Passage à l'étape de PV.`,
+      [PurchaseStep.PV]: `PV validée avec succès, Passage à l'étape de BC.`,
+      [PurchaseStep.BC]: `BC validée avec succès, Passage à l'étape de BR.`,
+    };
 
     return {
       ...result.purchase,
       message: result.wasCompleted
-        ? `DA validée avec succès. Passage à l'étape QR.`
+        ? stepMessages[currentStep] || `Validation complète.`
         : `Validation enregistrée. En attente des autres validateurs.`,
     };
   }
