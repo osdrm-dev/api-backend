@@ -16,6 +16,7 @@ import { HttpLoggingInterceptor } from 'src/auth/logger/http-logging.interceptor
 import { AuditModule } from './audit/audit.module';
 import { PurchaseValidationModule } from './purchaseValidation/purchase.module';
 import { PurchaseModule } from './purchase/purchase.module';
+import { UploadModule } from './upload/upload.module';
 
 @Module({
   imports: [
@@ -35,6 +36,7 @@ import { PurchaseModule } from './purchase/purchase.module';
     AuditModule,
     PurchaseValidationModule,
     PurchaseModule,
+    UploadModule,
   ],
   controllers: [AppController],
   providers: [

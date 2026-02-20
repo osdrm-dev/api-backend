@@ -1,13 +1,18 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { AuditLog, Prisma } from '@prisma/client';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
 
 /**
  * Repository pour gérer l'accès aux données AuditLog
  */
 @Injectable()
 export class AuditLogRepository {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+  ) {}
 
   /**
    * Include standard pour les audit logs
@@ -249,7 +254,10 @@ export class AuditLogRepository {
         },
       });
     } catch (error) {
-      console.error('Failed to create audit log:', error);
+      this.logger.error('Failed to create audit log', {
+        error: error.message,
+        data,
+      });
       // Ne pas faire échouer l'opération principale si l'audit échoue
     }
   }
