@@ -256,7 +256,7 @@ model Derogation {
 model ValidationWorkflow {
   id              String        @id @default(cuid())
   purchaseId      String
-  step            PurchaseStep
+  step            PurchaseStep  @default(DA)
 
   currentStep     Int           @default(0)
   isComplete      Boolean       @default(false)
