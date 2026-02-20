@@ -48,6 +48,9 @@ lerna-debug.log*
 .temp
 .tmp
 
+
+migrations
+
 # Runtime data
 pids
 *.pid
@@ -57,4 +60,6 @@ pids
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
-/generated/prisma
+/@prisma/client
+
+package-lock.json

@@ -47,11 +47,299 @@ model File {
   @@index([checksum])
   @@map("files")
 }
+enum Role {
+  DEMANDEUR
+  OM
+  CFO
+  CEO
+  DP
+  ADMIN
+  ACHETEUR
+}
 
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique
-  name  String?
+  id                Int                @id @default(autoincrement())
+  email             String             @unique
+  password          String
+  name              String
+  fonction          String
+  role              Role               @default(DEMANDEUR)
+  isActive          Boolean            @default(true)
+  lastLoginAt       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
   
+  refreshTokens     RefreshToken[]
+  auditLogs         AuditLog[]
+  validators        Validator[]
+  purchasesCreated  Purchase[]          @relation("PurchaseCreator")
   files File[]
+
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model RefreshToken {
+  id          Int       @id @default(autoincrement())
+  token       String    @unique
+  userId      Int
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+  replacedBy  String?
+  ipAddress   String?
+  userAgent   String?
+  
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@index([token])
+  @@map("refresh_tokens")
+}
+
+model AuditLog {
+  id          Int       @id @default(autoincrement())
+  userId      Int?
+  action      String
+  resource    String
+  resourceId  String?
+  details     Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime  @default(now())
+  
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+enum OperationType {
+  PROGRAMME
+  OPERATION
+}
+
+enum PurchaseStep {
+  DA
+  QR
+  PV
+  BC
+  BR
+  INVOICE
+  DAP
+  PROOF_OF_PAYMENT
+  DONE
+}
+
+enum PurchaseStatus {
+  DRAFT
+  PUBLISHED
+  VALIDATED
+  REJECTED
+  IN_DEROGATION
+  CHANGE_REQUESTED
+}
+
+enum AttachmentType {
+  QUOTE
+  INVOICE
+  PURCHASE_ORDER
+  DELIVERY_NOTE
+  PROOF_OF_PAYMENT
+  OTHER
+}
+
+enum DerogationStatus {
+  PENDING
+  VALIDATED
+  REJECTED
+}
+
+enum ValidatorRole {
+  DEMANDEUR
+  RFR
+  CPR
+  OM
+  DP
+  CFO
+  CEO
+}
+
+model Purchase {
+  id                    String              @id @default(cuid())
+  reference             String              @unique
+  year                  Int?
+  site                  String?
+  sequentialNumber      String?
+
+  project               String?
+  region                String?
+  projectCode           String?
+  grantCode             String?
+  activityCode          String?
+  costCenter            String?
+
+  title                 String
+  description           String?             @db.Text
+  marketType            String?
+  amount                Decimal             @db.Decimal(15, 2)
+  operationType         OperationType
+
+  createdAt             DateTime            @default(now())
+  requestedDeliveryDate DateTime?
+  receivedAt            DateTime?
+  closedAt              DateTime?
+  validatedAt           DateTime?
+
+  processingDuration    Int?
+  priority              String?
+  justification         String  
+
+  deliveryAddress       String?             @db.Text
+
+  status                PurchaseStatus      @default(DRAFT)
+  currentStep           PurchaseStep        @default(DA)
+  observations          String?             @db.Text
+  responsible           String?
+
+  creatorId             Int?
+  creator               User?               @relation("PurchaseCreator", fields: [creatorId], references: [id], onDelete: SetNull)
+
+  items                 PurchaseItem[]
+  attachments           Attachment[]
+  derogation            Derogation?
+  validationWorkflows   ValidationWorkflow[]
+
+  updatedAt             DateTime            @updatedAt
+
+  @@index([reference])
+  @@index([status])
+  @@index([currentStep])
+  @@index([project])
+  @@index([region])
+  @@index([creatorId])
+  @@index([createdAt])
+  @@map("purchases")
+}
+
+model PurchaseItem {
+  id              String    @id @default(cuid())
+  purchaseId      String
+
+  designation     String
+  quantity        Float
+  unitPrice       Float
+  amount          Float
+  unit            String?
+  specifications  String?   @db.Text
+
+  purchase        Purchase  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([purchaseId])
+  @@map("purchase_items")
+}
+
+model Attachment {
+  id              String          @id @default(cuid())
+  purchaseId      String
+
+  type            AttachmentType
+  fileName        String
+  fileUrl         String
+  fileSize        Int?
+  mimeType        String?
+
+  description     String?         @db.Text
+  uploadedBy      String?
+  receivedAt      DateTime?
+  validatedAt     DateTime?
+
+  purchase        Purchase        @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([purchaseId])
+  @@index([type])
+  @@map("attachments")
+}
+
+model Derogation {
+  id                  String            @id @default(cuid())
+  purchaseId          String            @unique
+
+  reason              String            @db.Text
+  justification       String            @db.Text
+  status              DerogationStatus  @default(PENDING)
+  validationLevel     Int               @default(0)
+
+  approvedBy          String?
+  approvedAt          DateTime?
+  rejectedBy          String?
+  rejectedAt          DateTime?
+  comments            String?           @db.Text
+
+  purchase            Purchase          @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([purchaseId])
+  @@index([status])
+  @@map("derogations")
+}
+
+model ValidationWorkflow {
+  id              String        @id @default(cuid())
+  purchaseId      String
+  step            PurchaseStep  @default(DA)
+
+  currentStep     Int           @default(0)
+  isComplete      Boolean       @default(false)
+
+  purchase        Purchase      @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  validators      Validator[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([purchaseId, step])
+  @@index([purchaseId])
+  @@index([step])
+  @@map("validation_workflows")
+}
+
+model Validator {
+  id                    String              @id @default(cuid())
+  workflowId            String
+  userId                Int?
+
+  role                  ValidatorRole
+  order                 Int
+  name                  String?
+  email                 String?
+
+  isValidated           Boolean             @default(false)
+  validatedAt           DateTime?
+  comment               String?             @db.Text
+
+  decision              String?
+
+  workflow              ValidationWorkflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  user                  User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  @@index([workflowId])
+  @@index([userId])
+  @@index([order])
+  @@map("validators")
 }

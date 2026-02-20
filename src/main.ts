@@ -1,12 +1,12 @@
-import { NestFactory } from '@nestjs/core';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
-import { AppModule } from './app.module';
+
+import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
-
-// Charger les variables d'environnement en premier
+import { AppModule } from './app.module';
 import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
+import { ValidationPipe } from '@nestjs/common';
 
 const envResult = dotenv.config({
   path: path.resolve(__dirname, '../.env'),
@@ -25,6 +25,40 @@ async function bootstrap() {
   });
 
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
+
+  // Validation globale
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (!origin || origin.startsWith('http://localhost')) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
+    credentials: true,
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'X-Requested-With',
+    ],
+    exposedHeaders: [
+      'X-RateLimit-Limit',
+      'X-RateLimit-Remaining',
+      'X-RateLimit-Reset',
+    ],
+    maxAge: 3600,
+  });
+
   const configService = app.get(ConfigService);
   const environment = configService.get<string>('NODE_ENV');
 
@@ -48,6 +82,14 @@ async function bootstrap() {
     SwaggerModule.setup('documentation', app, documentFactory);
   }
 
-  await app.listen(process.env.PORT ?? 3000);
+  const port = configService.get<number>('PORT') ?? 3000;
+  await app.listen(port);
+
+  console.log(`Application is running on: http://localhost:${port}`);
+  if (environment !== 'production') {
+    console.log(
+      `Swagger documentation: http://localhost:${port}/documentation`,
+    );
+  }
 }
-bootstrap();
+void bootstrap();
