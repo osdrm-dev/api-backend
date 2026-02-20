@@ -9,6 +9,8 @@ datasource db {
 enum Role {
   DEMANDEUR
   OM
+  RFR
+  CPR
   CFO
   CEO
   DP

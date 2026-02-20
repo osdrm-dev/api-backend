@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Param, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Req,
+} from '@nestjs/common';
 import { PurchaseAttachmentBcService } from '../services/purchase-attachment-bc.service';
 import { UploadBcDto } from '../dto/upload-bc.dto';
 import { Role } from '@prisma/client';
@@ -24,6 +32,24 @@ export class PurchaseAttachmentBcController {
     return this.attachmentService.uploadBcAttachment(user, purchaseId, dto);
   }
 
+  /** * Upload plusieurs BC */
+  @Post('bc/multiple')
+  async uploadMultipleBCs(
+    @Param('id') purchaseId: string,
+    @Body() dtos: UploadBcDto[],
+    @Req() req: any,
+  ) {
+    const user = req.user as AuthenticatedUser;
+    return this.attachmentService.uploadMultipleBCs(user, purchaseId, dtos);
+  }
+
+  /** * Lister les BC d'une DA */
+  @Get('bc')
+  async listBCs(@Param('id') purchaseId: string, @Req() req: any) {
+    const userId = (req.user as AuthenticatedUser).id;
+    return this.attachmentService.listBCs(purchaseId, userId);
+  }
+
   @Delete('bc/:bcId')
   async deleteBC(
     @Param('id') purchaseId: string,
@@ -32,5 +58,12 @@ export class PurchaseAttachmentBcController {
   ) {
     const userId = (req.user as AuthenticatedUser).id;
     return this.attachmentService.deleteBCAttachment(userId, purchaseId, bcId);
+  }
+
+  /** * Valider le BC et passer à l'étape suivante */
+  @Post('bc/validate')
+  async validateBC(@Param('id') purchaseId: string, @Req() req: any) {
+    const userId = (req.user as AuthenticatedUser).id;
+    return this.attachmentService.validateBCAndProceed(purchaseId, userId);
   }
 }
