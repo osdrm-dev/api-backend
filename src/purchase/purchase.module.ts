@@ -11,6 +11,8 @@ import { PurchaseService } from './services/purchase.service';
 import { QuotationService } from './services/quotation.service';
 import { DerogationService } from './services/derogation.service';
 import { WorkflowService } from './services/workflow.service';
+import { PurchaseAttachmentBcController } from './controllers/purchase-attachment-bc.controller';
+import { PurchaseAttachmentBcService } from './services/purchase-attachment-bc.service';
 
 @Module({
   imports: [PrismaModule, PurchaseValidationModule],
@@ -19,12 +21,14 @@ import { WorkflowService } from './services/workflow.service';
     QuotationController,
     DerogationController,
     AcheteurController,
+    PurchaseAttachmentBcController,
   ],
   providers: [
     PurchaseService,
     QuotationService,
     DerogationService,
     WorkflowService,
+    PurchaseAttachmentBcService,
   ],
   exports: [
     PurchaseService,
