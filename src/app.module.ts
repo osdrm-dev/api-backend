@@ -17,6 +17,7 @@ import { AuditModule } from './audit/audit.module';
 import { PurchaseValidationModule } from './purchaseValidation/purchase.module';
 import { PurchaseModule } from './purchase/purchase.module';
 import { UploadModule } from './upload/upload.module';
+import { StatisticsModule } from './statistics/statistics.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { UploadModule } from './upload/upload.module';
     PurchaseValidationModule,
     PurchaseModule,
     UploadModule,
+    StatisticsModule,
   ],
   controllers: [AppController],
   providers: [

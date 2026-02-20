@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { OperationType, ValidatorRole, PurchaseStep } from '@prisma/client';
-import { config } from 'dotenv';
 
 export interface WorkflowRule {
   roles: ValidatorRole[];
@@ -85,6 +84,21 @@ export class WorkflowConfigService {
         [OperationType.PROGRAMME]: [
           {
             roles: [ValidatorRole.DP, ValidatorRole.CFO, ValidatorRole.CEO],
+          },
+        ],
+      },
+    },
+    {
+      step: PurchaseStep.BC,
+      rules: {
+        [OperationType.OPERATION]: [
+          {
+            roles: [ValidatorRole.OM, ValidatorRole.RFR, ValidatorRole.CPR],
+          },
+        ],
+        [OperationType.PROGRAMME]: [
+          {
+            roles: [ValidatorRole.OM, ValidatorRole.RFR, ValidatorRole.CPR],
           },
         ],
       },
