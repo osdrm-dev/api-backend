@@ -40,6 +40,18 @@ export class FileStorageService {
    * Upload un fichier et créer l'entrée Attachment en DB
    */
   async uploadAndCreateAttachment(dto: CreateAttachmentDto) {
+    // Vérifier que la purchase existe
+    const purchase = await this.prisma.purchase.findUnique({
+      where: { id: dto.purchaseId },
+    });
+
+    if (!purchase) {
+      this.logger.warn("Tentative d'upload sur une purchase inexistante", {
+        purchaseId: dto.purchaseId,
+      });
+      throw new NotFoundException(`Purchase ${dto.purchaseId} non trouvée`);
+    }
+
     const fileUrl = `${dto.baseUrl}/uploads/${dto.file.filename}`;
 
     const attachment = await this.prisma.attachment.create({

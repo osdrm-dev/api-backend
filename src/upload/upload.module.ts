@@ -3,6 +3,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import { FileStorageController } from './controllers/file-storage.controller';
 import { UploadService } from './services/upload.service';
 import { FileStorageService } from './services/file-storage.service';
+import { PurchaseExistsGuard } from './guards/purchase-exists.guard';
 import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
@@ -13,7 +14,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
     PrismaModule,
   ],
   controllers: [FileStorageController],
-  providers: [UploadService, FileStorageService],
+  providers: [UploadService, FileStorageService, PurchaseExistsGuard],
   exports: [UploadService, FileStorageService],
 })
 export class UploadModule {}

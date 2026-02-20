@@ -29,6 +29,7 @@ import {
 import { FileStorageService } from '../services/file-storage.service';
 import { UploadService } from '../services/upload.service';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { PurchaseExistsGuard } from '../guards/purchase-exists.guard';
 import { AttachmentType } from '@prisma/client';
 import { UploadFileDto, UploadMultipleFilesDto } from '../dto/upload-file.dto';
 
@@ -55,6 +56,7 @@ export class FileStorageController {
   ) {}
 
   @Post(':purchaseId/upload')
+  @UseGuards(PurchaseExistsGuard)
   @ApiOperation({ summary: 'Upload un fichier et créer attachment' })
   @ApiParam({ name: 'purchaseId', description: 'ID de la purchase' })
   @ApiConsumes('multipart/form-data')
@@ -120,6 +122,7 @@ export class FileStorageController {
   }
 
   @Post(':purchaseId/upload-multiple')
+  @UseGuards(PurchaseExistsGuard)
   @ApiOperation({ summary: 'Upload plusieurs fichiers' })
   @ApiParam({ name: 'purchaseId', description: 'ID de la purchase' })
   @ApiConsumes('multipart/form-data')
