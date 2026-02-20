@@ -217,7 +217,7 @@ export class WorkflowConfigService {
         QR: 'DA validée - En attente de devis',
         PV: 'Devis validés - En attente de PV',
         BC: 'PV validé - En attente de BC',
-        LIV: 'BC validé - En attente de livraison',
+        BR: 'BC validé - En attente de livraison',
       };
       return stepMessages[currentStep] || `${currentStep} validé`;
     }

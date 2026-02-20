@@ -300,3 +300,4 @@ model Validator {
   @@index([order])
   @@map("validators")
 }
+

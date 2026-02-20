@@ -1,139 +1,34 @@
 import { Injectable } from '@nestjs/common';
-import { OperationType, ValidatorRole, PurchaseStatus } from '@prisma/client';
-
-export interface ValidatorConfig {
-  role: ValidatorRole;
-  order: number;
-}
+import { OperationType, ValidatorRole } from '@prisma/client';
 
 @Injectable()
 export class WorkflowService {
   /**
    * Determine le niveau de devis requis selon le montant
-   * Niveau 1: < 500,000 MGA = 1 devis
-   * Niveau 2: 500,000 - 2,000,000 MGA = 2 devis (region) ou 3 devis (province)
-   * Niveau 3: 2,000,000 - 5,000,000 MGA = 3 devis
-   * Niveau 4: >= 5,000,000 MGA = 3+ devis
+   * Niveau 1: < 1,000,000 MGA = 1 devis
+   * Niveau 2: 1,000,000 - 5,000,000 MGA = 2 devis
+   * Niveau 3: 5,000,000 - 25,000,000 MGA = 3 devis
+   * Niveau 4: > 25,000,000 MGA = 3+ devis
    */
   getQuoteLevel(amount: number): number {
-    if (amount < 500000) return 1;
-    if (amount < 2000000) return 2;
-    if (amount < 5000000) return 3;
+    if (amount < 1_000_000) return 1;
+    if (amount < 5_000_000) return 2;
+    if (amount < 25_000_000) return 3;
     return 4;
   }
 
-  getRequiredQuotesCount(level: number, isProvince: boolean = false): number {
+  getRequiredQuotesCount(level: number): number {
     switch (level) {
       case 1:
         return 1;
       case 2:
-        return isProvince ? 3 : 2;
+        return 2;
       case 3:
         return 3;
       case 4:
         return 3;
       default:
         return 1;
-    }
-  }
-
-  /**
-   * Determine les validateurs pour la derogation initiale selon le montant
-   */
-  getDerogationValidators(amount: number): ValidatorConfig[] {
-    const validators: ValidatorConfig[] = [
-      { role: ValidatorRole.DEMANDEUR, order: 0 },
-    ];
-
-    if (amount < 5000000) {
-      // < 5M MGA: RFR, CPR
-      validators.push(
-        { role: ValidatorRole.RFR, order: 1 },
-        { role: ValidatorRole.CPR, order: 2 },
-      );
-    } else {
-      // >= 5M MGA: DP, CFO, CEO
-      validators.push(
-        { role: ValidatorRole.DP, order: 1 },
-        { role: ValidatorRole.CFO, order: 2 },
-        { role: ValidatorRole.CEO, order: 3 },
-      );
-    }
-
-    return validators;
-  }
-
-  /**
-   * Determine les validateurs pour la validation finale de la DA
-   */
-  getFinalValidators(operationType: OperationType): ValidatorConfig[] {
-    const validators: ValidatorConfig[] = [
-      { role: ValidatorRole.DEMANDEUR, order: 0 },
-    ];
-
-    if (operationType === OperationType.OPERATION) {
-      // Operation: OM, CFO, CEO
-      validators.push(
-        { role: ValidatorRole.OM, order: 1 },
-        { role: ValidatorRole.CFO, order: 2 },
-        { role: ValidatorRole.CEO, order: 3 },
-      );
-    } else {
-      // Programme: OM, DP, CFO, CEO
-      validators.push(
-        { role: ValidatorRole.OM, order: 1 },
-        { role: ValidatorRole.DP, order: 2 },
-        { role: ValidatorRole.CFO, order: 3 },
-        { role: ValidatorRole.CEO, order: 4 },
-      );
-    }
-
-    return validators;
-  }
-
-  /**
-   * Verifie si un utilisateur peut valider a l'etape actuelle
-   */
-  canUserValidate(
-    userRole: ValidatorRole,
-    validators: Array<{
-      role: ValidatorRole;
-      order: number;
-      isValidated: boolean;
-    }>,
-  ): boolean {
-    // Trouver le validateur correspondant au role de l'utilisateur
-    const userValidator = validators.find((v) => v.role === userRole);
-    if (!userValidator) return false;
-
-    // Verifier que tous les validateurs precedents ont valide
-    const previousValidators = validators.filter(
-      (v) => v.order < userValidator.order,
-    );
-    const allPreviousValidated = previousValidators.every((v) => v.isValidated);
-
-    // L'utilisateur peut valider si c'est son tour et il n'a pas encore valide
-    return allPreviousValidated && !userValidator.isValidated;
-  }
-
-  /**
-   * Verifie si tous les validateurs ont valide
-   */
-  isWorkflowComplete(validators: Array<{ isValidated: boolean }>): boolean {
-    return validators.every((v) => v.isValidated);
-  }
-
-  /**
-   * Determine le prochain statut apres validation complete
-   */
-  getNextStatus(currentStatus: PurchaseStatus): PurchaseStatus {
-    switch (currentStatus) {
-      case PurchaseStatus.PUBLISHED:
-        return PurchaseStatus.VALIDATED;
-      case PurchaseStatus.IN_DEROGATION:
-        return PurchaseStatus.PUBLISHED;
-      default:
-        return currentStatus;
     }
   }
 
@@ -151,26 +46,25 @@ export class WorkflowService {
         level: 1,
         label: 'Niveau 1',
         requiredQuotes: 1,
-        description: 'Montant < 500,000 MGA - 1 devis requis',
+        description: 'Montant < 1,000,000 MGA - 1 devis requis',
       },
       2: {
         level: 2,
         label: 'Niveau 2',
         requiredQuotes: 2,
-        description:
-          '500,000 - 2,000,000 MGA - 2 devis (region) ou 3 devis (province)',
+        description: '1,000,000 - 5,000,000 MGA - 2 devis requis',
       },
       3: {
         level: 3,
         label: 'Niveau 3',
         requiredQuotes: 3,
-        description: '2,000,000 - 5,000,000 MGA - 3 devis requis',
+        description: '5,000,000 - 25,000,000 MGA - 3 devis requis',
       },
       4: {
         level: 4,
         label: 'Niveau 4',
         requiredQuotes: 3,
-        description: '>= 5,000,000 MGA - 3 devis minimum requis',
+        description: '> 25,000,000 MGA - 3 devis minimum requis',
       },
     };
 
@@ -180,7 +74,7 @@ export class WorkflowService {
   /**
    * Determine les validateurs QR selon operationType
    * OPERATION: OM -> CFO -> CEO
-   * PROGRAMME: DP -> CFO -> CEO
+   * PROGRAMME: DP -> CFO -> CEO (< 50M) ou OM -> CFO -> CEO (>= 50M)
    */
   getQRValidators(
     operationType: OperationType,

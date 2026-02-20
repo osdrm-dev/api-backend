@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Inject,
 } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { WorkflowService } from './workflow.service';
@@ -15,6 +16,8 @@ import {
   buildPaginatedResponse,
   parsePaginationParams,
 } from 'src/common/pagination.utils';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
 
 @Injectable()
 export class PurchaseService {
@@ -22,6 +25,7 @@ export class PurchaseService {
     private readonly prisma: PrismaService,
     private readonly workflowService: WorkflowService,
     private readonly workflowConfigService: WorkflowConfigService,
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
   async createPurchase(userId: number, createDto: CreatePurchaseDto) {
@@ -50,6 +54,13 @@ export class PurchaseService {
         currentStep: PurchaseStep.DA,
         creatorId: userId,
       },
+    });
+
+    this.logger.info('DA créée', {
+      purchaseId: purchase.id,
+      reference: purchase.reference,
+      userId,
+      amount: purchase.amount,
     });
 
     return {
@@ -182,6 +193,13 @@ export class PurchaseService {
       data: {
         status: PurchaseStatus.PUBLISHED,
       },
+    });
+
+    this.logger.info('DA publiée pour validation', {
+      purchaseId: purchase.id,
+      reference: purchase.reference,
+      userId,
+      validatorsCount: requiredRoles.length,
     });
 
     return {
@@ -343,6 +361,12 @@ export class PurchaseService {
 
     await this.prisma.purchase.delete({
       where: { id: purchaseId },
+    });
+
+    this.logger.info('DA supprimée', {
+      purchaseId,
+      reference: purchase.reference,
+      userId,
     });
 
     return {
