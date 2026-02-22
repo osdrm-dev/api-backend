@@ -17,6 +17,7 @@ import { AuditModule } from './audit/audit.module';
 import { PurchaseValidationModule } from './purchaseValidation/purchase.module';
 import { PurchaseModule } from './purchase/purchase.module';
 import { StatisticsModule } from './statistics/statistics.module';
+import { FileStorageModule } from 'src/storage/file.module';
 
 @Module({
   imports: [
@@ -37,11 +38,11 @@ import { StatisticsModule } from './statistics/statistics.module';
     PurchaseValidationModule,
     PurchaseModule,
     StatisticsModule,
+    FileStorageModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    // NE PAS mettre les guards en global - les appliquer au niveau des contrôleurs
     // {
     //   provide: APP_GUARD,
     //   useClass: JwtAuthGuard,

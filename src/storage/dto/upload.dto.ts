@@ -20,6 +20,18 @@ export class UploadFileDto {
   relatedResourceId?: string;
 }
 
+export class UploadBodyDto {
+  @ApiProperty({ required: false, example: 'devis' })
+  @IsOptional()
+  @IsString()
+  relatedResource?: string;
+
+  @ApiProperty({ required: false, example: '123' })
+  @IsOptional()
+  @IsString()
+  relatedResourceId?: string;
+}
+
 export class FileResponseDto {
   id: number;
   originalName: string;

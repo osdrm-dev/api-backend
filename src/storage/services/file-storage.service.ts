@@ -94,7 +94,7 @@ export class FileStorageService {
         fileType,
         size: file.size,
         path: filePath,
-        url: `/api/files/${storedName}`,
+        url: `/files/${storedName}`,
         status: FileStatus.UPLOADING,
         uploadedById: options.userId,
         checksum,
