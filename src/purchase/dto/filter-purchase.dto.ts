@@ -1,11 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsInt, Min, Max } from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsString } from 'class-validator';
 import { Type } from 'class-transformer';
 
-/**
- * DTO de base pour la pagination
- * À utiliser comme classe parent pour tous les DTOs de filtres avec pagination
- */
 export class PaginationDto {
   @ApiPropertyOptional({
     description: 'Numéro de page',
@@ -34,9 +30,6 @@ export class PaginationDto {
   limit?: number = 10;
 }
 
-/**
- * DTO pour les filtres de Purchase avec pagination
- */
 export class FilterPurchaseDto extends PaginationDto {
   @ApiPropertyOptional({
     description: 'Recherche par référence ou titre',
@@ -58,6 +51,14 @@ export class FilterPurchaseDto extends PaginationDto {
   })
   @IsOptional()
   currentStep?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrer par priorité',
+    example: 'HIGH',
+  })
+  @IsOptional()
+  @IsString()
+  priority?: string;
 
   @ApiPropertyOptional({
     description: 'Date de début',

@@ -70,6 +70,7 @@ export class QuotationService {
   async uploadQuote(
     purchaseId: string,
     userId: number,
+    userName: string,
     quoteDto: UploadQuoteDto,
   ) {
     const purchase = await this.prisma.purchase.findUnique({
@@ -93,7 +94,7 @@ export class QuotationService {
         fileSize: quoteDto.fileSize,
         mimeType: quoteDto.mimeType,
         description: quoteDto.description,
-        uploadedBy: quoteDto.uploadedBy,
+        uploadedBy: userName,
       },
     });
 
@@ -110,6 +111,7 @@ export class QuotationService {
   async uploadMultipleQuotes(
     purchaseId: string,
     userId: number,
+    userName: string,
     quoteDtos: UploadQuoteDto[],
   ) {
     const purchase = await this.prisma.purchase.findUnique({
@@ -133,7 +135,7 @@ export class QuotationService {
         fileSize: dto.fileSize,
         mimeType: dto.mimeType,
         description: dto.description,
-        uploadedBy: dto.uploadedBy,
+        uploadedBy: userName,
       })),
     });
 

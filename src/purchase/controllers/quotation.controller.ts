@@ -6,7 +6,6 @@ import {
   Param,
   Body,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,6 +18,7 @@ import { QuotationService } from '../services/quotation.service';
 import { UploadQuoteDto } from '../dto/quotation.dto';
 import { CreateDerogationDto } from '../dto/derogation.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import {
   ApiSuccessResponse,
   ApiCreatedResponse,
@@ -62,9 +62,9 @@ export class QuotationController {
   @ApiCommonResponses()
   async getQuoteLevelInfo(
     @Param('purchaseId') purchaseId: string,
-    @Request() req,
+    @CurrentUser('id') userId: number,
   ) {
-    return this.quotationService.getQuoteLevelInfo(purchaseId, req.user.id);
+    return this.quotationService.getQuoteLevelInfo(purchaseId, userId);
   }
 
   @Post()
@@ -84,10 +84,16 @@ export class QuotationController {
   @ApiCommonResponses()
   async uploadQuote(
     @Param('purchaseId') purchaseId: string,
-    @Request() req,
+    @CurrentUser('id') userId: number,
+    @CurrentUser('name') userName: string,
     @Body() quoteDto: UploadQuoteDto,
   ) {
-    return this.quotationService.uploadQuote(purchaseId, req.user.id, quoteDto);
+    return this.quotationService.uploadQuote(
+      purchaseId,
+      userId,
+      userName,
+      quoteDto,
+    );
   }
 
   @Post('bulk')
@@ -106,12 +112,14 @@ export class QuotationController {
   @ApiCommonResponses()
   async uploadMultipleQuotes(
     @Param('purchaseId') purchaseId: string,
-    @Request() req,
+    @CurrentUser('id') userId: number,
+    @CurrentUser('name') userName: string,
     @Body() quoteDtos: UploadQuoteDto[],
   ) {
     return this.quotationService.uploadMultipleQuotes(
       purchaseId,
-      req.user.id,
+      userId,
+      userName,
       quoteDtos,
     );
   }
@@ -129,8 +137,11 @@ export class QuotationController {
   })
   @ApiNotFoundResponse('DA')
   @ApiCommonResponses()
-  async listQuotes(@Param('purchaseId') purchaseId: string, @Request() req) {
-    return this.quotationService.listQuotes(purchaseId, req.user.id);
+  async listQuotes(
+    @Param('purchaseId') purchaseId: string,
+    @CurrentUser('id') userId: number,
+  ) {
+    return this.quotationService.listQuotes(purchaseId, userId);
   }
 
   @Delete(':quoteId')
@@ -148,9 +159,9 @@ export class QuotationController {
   async deleteQuote(
     @Param('purchaseId') purchaseId: string,
     @Param('quoteId') quoteId: string,
-    @Request() req,
+    @CurrentUser('id') userId: number,
   ) {
-    return this.quotationService.deleteQuote(purchaseId, quoteId, req.user.id);
+    return this.quotationService.deleteQuote(purchaseId, quoteId, userId);
   }
 
   @Post('derogation')
@@ -172,12 +183,12 @@ export class QuotationController {
   @ApiCommonResponses()
   async requestDerogation(
     @Param('purchaseId') purchaseId: string,
-    @Request() req,
+    @CurrentUser('id') userId: number,
     @Body() derogationDto: CreateDerogationDto,
   ) {
     return this.quotationService.requestQuoteDerogation(
       purchaseId,
-      req.user.id,
+      userId,
       derogationDto,
     );
   }
@@ -201,12 +212,9 @@ export class QuotationController {
   @ApiCommonResponses()
   async submitForValidation(
     @Param('purchaseId') purchaseId: string,
-    @Request() req,
+    @CurrentUser('id') userId: number,
   ) {
-    return this.quotationService.submitQuotesForValidation(
-      purchaseId,
-      req.user.id,
-    );
+    return this.quotationService.submitQuotesForValidation(purchaseId, userId);
   }
 
   @Post('validate')
@@ -226,11 +234,8 @@ export class QuotationController {
   @ApiCommonResponses()
   async validateQuotes(
     @Param('purchaseId') purchaseId: string,
-    @Request() req,
+    @CurrentUser('id') userId: number,
   ) {
-    return this.quotationService.validateQuotesAndProceed(
-      purchaseId,
-      req.user.id,
-    );
+    return this.quotationService.validateQuotesAndProceed(purchaseId, userId);
   }
 }

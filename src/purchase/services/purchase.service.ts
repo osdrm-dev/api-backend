@@ -266,7 +266,6 @@ export class PurchaseService {
       maxLimit: 100,
     });
 
-    // Construire les conditions where
     const where: any = { creatorId: userId };
 
     if (filters.status) {
@@ -275,6 +274,9 @@ export class PurchaseService {
 
     if (filters.currentStep) {
       where.currentStep = filters.currentStep;
+    }
+    if (filters.priority) {
+      where.priority = filters.priority;
     }
 
     if (filters.search) {
