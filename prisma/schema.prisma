@@ -6,6 +6,47 @@ datasource db {
   provider = "postgresql"
 }
 
+enum FileType {
+  IMAGE
+  PDF
+  DOCUMENT
+  SPREADSHEET
+  OTHER
+}
+
+enum FileStatus {
+  UPLOADING
+  PROCESSING
+  OPTIMIZED
+  FAILED
+}
+
+model File {
+  id                Int          @id @default(autoincrement())
+  originalName      String
+  storedName        String       @unique
+  mimeType          String
+  fileType          FileType
+  size              Int
+  optimizedSize     Int?
+  compressionRatio  Float?
+  path              String
+  url               String
+  status            FileStatus   @default(UPLOADING)
+  uploadedById      Int
+  metadata          Json?
+  checksum          String
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+  
+  uploadedBy        User         @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  
+  @@index([uploadedById])
+  @@index([fileType])
+  @@index([status])
+  @@index([checksum])
+  @@map("files")
+}
 enum Role {
   DEMANDEUR
   OM
@@ -32,6 +73,8 @@ model User {
   auditLogs         AuditLog[]
   validators        Validator[]
   purchasesCreated  Purchase[]          @relation("PurchaseCreator")
+  files File[]
+
 
   @@index([email])
   @@index([role])
