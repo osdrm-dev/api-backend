@@ -93,6 +93,12 @@ export class QuotationService {
       },
     });
 
+    // Passer en IN_DEROGATION pendant l'ajout des devis
+    await this.prisma.purchase.update({
+      where: { id: purchaseId },
+      data: { status: PurchaseStatus.IN_DEROGATION },
+    });
+
     return {
       id: attachment.id,
       fileName: attachment.fileName,
@@ -129,6 +135,12 @@ export class QuotationService {
         description: dto.description,
         uploadedBy: userName,
       })),
+    });
+
+    // Passer en IN_DEROGATION pendant l'ajout des devis
+    await this.prisma.purchase.update({
+      where: { id: purchaseId },
+      data: { status: PurchaseStatus.IN_DEROGATION },
     });
 
     return {
@@ -331,9 +343,12 @@ export class QuotationService {
       throw new BadRequestException("Cette DA n'est pas a l'etape QR");
     }
 
-    if (purchase.status !== PurchaseStatus.VALIDATED) {
+    if (
+      purchase.status !== PurchaseStatus.VALIDATED &&
+      purchase.status !== PurchaseStatus.IN_DEROGATION
+    ) {
       throw new BadRequestException(
-        'La DA doit etre validee (etape DA) avant de soumettre les devis',
+        'La DA doit etre validee ou en derogation pour soumettre les devis',
       );
     }
 
