@@ -26,11 +26,10 @@ export class CreatePurchaseDto {
     example: 10000000,
     minimum: 0,
   })
-  @IsNumber()
-  @Type(() => Number)
-  @Min(0)
-  amount: number;
-
+  // @IsNumber()
+  // @Type(() => Number)
+  // @Min(0)
+  // amount: number;
   @ApiProperty({
     description: 'Titre de la demande',
     example: 'Achat de materiel informatique',

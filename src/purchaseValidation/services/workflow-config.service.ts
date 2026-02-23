@@ -14,10 +14,8 @@ export interface StepWorkflowConfig {
   };
 }
 
-//Service reutilisable pour gerer la configuration des workflows à differentes etapes
 @Injectable()
 export class WorkflowConfigService {
-  //configuration du workflow par etape(on peut ajouter d'autre étapes)
   private readonly stepconfigs: StepWorkflowConfig[] = [
     {
       step: PurchaseStep.DA,
@@ -103,11 +101,8 @@ export class WorkflowConfigService {
         ],
       },
     },
-
-    //ici on peut ajouter d'autre étapes selon le step avec leur règles
   ];
 
-  // Obtenir les validateurs reaquis pour une étape, type et montant donnés(Reutilisables pour toutes les etapes)
   getRequireValidators(
     step: PurchaseStep,
     operationType: OperationType,
@@ -130,7 +125,6 @@ export class WorkflowConfigService {
     return rules[0].roles;
   }
 
-  //Verifie si un montant est dans un plage donné
   private isAmountInRange(
     amount: number,
     minAmount?: number,
@@ -141,7 +135,6 @@ export class WorkflowConfigService {
     return isAboveMin && isBelowMax;
   }
 
-  // Obtenir le prochain validateur non validé dasn l'ordre
   getNextValidator(
     validators: Array<{
       role: ValidatorRole;
@@ -156,7 +149,6 @@ export class WorkflowConfigService {
     return unvalidated.length > 0 ? unvalidated[0] : null;
   }
 
-  //verifie si un validateur est autorsisé(c'est son tour)
   isValidatorAuthorized(
     userRole: ValidatorRole,
     validators: Array<{
@@ -169,12 +161,10 @@ export class WorkflowConfigService {
     return nextValidator !== null && nextValidator.role === userRole;
   }
 
-  //Verifie si tous les validateurs ont validé
   isWorkflowComplete(validators: Array<{ isValidated: boolean }>): boolean {
     return validators.every((v) => v.isValidated);
   }
 
-  //convertir un role utilisateur en ValidatorRole
   roleToValidatorRole(role: string): ValidatorRole {
     const mapping: Record<string, ValidatorRole> = {
       DEMANDEUR: ValidatorRole.DEMANDEUR,
@@ -189,7 +179,6 @@ export class WorkflowConfigService {
     return mapping[role] || ValidatorRole.DEMANDEUR;
   }
 
-  //Ajoute une configuration pour une nouvelle etape permettant d'étendre facilement le systeme
   addStepConfig(config: StepWorkflowConfig): void {
     const existingIndex = this.stepconfigs.findIndex(
       (current) => current.step === config.step,
@@ -202,7 +191,6 @@ export class WorkflowConfigService {
     }
   }
 
-  //Obtenir le message de status selon l'étape et le status
   getStatusMessage(status: string, currentStep: string): string {
     if (status === 'DRAFT') return 'Brouillon';
     if (status === 'REJECTED') return 'Rejetée';

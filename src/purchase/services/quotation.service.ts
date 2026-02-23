@@ -22,13 +22,11 @@ export class QuotationService {
     private readonly workflowService: WorkflowService,
   ) {}
 
-  /**
-   * Recuperer les informations de niveau de devis pour une DA
-   */
   async getQuoteLevelInfo(purchaseId: string, userId: number) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
       include: {
+        items: true,
         attachments: {
           where: { type: AttachmentType.QUOTE },
         },
@@ -43,7 +41,7 @@ export class QuotationService {
       throw new ForbiddenException('Acces refuse');
     }
 
-    const amount = Number(purchase.amount);
+    const amount = purchase.items.reduce((sum, item) => sum + item.amount, 0);
     const level = this.workflowService.getQuoteLevel(amount);
     const levelInfo = this.workflowService.getQuoteLevelInfo(level);
 
@@ -64,9 +62,6 @@ export class QuotationService {
     };
   }
 
-  /**
-   * Upload un devis
-   */
   async uploadQuote(
     purchaseId: string,
     userId: number,
@@ -105,9 +100,6 @@ export class QuotationService {
     };
   }
 
-  /**
-   * Upload plusieurs devis en une seule fois
-   */
   async uploadMultipleQuotes(
     purchaseId: string,
     userId: number,
@@ -145,9 +137,6 @@ export class QuotationService {
     };
   }
 
-  /**
-   * Lister les devis d'une DA
-   */
   async listQuotes(purchaseId: string, userId: number) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
@@ -174,9 +163,6 @@ export class QuotationService {
     };
   }
 
-  /**
-   * Supprimer un devis
-   */
   async deleteQuote(purchaseId: string, quoteId: string, userId: number) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
@@ -207,9 +193,6 @@ export class QuotationService {
     };
   }
 
-  /**
-   * Demander une derogation pour devis insuffisants
-   */
   async requestQuoteDerogation(
     purchaseId: string,
     userId: number,
@@ -218,6 +201,7 @@ export class QuotationService {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
       include: {
+        items: true,
         attachments: {
           where: { type: AttachmentType.QUOTE },
         },
@@ -241,8 +225,7 @@ export class QuotationService {
       throw new BadRequestException('Une derogation existe deja pour cette DA');
     }
 
-    // Verifier que les devis sont insuffisants
-    const amount = Number(purchase.amount);
+    const amount = purchase.items.reduce((sum, item) => sum + item.amount, 0);
     const level = this.workflowService.getQuoteLevel(amount);
     const required = this.workflowService.getRequiredQuotesCount(level);
 
@@ -250,7 +233,6 @@ export class QuotationService {
       throw new BadRequestException('Vous avez deja suffisamment de devis');
     }
 
-    // Creer la derogation
     const derogation = await this.prisma.derogation.create({
       data: {
         purchaseId,
@@ -260,7 +242,6 @@ export class QuotationService {
       },
     });
 
-    // Mettre a jour le statut de la purchase
     await this.prisma.purchase.update({
       where: { id: purchaseId },
       data: {
@@ -276,13 +257,11 @@ export class QuotationService {
     };
   }
 
-  /**
-   * Valider les devis et passer a l'etape suivante
-   */
   async validateQuotesAndProceed(purchaseId: string, userId: number) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
       include: {
+        items: true,
         attachments: {
           where: { type: AttachmentType.QUOTE },
         },
@@ -302,12 +281,11 @@ export class QuotationService {
       throw new BadRequestException("Cette DA n'est pas a l'etape QR");
     }
 
-    const amount = Number(purchase.amount);
+    const amount = purchase.items.reduce((sum, item) => sum + item.amount, 0);
     const level = this.workflowService.getQuoteLevel(amount);
     const required = this.workflowService.getRequiredQuotesCount(level);
     const uploaded = purchase.attachments.length;
 
-    // Verifier si on a assez de devis ou une derogation validee
     const hasEnoughQuotes = uploaded >= required;
     const hasApprovedDerogation =
       purchase.derogation?.status === DerogationStatus.VALIDATED;
@@ -318,7 +296,6 @@ export class QuotationService {
       );
     }
 
-    // Passer a l'etape suivante (PV ou selon workflow)
     await this.prisma.purchase.update({
       where: { id: purchaseId },
       data: {
@@ -334,13 +311,11 @@ export class QuotationService {
     };
   }
 
-  /**
-   * PHASE A -> PHASE B: Soumettre les devis pour validation
-   */
   async submitQuotesForValidation(purchaseId: string, userId: number) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
       include: {
+        items: true,
         attachments: {
           where: { type: AttachmentType.QUOTE },
         },
@@ -362,12 +337,11 @@ export class QuotationService {
       );
     }
 
-    const amount = Number(purchase.amount);
+    const amount = purchase.items.reduce((sum, item) => sum + item.amount, 0);
     const level = this.workflowService.getQuoteLevel(amount);
     const required = this.workflowService.getRequiredQuotesCount(level);
     const uploaded = purchase.attachments.length;
 
-    // Verifier devis ou derogation
     const hasEnoughQuotes = uploaded >= required;
     const hasDerogation = !!purchase.derogation;
 
@@ -377,7 +351,6 @@ export class QuotationService {
       );
     }
 
-    // Creer workflow QR selon operationType
     const requiredRoles = this.workflowService.getQRValidators(
       purchase.operationType,
       amount,

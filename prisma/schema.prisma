@@ -186,7 +186,6 @@ model Purchase {
   title                 String
   description           String?             @db.Text
   marketType            String?
-  amount                Decimal             @db.Decimal(15, 2)
   operationType         OperationType
 
   createdAt             DateTime            @default(now())
