@@ -215,6 +215,7 @@ model Purchase {
   validationWorkflows   ValidationWorkflow[]
 
   updatedAt             DateTime            @updatedAt
+  pv                    PV?
 
   @@index([reference])
   @@index([status])
@@ -344,3 +345,90 @@ model Validator {
   @@map("validators")
 }
 
+enum PVStatus {
+  DRAFT
+  SUBMITTED
+  VALIDATED
+  REJECTED
+}
+
+model PV {
+  id              String    @id @default(cuid())
+  purchaseId      String    @unique
+
+  evaluateur      String?
+  dateEvaluation  DateTime?
+  natureObjet     String?
+  decisionFinale  String?   @db.Text
+  status          PVStatus  @default(DRAFT)
+
+  purchase        Purchase     @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  suppliers       PVSupplier[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([purchaseId])
+  @@map("pvs")
+}
+
+model PVSupplier {
+  id      String  @id @default(cuid())
+  pvId    String
+  order   Int
+  name    String?
+  rang    Int?
+
+  // Recevabilité administrative
+  reponseDansDelai      String?
+  annexe1               String?
+  devisSpecifications   String?
+  regulariteFiscale     String?
+  copiecin              String?
+
+  // Recevabilité technique
+  conformiteSpecs           String?
+  distanceBureaux           String?
+  delaiLivraison            String?
+  sav                       String?
+  disponibiliteArticles     String?
+  qualiteArticles           String?
+  experienceAnterieure      String?
+  producteurOuSousTraitant  String?
+  echantillonBat            String?
+
+  // Recevabilité financière
+  validiteOffre     String?
+  modePaiement      String?
+  delaiPaiement     String?
+  offreFinanciere   Decimal?  @db.Decimal(15, 2)
+
+  pv      PV              @relation(fields: [pvId], references: [id], onDelete: Cascade)
+  items   PVSupplierItem[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([pvId])
+  @@map("pv_suppliers")
+}
+
+model PVSupplierItem {
+  id              String  @id @default(cuid())
+  supplierId      String
+
+  purchaseItemId  String?
+  designation     String
+  quantity        Float
+  unitPrice       Float
+  amount          Float
+  disponibilite   String?
+
+  supplier        PVSupplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([supplierId])
+  @@map("pv_supplier_items")
+}
