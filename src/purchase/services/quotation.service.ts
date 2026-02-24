@@ -157,6 +157,7 @@ export class QuotationService {
           where: { type: AttachmentType.QUOTE },
           orderBy: { createdAt: 'desc' },
         },
+        derogation: true,
       },
     });
 
@@ -172,6 +173,7 @@ export class QuotationService {
       purchaseId: purchase.id,
       quotes: purchase.attachments,
       total: purchase.attachments.length,
+      derogation: purchase.derogation,
     };
   }
 
@@ -323,7 +325,12 @@ export class QuotationService {
     };
   }
 
-  async submitQuotesForValidation(purchaseId: string, userId: number) {
+  async submitQuotesForValidation(
+    purchaseId: string,
+    userId: number,
+    useDerogation: boolean = false,
+    derogationJustification?: string,
+  ) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
       include: {
@@ -358,12 +365,29 @@ export class QuotationService {
     const uploaded = purchase.attachments.length;
 
     const hasEnoughQuotes = uploaded >= required;
-    const hasDerogation = !!purchase.derogation;
 
-    if (!hasEnoughQuotes && !hasDerogation) {
+    if (!hasEnoughQuotes && !useDerogation) {
       throw new BadRequestException(
-        `Devis insuffisants (${uploaded}/${required}). Uploadez plus de devis ou demandez une derogation.`,
+        `Devis insuffisants (${uploaded}/${required}). Cochez la case dérogation pour continuer malgré le manque de devis.`,
       );
+    }
+
+    if (useDerogation && !derogationJustification?.trim()) {
+      throw new BadRequestException(
+        'Une justification est obligatoire pour utiliser la dérogation.',
+      );
+    }
+
+    // Créer une dérogation si nécessaire
+    if (useDerogation && !hasEnoughQuotes) {
+      await this.prisma.derogation.create({
+        data: {
+          purchaseId,
+          reason: 'Nombre de devis insuffisant',
+          justification: derogationJustification ?? '',
+          status: DerogationStatus.VALIDATED,
+        },
+      });
     }
 
     const requiredRoles = this.workflowService.getQRValidators(
