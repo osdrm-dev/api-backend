@@ -50,7 +50,6 @@ export class PurchaseService {
         year,
         sequentialNumber,
         ...createDto,
-        amount: 0, // Sera mis à jour lors de l'ajout des items
         status: PurchaseStatus.DRAFT,
         currentStep: PurchaseStep.DA,
         creatorId: userId,
@@ -115,13 +114,6 @@ export class PurchaseService {
         }),
       ),
     );
-
-    // Mettre à jour le montant total de la purchase
-    const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
-    await this.prisma.purchase.update({
-      where: { id: purchaseId },
-      data: { amount: totalAmount },
-    });
 
     return {
       purchaseId,

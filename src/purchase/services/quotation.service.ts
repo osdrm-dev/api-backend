@@ -93,10 +93,10 @@ export class QuotationService {
       },
     });
 
-    // Passer en IN_DEROGATION pendant l'ajout des devis
+    // Passer en PENDING_APPROVAL pendant l'ajout des devis
     await this.prisma.purchase.update({
       where: { id: purchaseId },
-      data: { status: PurchaseStatus.IN_DEROGATION },
+      data: { status: PurchaseStatus.PENDING_APPROVAL },
     });
 
     return {
@@ -137,10 +137,10 @@ export class QuotationService {
       })),
     });
 
-    // Passer en IN_DEROGATION pendant l'ajout des devis
+    // Passer en PENDING_APPROVAL pendant l'ajout des devis
     await this.prisma.purchase.update({
       where: { id: purchaseId },
-      data: { status: PurchaseStatus.IN_DEROGATION },
+      data: { status: PurchaseStatus.PENDING_APPROVAL },
     });
 
     return {
@@ -352,10 +352,10 @@ export class QuotationService {
 
     if (
       purchase.status !== PurchaseStatus.VALIDATED &&
-      purchase.status !== PurchaseStatus.IN_DEROGATION
+      purchase.status !== PurchaseStatus.PENDING_APPROVAL
     ) {
       throw new BadRequestException(
-        'La DA doit etre validee ou en derogation pour soumettre les devis',
+        'La DA doit etre validee ou en preparation pour soumettre les devis',
       );
     }
 
@@ -420,17 +420,24 @@ export class QuotationService {
       },
     });
 
+    // Si dérogation, status = IN_DEROGATION, sinon PUBLISHED
     await this.prisma.purchase.update({
       where: { id: purchaseId },
       data: {
-        status: PurchaseStatus.PUBLISHED,
+        status:
+          useDerogation && !hasEnoughQuotes
+            ? PurchaseStatus.IN_DEROGATION
+            : PurchaseStatus.PUBLISHED,
       },
     });
 
     return {
       id: purchase.id,
       reference: purchase.reference,
-      status: PurchaseStatus.PUBLISHED,
+      status:
+        useDerogation && !hasEnoughQuotes
+          ? PurchaseStatus.IN_DEROGATION
+          : PurchaseStatus.PUBLISHED,
       currentStep: PurchaseStep.QR,
       workflow: workflow.validators,
       message: useDerogation
