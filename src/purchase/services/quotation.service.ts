@@ -433,7 +433,9 @@ export class QuotationService {
       status: PurchaseStatus.PUBLISHED,
       currentStep: PurchaseStep.QR,
       workflow: workflow.validators,
-      message: 'Devis soumis pour validation.',
+      message: useDerogation
+        ? 'Devis soumis pour validation QR avec dérogation.'
+        : 'Devis soumis pour validation QR.',
     };
   }
 }
