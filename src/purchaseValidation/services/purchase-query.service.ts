@@ -66,9 +66,9 @@ export class PurchaseQueryService {
     } = filters;
     const skip = (page - 1) * limit;
 
-    // Récupérer toutes les DA publiées où le validateur est présent
+    // Récupérer toutes les DA publiées ou en dérogation où le validateur est présent
     const where = this.buildWhereClause(filters, {
-      status: 'PUBLISHED',
+      status: { in: ['PUBLISHED', 'IN_DEROGATION'] },
       validationWorkflows: {
         some: {
           validators: {

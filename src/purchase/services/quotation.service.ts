@@ -68,6 +68,14 @@ export class QuotationService {
     userName: string,
     quoteDto: UploadQuoteDto,
   ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || user.role !== 'ACHETEUR') {
+      throw new ForbiddenException('Seul un acheteur peut uploader des devis');
+    }
+
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
     });
@@ -112,6 +120,14 @@ export class QuotationService {
     userName: string,
     quoteDtos: UploadQuoteDto[],
   ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || user.role !== 'ACHETEUR') {
+      throw new ForbiddenException('Seul un acheteur peut uploader des devis');
+    }
+
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
     });
