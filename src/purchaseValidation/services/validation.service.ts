@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { PurchaseStep } from '@prisma/client';
+import { PurchaseStep, PurchaseStatus } from '@prisma/client';
 import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
 import { ValidatePurchaseDto } from '../dto/validate-purchase.dto';
 import { RejectPurchaseDto } from '../dto/reject-purchase.dto';
