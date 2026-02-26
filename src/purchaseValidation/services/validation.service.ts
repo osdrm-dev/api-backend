@@ -86,6 +86,15 @@ export class DAValidationService {
           id: purchaseId,
           currentStep: nextStep,
         });
+      } else {
+        // Dernier step validé -> status VALIDATED
+        await this.purchaseRepo.update({
+          where: { id: purchaseId },
+          data: {
+            status: PurchaseStatus.VALIDATED,
+            validatedAt: new Date(),
+          },
+        });
       }
     }
 
