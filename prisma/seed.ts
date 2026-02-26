@@ -112,7 +112,18 @@ async function main() {
     },
   });
 
-  console.log(' Created 7 users');
+  const acheteur = await prisma.user.create({
+    data: {
+      email: 'acheteur@osdrm.mg',
+      password: hashedPassword,
+      name: 'Marc Rivo',
+      fonction: 'Acheteur',
+      role: Role.ACHETEUR,
+      isActive: true,
+    },
+  });
+
+  console.log(' Created 8 users');
 
   // ==================== PURCHASES ====================
   console.log(' Creating purchases...');
@@ -191,10 +202,9 @@ async function main() {
       priority: 'MOYENNE',
       justification: "Modernisation de l'infrastructure informatique",
       deliveryAddress: 'EPP Toamasina Centre',
-      status: PurchaseStatus.VALIDATED,
+      status: PurchaseStatus.PUBLISHED,
       currentStep: PurchaseStep.QR,
       creatorId: demandeur2.id,
-      validatedAt: new Date(),
       items: {
         create: [
           {
@@ -393,53 +403,58 @@ async function main() {
   // ==================== WORKFLOW + ATTACHMENTS + AUDIT LOGS ====================
   console.log(' Creating validation workflows...');
 
-  // Workflow pour purchase2 (original): DEMANDEUR + OM validés, DP + CFO en attente
+  // Workflow pour purchase2: DA validé complètement → passage à QR
   await prisma.validationWorkflow.create({
     data: {
       purchaseId: purchase2.id,
       step: PurchaseStep.DA,
-      currentStep: 2,
-      isComplete: false,
+      currentStep: 4,
+      isComplete: true,
       validators: {
         create: [
           {
             role: ValidatorRole.DEMANDEUR,
-            order: 1,
+            order: 0,
             userId: demandeur2.id,
             name: demandeur2.name,
             email: demandeur2.email,
             isValidated: true,
             validatedAt: new Date('2026-02-05'),
-            decision: 'APPROVED',
-            comment: 'Demande conforme aux besoins',
+            decision: 'VALIDATED',
+            comment: 'Auto-validé lors de la publication',
           },
           {
             role: ValidatorRole.OM,
-            order: 2,
+            order: 1,
             userId: om.id,
             name: om.name,
             email: om.email,
             isValidated: true,
             validatedAt: new Date('2026-02-06'),
-            decision: 'APPROVED',
+            decision: 'VALIDATED',
             comment: 'Budget disponible, validation accordée',
           },
           {
-            role: ValidatorRole.DP,
-            order: 3,
-            userId: dp.id,
-            name: dp.name,
-            email: dp.email,
-            isValidated: false,
-            decision: 'PENDING',
-          },
-          {
             role: ValidatorRole.CFO,
-            order: 4,
+            order: 2,
             userId: cfo.id,
             name: cfo.name,
             email: cfo.email,
-            isValidated: false,
+            isValidated: true,
+            validatedAt: new Date('2026-02-07'),
+            decision: 'VALIDATED',
+            comment: 'Validation financière OK',
+          },
+          {
+            role: ValidatorRole.CEO,
+            order: 3,
+            userId: ceo.id,
+            name: ceo.name,
+            email: ceo.email,
+            isValidated: true,
+            validatedAt: new Date('2026-02-08'),
+            decision: 'VALIDATED',
+            comment: 'Validation finale accordée',
           },
         ],
       },
@@ -679,20 +694,23 @@ async function main() {
   console.log('\n════════════════════════════════════════════════════════');
   console.log(' ✓ Seeding completed successfully!\n');
   console.log(' 📊 DATA SUMMARY:');
-  console.log(`   • ${7} Users créés`);
+  console.log(`   • ${8} Users créés`);
   console.log(`   • ${6} Purchases créés (3 standards + 3 workflows tests)`);
   console.log(`   • ${4} Validation Workflows créés`);
   console.log(`   • ${2} Attachments créés`);
   console.log(`   • ${4} Audit Logs créés\n`);
   console.log(' 🧪 TEST WORKFLOWS:');
   console.log(
-    `   • purchase4 (DA-2026-004): DEMANDEUR validé → DP en attente (PROGRAMME 12M)`,
+    `   • purchase2 (DA-2026-002): DA validé complètement → QR (OPERATION 45M) - Prêt pour upload devis`,
   );
   console.log(
-    `   • purchase5 (DA-2026-005): DEMANDEUR validé → OM en attente (OPERATION 18M)`,
+    `   • purchase4 (DA-2026-004): DEMANDEUR validé → DP en attente (PROGRAMME 5M)`,
   );
   console.log(
-    `   • purchase6 (DA-2026-006): DEMANDEUR + DP validés → CFO en attente (PROGRAMME 22M)\n`,
+    `   • purchase5 (DA-2026-005): DEMANDEUR validé → OM en attente (OPERATION 15M)`,
+  );
+  console.log(
+    `   • purchase6 (DA-2026-006): DEMANDEUR + DP validés → CFO en attente (PROGRAMME 18M)\n`,
   );
   console.log(' 👤 USER CREDENTIALS (mot de passe pour tous: Password123!)');
   console.log(`   • admin@osdrm.mg (ADMIN)`);
@@ -700,6 +718,7 @@ async function main() {
   console.log(`   • cfo@osdrm.mg (CFO)`);
   console.log(`   • dp@osdrm.mg (DP)`);
   console.log(`   • om@osdrm.mg (OM)`);
+  console.log(`   • acheteur@osdrm.mg (ACHETEUR) ← Peut uploader les devis`);
   console.log(`   • demandeur1@osdrm.mg (DEMANDEUR)`);
   console.log(`   • demandeur2@osdrm.mg (DEMANDEUR)\n`);
   console.log('════════════════════════════════════════════════════════\n');
