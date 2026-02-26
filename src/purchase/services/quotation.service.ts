@@ -101,10 +101,10 @@ export class QuotationService {
       },
     });
 
-    // Passer en PENDING_APPROVAL pendant l'ajout des devis
+    // Passer en AWAITING_DOCUMENTS pendant l'ajout des devis
     await this.prisma.purchase.update({
       where: { id: purchaseId },
-      data: { status: PurchaseStatus.PENDING_APPROVAL },
+      data: { status: PurchaseStatus.AWAITING_DOCUMENTS },
     });
 
     return {
@@ -153,10 +153,10 @@ export class QuotationService {
       })),
     });
 
-    // Passer en PENDING_APPROVAL pendant l'ajout des devis
+    // Passer en AWAITING_DOCUMENTS pendant l'ajout des devis
     await this.prisma.purchase.update({
       where: { id: purchaseId },
-      data: { status: PurchaseStatus.PENDING_APPROVAL },
+      data: { status: PurchaseStatus.AWAITING_DOCUMENTS },
     });
 
     return {
@@ -367,11 +367,11 @@ export class QuotationService {
     }
 
     if (
-      purchase.status !== PurchaseStatus.VALIDATED &&
-      purchase.status !== PurchaseStatus.PENDING_APPROVAL
+      purchase.status !== PurchaseStatus.PUBLISHED &&
+      purchase.status !== PurchaseStatus.AWAITING_DOCUMENTS
     ) {
       throw new BadRequestException(
-        'La DA doit etre validee ou en preparation pour soumettre les devis',
+        'La DA doit etre en cours de validation ou en preparation pour soumettre les devis',
       );
     }
 
@@ -436,29 +436,32 @@ export class QuotationService {
       },
     });
 
-    // Si dérogation, status = IN_DEROGATION, sinon PUBLISHED
+    // Déterminer le status selon les devis
+    let newStatus: PurchaseStatus;
+    if (useDerogation && !hasEnoughQuotes) {
+      newStatus = PurchaseStatus.IN_DEROGATION;
+    } else if (hasEnoughQuotes) {
+      newStatus = PurchaseStatus.PENDING_APPROVAL; // Devis complets, en attente de validation
+    } else {
+      newStatus = PurchaseStatus.PUBLISHED;
+    }
+
     await this.prisma.purchase.update({
       where: { id: purchaseId },
-      data: {
-        status:
-          useDerogation && !hasEnoughQuotes
-            ? PurchaseStatus.IN_DEROGATION
-            : PurchaseStatus.PUBLISHED,
-      },
+      data: { status: newStatus },
     });
 
     return {
       id: purchase.id,
       reference: purchase.reference,
-      status:
-        useDerogation && !hasEnoughQuotes
-          ? PurchaseStatus.IN_DEROGATION
-          : PurchaseStatus.PUBLISHED,
+      status: newStatus,
       currentStep: PurchaseStep.QR,
       workflow: workflow.validators,
       message: useDerogation
         ? 'Devis soumis pour validation QR avec dérogation.'
-        : 'Devis soumis pour validation QR.',
+        : hasEnoughQuotes
+          ? 'Devis complets soumis pour validation QR.'
+          : 'Devis soumis pour validation QR.',
     };
   }
 }
