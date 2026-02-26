@@ -22,7 +22,18 @@ export class QuotationService {
     private readonly workflowService: WorkflowService,
   ) {}
 
+  private async assertAcheteur(userId: number): Promise<void> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.role !== 'ACHETEUR') {
+      throw new ForbiddenException(
+        'Seul un acheteur peut effectuer cette action',
+      );
+    }
+  }
+
   async getQuoteLevelInfo(purchaseId: string, userId: number) {
+    await this.assertAcheteur(userId);
+
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
       include: {
@@ -35,10 +46,6 @@ export class QuotationService {
 
     if (!purchase) {
       throw new NotFoundException("Demande d'achat non trouvee");
-    }
-
-    if (purchase.creatorId !== userId) {
-      throw new ForbiddenException('Acces refuse');
     }
 
     const amount = purchase.items.reduce((sum, item) => sum + item.amount, 0);
@@ -68,13 +75,7 @@ export class QuotationService {
     userName: string,
     quoteDto: UploadQuoteDto,
   ) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user || user.role !== 'ACHETEUR') {
-      throw new ForbiddenException('Seul un acheteur peut uploader des devis');
-    }
+    await this.assertAcheteur(userId);
 
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
@@ -120,13 +121,7 @@ export class QuotationService {
     userName: string,
     quoteDtos: UploadQuoteDto[],
   ) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user || user.role !== 'ACHETEUR') {
-      throw new ForbiddenException('Seul un acheteur peut uploader des devis');
-    }
+    await this.assertAcheteur(userId);
 
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
@@ -166,6 +161,8 @@ export class QuotationService {
   }
 
   async listQuotes(purchaseId: string, userId: number) {
+    await this.assertAcheteur(userId);
+
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
       include: {
@@ -181,10 +178,6 @@ export class QuotationService {
       throw new NotFoundException("Demande d'achat non trouvee");
     }
 
-    if (purchase.creatorId !== userId) {
-      throw new ForbiddenException('Acces refuse');
-    }
-
     return {
       purchaseId: purchase.id,
       quotes: purchase.attachments,
@@ -194,16 +187,14 @@ export class QuotationService {
   }
 
   async deleteQuote(purchaseId: string, quoteId: string, userId: number) {
+    await this.assertAcheteur(userId);
+
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
     });
 
     if (!purchase) {
       throw new NotFoundException("Demande d'achat non trouvee");
-    }
-
-    if (purchase.creatorId !== userId) {
-      throw new ForbiddenException('Acces refuse');
     }
 
     const quote = await this.prisma.attachment.findUnique({
@@ -228,6 +219,8 @@ export class QuotationService {
     userId: number,
     derogationDto: CreateDerogationDto,
   ) {
+    await this.assertAcheteur(userId);
+
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
       include: {
@@ -241,10 +234,6 @@ export class QuotationService {
 
     if (!purchase) {
       throw new NotFoundException("Demande d'achat non trouvee");
-    }
-
-    if (purchase.creatorId !== userId) {
-      throw new ForbiddenException('Acces refuse');
     }
 
     if (purchase.currentStep !== PurchaseStep.QR) {
@@ -288,6 +277,8 @@ export class QuotationService {
   }
 
   async validateQuotesAndProceed(purchaseId: string, userId: number) {
+    await this.assertAcheteur(userId);
+
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
       include: {
@@ -301,10 +292,6 @@ export class QuotationService {
 
     if (!purchase) {
       throw new NotFoundException("Demande d'achat non trouvee");
-    }
-
-    if (purchase.creatorId !== userId) {
-      throw new ForbiddenException('Acces refuse');
     }
 
     if (purchase.currentStep !== PurchaseStep.QR) {

@@ -8,10 +8,11 @@ import {
 import { PrismaService } from '../../../prisma/prisma.service';
 import { WorkflowService } from './workflow.service';
 import { WorkflowConfigService } from '../../purchaseValidation/services/workflow-config.service';
+import { PurchaseQueryService } from '../../purchaseValidation/services/purchase-query.service';
 import { CreatePurchaseDto } from '../dto/create-purchase.dto';
 import { AddPurchaseItemsDto } from '../dto/purchase-item.dto';
 import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
-import { PurchaseStatus, PurchaseStep } from '@prisma/client';
+import { PurchaseStatus, PurchaseStep, Role } from '@prisma/client';
 import {
   buildPaginatedResponse,
   parsePaginationParams,
@@ -25,6 +26,7 @@ export class PurchaseService {
     private readonly prisma: PrismaService,
     private readonly workflowService: WorkflowService,
     private readonly workflowConfigService: WorkflowConfigService,
+    private readonly purchaseQueryService: PurchaseQueryService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
@@ -254,22 +256,34 @@ export class PurchaseService {
   }
 
   async getMyPurchases(userId: number, filters: FilterPurchaseDto = {}) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouve');
+    }
+
     const pagination = parsePaginationParams(filters, {
       defaultPage: 1,
       defaultLimit: 10,
       maxLimit: 100,
     });
 
-    const where: any = { creatorId: userId };
+    const where: any =
+      user.role === Role.ACHETEUR
+        ? { currentStep: 'QR' }
+        : { creatorId: userId };
 
     if (filters.status) {
       where.status = filters.status;
     }
 
-    if (filters.currentStep) {
+    if (filters.currentStep && user.role !== Role.ACHETEUR) {
       where.currentStep = filters.currentStep;
     }
-    if (filters.priority) {
+
+    if (filters.priority && user.role !== Role.ACHETEUR) {
       where.priority = filters.priority;
     }
 
