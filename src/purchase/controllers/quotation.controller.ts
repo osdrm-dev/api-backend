@@ -195,26 +195,49 @@ export class QuotationController {
 
   @Post('submit')
   @ApiOperation({
-    summary: 'Soumettre les devis pour validation (PHASE A -> PHASE B)',
+    summary: 'Soumettre les devis pour validation avec ou sans dérogation',
     description:
-      'Cree un workflow QR et publie pour validation par OM/DP/CFO/CEO',
+      'Crée un workflow QR et publie pour validation. Accepte une dérogation si devis insuffisants.',
   })
   @ApiParam({ name: 'purchaseId', description: 'ID de la DA' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        useDerogation: {
+          type: 'boolean',
+          description: 'Cocher pour soumettre avec dérogation',
+          example: false,
+        },
+        derogationJustification: {
+          type: 'string',
+          description: 'Justification obligatoire si useDerogation = true',
+          example: 'Fournisseurs limités dans la région',
+        },
+      },
+    },
+  })
   @ApiSuccessResponse('Devis soumis', {
     id: 'da-123',
-    status: 'PUBLISHED',
+    status: 'PENDING_APPROVAL',
     currentStep: 'QR',
     workflow: [],
-    message: 'Devis soumis pour validation.',
+    message: 'Devis complets soumis pour validation QR.',
   })
   @ApiNotFoundResponse('DA')
-  @ApiBadRequestResponse('Devis insuffisants')
+  @ApiBadRequestResponse('Devis insuffisants ou justification manquante')
   @ApiCommonResponses()
   async submitForValidation(
     @Param('purchaseId') purchaseId: string,
     @CurrentUser('id') userId: number,
+    @Body() body: { useDerogation?: boolean; derogationJustification?: string },
   ) {
-    return this.quotationService.submitQuotesForValidation(purchaseId, userId);
+    return this.quotationService.submitQuotesForValidation(
+      purchaseId,
+      userId,
+      body.useDerogation || false,
+      body.derogationJustification,
+    );
   }
 
   @Post('validate')
