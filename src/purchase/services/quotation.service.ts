@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { WorkflowService } from './workflow.service';
+import { WorkflowConfigService } from '../../purchaseValidation/services/workflow-config.service';
 import { UploadQuoteDto } from '../dto/quotation.dto';
 import { CreateDerogationDto } from '../dto/derogation.dto';
 import {
@@ -20,6 +21,7 @@ export class QuotationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly workflowService: WorkflowService,
+    private readonly workflowConfig: WorkflowConfigService,
   ) {}
 
   private async assertAcheteur(userId: number): Promise<void> {
@@ -393,7 +395,11 @@ export class QuotationService {
       });
     }
 
-    const requiredRoles = this.workflowService.getQRValidators(
+    // determineurs des validateurs QR en s'appuyant sur la configuration
+    // générale; cela permet de réutiliser les mêmes règles de montant que pour
+    // les autres étapes et de centraliser le comportement.
+    const requiredRoles = this.workflowConfig.getRequireValidators(
+      PurchaseStep.QR,
       purchase.operationType,
       amount,
     );
