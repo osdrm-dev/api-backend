@@ -5,6 +5,9 @@
   "author": "osdrm-dev",
   "private": true,
   "license": "UNLICENSED",
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
@@ -24,7 +27,11 @@
     "prisma:migrate:prod": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
     "db:push:dev": "cross-env NODE_ENV=development prisma db push",
-    "db:push:prod": "echo 'DB push disabled in production!'"
+    "db:push:prod": "echo 'DB push disabled in production!'",
+    "db:seed": "ts-node prisma/seed.ts",
+    "db:seed:dev": "cross-env NODE_ENV=development ts-node prisma/seed.ts",
+    "db:reset": "prisma migrate reset",
+    "db:reset:seed": "prisma migrate reset --skip-seed && npm run db:seed"
   },
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx,json,md,css,scss}": [
@@ -53,9 +60,11 @@
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
     "passport-local": "^1.0.0",
+    "pdf-lib": "^1.17.1",
     "pg": "^8.17.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
+    "sharp": "^0.34.5",
     "winston": "^3.19.0",
     "winston-daily-rotate-file": "^5.0.0"
   },

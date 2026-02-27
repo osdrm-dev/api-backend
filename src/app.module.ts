@@ -13,6 +13,12 @@ import { AuditMiddleware } from './auth/middlewares/audit.middleware';
 import { RateLimitMiddleware } from './auth/middlewares/rate-limit.middleware';
 import { HttpLoggingInterceptor } from 'src/auth/logger/http-logging.interceptor';
 
+import { AuditModule } from './audit/audit.module';
+import { PurchaseValidationModule } from './purchaseValidation/purchase.module';
+import { PurchaseModule } from './purchase/purchase.module';
+import { StatisticsModule } from './statistics/statistics.module';
+import { FileStorageModule } from 'src/storage/file.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -28,11 +34,15 @@ import { HttpLoggingInterceptor } from 'src/auth/logger/http-logging.interceptor
     PrismaModule,
     LoggerModule,
     AuthModule,
+    AuditModule,
+    PurchaseValidationModule,
+    PurchaseModule,
+    StatisticsModule,
+    FileStorageModule,
   ],
   controllers: [AppController],
   providers: [
     AppService,
-    // NE PAS mettre les guards en global - les appliquer au niveau des contrôleurs
     // {
     //   provide: APP_GUARD,
     //   useClass: JwtAuthGuard,
