@@ -482,4 +482,77 @@ export class PurchaseService {
       message: 'DA modifiee avec succes. Vous pouvez maintenant la republier.',
     };
   }
+
+  async getBuyerWorkspace(filters: FilterPurchaseDto = {}) {
+    const pagination = parsePaginationParams(filters, {
+      defaultPage: 1,
+      defaultLimit: 10,
+      maxLimit: 100,
+    });
+
+    const where: any = {
+      status: {
+        in: [
+          PurchaseStatus.AWAITING_DOCUMENTS,
+          PurchaseStatus.PENDING_APPROVAL,
+          PurchaseStatus.IN_DEROGATION,
+          PurchaseStatus.PUBLISHED,
+        ],
+      },
+      currentStep: {
+        in: [
+          PurchaseStep.QR,
+          PurchaseStep.PV,
+          PurchaseStep.BC,
+          PurchaseStep.BR,
+        ],
+      },
+    };
+
+    if (filters.search) {
+      where.OR = [
+        { reference: { contains: filters.search, mode: 'insensitive' } },
+        { title: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [purchases, total] = await Promise.all([
+      this.prisma.purchase.findMany({
+        where,
+        include: {
+          items: true,
+          validationWorkflows: {
+            include: {
+              validators: {
+                orderBy: { order: 'asc' },
+              },
+            },
+          },
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+      }),
+      this.prisma.purchase.count({ where }),
+    ]);
+
+    const purchasesWithStatus = purchases.map((purchase) => ({
+      ...purchase,
+      amount: purchase.items.reduce((sum, item) => sum + item.amount, 0),
+      statusMessage: this.workflowConfigService.getStatusMessage(
+        purchase.status,
+        purchase.currentStep,
+      ),
+    }));
+
+    return buildPaginatedResponse(purchasesWithStatus, total, pagination);
+  }
 }
