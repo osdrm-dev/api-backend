@@ -23,16 +23,21 @@ export class DAValidationService {
   async getPendingDAForValidator(userId: number, filters: FilterPurchaseDto) {
     const { userRole } = await this.authService.getUserWithRole(userId); // verification centralisée de l'utilisateur
 
+    // supprimer le critère de statut fourni par le front pour éviter de masquer des
+    // DA dans des étapes autres que DA (notamment QR). la recherche applique déjà
+    // les statuts appropriés.
+    const { status, ...rest } = filters;
+
     //on utlise les service de query pour recuperer les DA
     return this.queryService.findForValidator(userRole, {
-      page: filters.page,
-      limit: filters.limit,
-      sortBy: filters.sortBy,
-      sortOrder: filters.sortOrder,
-      status: filters.status,
-      project: filters.project,
-      region: filters.region,
-      search: filters.search,
+      page: rest.page,
+      limit: rest.limit,
+      sortBy: rest.sortBy,
+      sortOrder: rest.sortOrder,
+      // pas de status
+      project: rest.project,
+      region: rest.region,
+      search: rest.search,
     });
   }
 
@@ -82,9 +87,19 @@ export class DAValidationService {
 
       const nextStep = nextStepMap[currentStep];
       if (nextStep) {
-        await this.purchaseRepo.updateStep({
-          id: purchaseId,
-          currentStep: nextStep,
+        // déterminer le nouveau status selon l'étape suivante
+        let newStatus: PurchaseStatus = PurchaseStatus.PUBLISHED;
+        if (nextStep === PurchaseStep.QR) {
+          // passer au statut AWAITING_DOCUMENTS quand on entre en étape QR
+          newStatus = PurchaseStatus.AWAITING_DOCUMENTS;
+        }
+
+        await this.purchaseRepo.update({
+          where: { id: purchaseId },
+          data: {
+            currentStep: nextStep,
+            status: newStatus,
+          },
         });
       } else {
         // Dernier step validé -> status VALIDATED

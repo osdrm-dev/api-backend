@@ -76,6 +76,12 @@ export class WorkflowService {
    * OPERATION: OM -> CFO -> CEO
    * PROGRAMME: DP -> CFO -> CEO (< 50M) ou OM -> CFO -> CEO (>= 50M)
    */
+  /**
+   * @deprecated QR logic has been moved into WorkflowConfigService.getRequireValidators
+   * which offers a unified, amount/rule-driven configuration. This helper remains
+   * only for backwards compatibility with any legacy callers; new code should not
+   * use it.
+   */
   getQRValidators(
     operationType: OperationType,
     amount: number,

@@ -76,12 +76,18 @@ export class WorkflowConfigService {
       rules: {
         [OperationType.OPERATION]: [
           {
+            // l'étape QR ne dépend que du type d'opération, pas du montant
             roles: [ValidatorRole.OM, ValidatorRole.CFO, ValidatorRole.CEO],
           },
         ],
         [OperationType.PROGRAMME]: [
           {
-            roles: [ValidatorRole.DP, ValidatorRole.CFO, ValidatorRole.CEO],
+            roles: [
+              ValidatorRole.OM,
+              ValidatorRole.DP,
+              ValidatorRole.CFO,
+              ValidatorRole.CEO,
+            ],
           },
         ],
       },

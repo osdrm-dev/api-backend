@@ -139,9 +139,9 @@ export class PurchaseController {
 
   @Get()
   @ApiOperation({
-    summary: 'Lister mes DA',
+    summary: 'Lister les DA selon le profil',
     description:
-      "Recupere la liste des DA creees par l'utilisateur connecte avec filtres et pagination",
+      "ACHETEUR: DA du domaine acheteur (QR, PV, BC, BR) | Autres: DA créées par l'utilisateur",
   })
   @ApiPaginatedResponse({
     id: 'da-123',
@@ -150,6 +150,9 @@ export class PurchaseController {
   })
   @ApiCommonResponses()
   async getMyPurchases(@Request() req, @Query() filters: FilterPurchaseDto) {
+    if (req.user.role === 'ACHETEUR') {
+      return this.purchaseService.getBuyerWorkspace(filters);
+    }
     return this.purchaseService.getMyPurchases(req.user.id, filters);
   }
 
