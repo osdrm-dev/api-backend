@@ -345,3 +345,28 @@ model Validator {
   @@map("validators")
 }
 
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  status      String
+  nif         String
+  stat        String
+  rcs         String
+  region      String
+  address     String
+  phone       String
+  email       String?
+  label       String?
+
+  active      Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([status])
+  @@index([region])
+  @@map("suppliers")
+}
+
+
