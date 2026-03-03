@@ -18,6 +18,7 @@ import { PurchaseValidationModule } from './purchaseValidation/purchase.module';
 import { PurchaseModule } from './purchase/purchase.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { FileStorageModule } from 'src/storage/file.module';
+import { SupplierModule } from './supplier/supplier.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { FileStorageModule } from 'src/storage/file.module';
     PurchaseValidationModule,
     PurchaseModule,
     StatisticsModule,
+    SupplierModule,
     FileStorageModule,
   ],
   controllers: [AppController],

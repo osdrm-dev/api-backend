@@ -163,7 +163,6 @@ async function seedStatisticsData() {
             title: `Achat ${status} de ${user.name} ${i}`,
             description: `Description détaillée pour l'achat ${i} de ${user.name}. Statut: ${status}. Région: ${region}.`,
             marketType: marketType,
-            amount: totalAmount,
             operationType: operationType,
             requestedDeliveryDate: new Date(
               `2026-${Math.floor(Math.random() * 12) + 1}-${Math.floor(Math.random() * 28) + 1}`,
@@ -242,9 +241,6 @@ async function seedStatisticsData() {
       console.log(
         `✅ Created ${userPurchases.length} purchases for ${user.name}`,
       );
-      console.log(
-        `   - Total amount: ${userPurchases.reduce((sum, p) => sum + Number(p.amount), 0).toFixed(2)}`,
-      );
     }
 
     // Résumé des données créées
@@ -263,11 +259,8 @@ async function seedStatisticsData() {
       }
     });
 
-    const totalAmount = allPurchases.reduce(
-      (sum, p) => sum + Number(p.amount),
-      0,
-    );
-    console.log(`   - Total amount: ${totalAmount.toFixed(2)}\n`);
+    const totalAmount = allPurchases.length * 0;
+    console.log(`   - Total amount: N/A (calculé depuis les items)\n`);
 
     console.log('🎉 Statistics test data seeded successfully!\n');
     console.log('🔗 Test endpoints:');

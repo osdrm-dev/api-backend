@@ -2,6 +2,7 @@ import {
   Controller,
   Post,
   Get,
+  Put,
   Delete,
   Param,
   Body,
@@ -20,6 +21,7 @@ import { PurchaseService } from '../services/purchase.service';
 import { CreatePurchaseDto } from '../dto/create-purchase.dto';
 import { AddPurchaseItemsDto } from '../dto/purchase-item.dto';
 import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
+import { UpdateLogisticsDto } from '../dto/update-logistics.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import {
   ApiSuccessResponse,
@@ -125,7 +127,6 @@ export class PurchaseController {
     id: 'da-123',
     reference: 'DA-2024-0001',
     title: 'Achat materiel',
-    amount: 10000000,
     status: 'PUBLISHED',
     items: [],
     validationWorkflow: {},
@@ -138,9 +139,9 @@ export class PurchaseController {
 
   @Get()
   @ApiOperation({
-    summary: 'Lister mes DA',
+    summary: 'Lister les DA selon le profil',
     description:
-      "Recupere la liste des DA creees par l'utilisateur connecte avec filtres et pagination",
+      "ACHETEUR: DA du domaine acheteur (QR, PV, BC, BR) | Autres: DA créées par l'utilisateur",
   })
   @ApiPaginatedResponse({
     id: 'da-123',
@@ -149,6 +150,9 @@ export class PurchaseController {
   })
   @ApiCommonResponses()
   async getMyPurchases(@Request() req, @Query() filters: FilterPurchaseDto) {
+    if (req.user.role === 'ACHETEUR') {
+      return this.purchaseService.getBuyerWorkspace(filters);
+    }
     return this.purchaseService.getMyPurchases(req.user.id, filters);
   }
 
@@ -195,5 +199,30 @@ export class PurchaseController {
       req.user.id,
       updateDto,
     );
+  }
+  @Put(':id')
+  @ApiOperation({
+    summary: "Mettre a jour les informations logistiques d'une DA",
+    description:
+      "Permet de modifier l'adresse de livraison, la date souhaitee et les observations",
+  })
+  @ApiParam({ name: 'id', description: 'ID de la DA' })
+  @ApiBody({ type: UpdateLogisticsDto })
+  @ApiSuccessResponse('DA mise a jour', {
+    id: 'da-123',
+    reference: 'DA-2024-0001',
+    deliveryAddress: 'Region Bureau',
+    requestedDeliveryDate: '2026-02-24',
+    observations: 'Livraison urgente',
+    message: 'Informations logistiques mises a jour avec succes',
+  })
+  @ApiNotFoundResponse('DA')
+  @ApiCommonResponses()
+  async updateLogistics(
+    @Param('id') id: string,
+    @Request() req,
+    @Body() dto: UpdateLogisticsDto,
+  ) {
+    return this.purchaseService.updateLogistics(id, req.user.id, dto);
   }
 }

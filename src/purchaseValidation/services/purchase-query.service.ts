@@ -66,15 +66,21 @@ export class PurchaseQueryService {
     } = filters;
     const skip = (page - 1) * limit;
 
-    // Récupérer toutes les DA publiées où le validateur est présent
-    const where = this.buildWhereClause(filters, {
-      status: 'PUBLISHED',
+    // Le client peut envoyer un `status` (souvent "PUBLISHED") mais cela ne doit
+    // pas écraser notre liste métier de statuts attendus pour les validations en
+    // cours. En particulier l'étape QR passe en PENDING_APPROVAL/IN_DEROGATION et, si
+    // on remplace la clause par le filtre client, ces enregistrements disparaissent.
+    const filtersForQuery: FilterOptions = { ...filters };
+    delete filtersForQuery.status;
+
+    // Récupérer toutes les DA publiées, en attente d'approbation ou en dérogation où le validateur est présent
+    const where = this.buildWhereClause(filtersForQuery, {
+      status: { in: ['PUBLISHED', 'PENDING_APPROVAL', 'IN_DEROGATION'] },
       validationWorkflows: {
         some: {
           validators: {
             some: {
               role: userRole,
-              isValidated: false,
             },
           },
         },
@@ -184,7 +190,7 @@ export class PurchaseQueryService {
     const skip = (page - 1) * limit;
 
     const where = this.buildWhereClause(filters, {
-      status: 'VALIDATED',
+      status: { in: ['PUBLISHED', 'AWAITING_DOCUMENTS'] },
       currentStep: 'QR',
     });
 

@@ -86,16 +86,15 @@ export class ValidationActionService {
     );
 
     // Déterminer le nouveau statut
-    const newStatus = isComplete
-      ? PurchaseStatus.VALIDATED
-      : PurchaseStatus.PUBLISHED;
+    // Si le workflow est complet, on garde PUBLISHED pour passer à l'étape suivante
+    // Sinon, on garde le statut actuel (PENDING_APPROVAL ou autre)
+    const newStatus = isComplete ? PurchaseStatus.PUBLISHED : purchase.status;
 
-    // Mettre à jour la demande
+    // Mettre à jour la demande seulement si le statut change
     const updatedPurchase = await this.purchaseRepo.update({
       where: { id: purchaseId },
       data: {
         status: newStatus,
-        validatedAt: isComplete ? new Date() : purchase.validatedAt,
       },
     });
 
@@ -242,7 +241,13 @@ export class ValidationActionService {
    * Valide l'état de la demande
    */
   private validatePurchaseState(purchase: any): void {
-    if (purchase.status !== PurchaseStatus.PUBLISHED) {
+    const validStatuses = [
+      PurchaseStatus.PUBLISHED,
+      PurchaseStatus.PENDING_APPROVAL,
+      PurchaseStatus.IN_DEROGATION,
+    ];
+
+    if (!validStatuses.includes(purchase.status)) {
       throw new BadRequestException(
         `La demande #${purchase.id} n'est pas en attente de validation (status: ${purchase.status})`,
       );

@@ -29,15 +29,15 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard'; // Ajustez selo
  * Controller pour la validation de DA
  * Routes pour gérer uniquement la validation des demandes d'achat
  */
-@ApiTags('DA Validation') // Groupe dans Swagger
+@ApiTags('Validation') // Groupe dans Swagger
 @ApiBearerAuth() // Indique que toutes les routes nécessitent un token
-@Controller('da-validation')
+@Controller('validation')
 @UseGuards(JwtAuthGuard) // Protège toutes les routes avec JWT
 export class DAValidationController {
   constructor(private readonly daValidationService: DAValidationService) {}
 
   /**
-   * GET /da-validation/pending
+   * GET /validation/pending
    * Récupère toutes les DA en attente de validation pour l'utilisateur connecté
    */
   @Get('pending')

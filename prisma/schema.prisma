@@ -137,7 +137,9 @@ enum PurchaseStep {
 
 enum PurchaseStatus {
   DRAFT
+  PENDING_APPROVAL
   PUBLISHED
+  AWAITING_DOCUMENTS
   VALIDATED
   REJECTED
   IN_DEROGATION
@@ -186,7 +188,6 @@ model Purchase {
   title                 String
   description           String?             @db.Text
   marketType            String?
-  amount                Decimal             @db.Decimal(15, 2)
   operationType         OperationType
 
   createdAt             DateTime            @default(now())
@@ -345,6 +346,31 @@ model Validator {
   @@map("validators")
 }
 
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  status      String
+  nif         String
+  stat        String
+  rcs         String
+  region      String
+  address     String
+  phone       String
+  email       String?
+  label       String?
+
+  active      Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([status])
+  @@index([region])
+  @@map("suppliers")
+}
+
+
 enum PVStatus {
   DRAFT
   SUBMITTED
@@ -373,20 +399,19 @@ model PV {
 }
 
 model PVSupplier {
-  id      String  @id @default(cuid())
-  pvId    String
+  id          String   @id @default(cuid())
+  pvId        String
+  supplierId  String?  // ← ajout
+
   order   Int
   name    String?
   rang    Int?
 
-  // Recevabilité administrative
-  reponseDansDelai      String?
-  annexe1               String?
-  devisSpecifications   String?
-  regulariteFiscale     String?
-  copiecin              String?
-
-  // Recevabilité technique
+  reponseDansDelai          String?
+  annexe1                   String?
+  devisSpecifications       String?
+  regulariteFiscale         String?
+  copiecin                  String?
   conformiteSpecs           String?
   distanceBureaux           String?
   delaiLivraison            String?
@@ -396,20 +421,20 @@ model PVSupplier {
   experienceAnterieure      String?
   producteurOuSousTraitant  String?
   echantillonBat            String?
+  validiteOffre             String?
+  modePaiement              String?
+  delaiPaiement             String?
+  offreFinanciere           Decimal? @db.Decimal(15, 2)
 
-  // Recevabilité financière
-  validiteOffre     String?
-  modePaiement      String?
-  delaiPaiement     String?
-  offreFinanciere   Decimal?  @db.Decimal(15, 2)
-
-  pv      PV              @relation(fields: [pvId], references: [id], onDelete: Cascade)
-  items   PVSupplierItem[]
+  pv        PV        @relation(fields: [pvId], references: [id], onDelete: Cascade)
+  supplier  Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull) // ← ajout
+  items     PVSupplierItem[]
 
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
   @@index([pvId])
+  @@index([supplierId]) // ← ajout
   @@map("pv_suppliers")
 }
 

@@ -8,10 +8,11 @@ import {
 import { PrismaService } from '../../../prisma/prisma.service';
 import { WorkflowService } from './workflow.service';
 import { WorkflowConfigService } from '../../purchaseValidation/services/workflow-config.service';
+import { PurchaseQueryService } from '../../purchaseValidation/services/purchase-query.service';
 import { CreatePurchaseDto } from '../dto/create-purchase.dto';
 import { AddPurchaseItemsDto } from '../dto/purchase-item.dto';
 import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
-import { PurchaseStatus, PurchaseStep } from '@prisma/client';
+import { PurchaseStatus, PurchaseStep, Role } from '@prisma/client';
 import {
   buildPaginatedResponse,
   parsePaginationParams,
@@ -25,6 +26,7 @@ export class PurchaseService {
     private readonly prisma: PrismaService,
     private readonly workflowService: WorkflowService,
     private readonly workflowConfigService: WorkflowConfigService,
+    private readonly purchaseQueryService: PurchaseQueryService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
@@ -60,7 +62,6 @@ export class PurchaseService {
       purchaseId: purchase.id,
       reference: purchase.reference,
       userId,
-      amount: purchase.amount,
     });
 
     return {
@@ -149,24 +150,26 @@ export class PurchaseService {
       );
     }
 
-    // Determiner les validateurs selon le type d'operation et le montant
+    const totalAmount = purchase.items.reduce(
+      (sum, item) => sum + item.amount,
+      0,
+    );
+
     const requiredRoles = this.workflowConfigService.getRequireValidators(
       purchase.currentStep,
       purchase.operationType,
-      Number(purchase.amount),
+      totalAmount,
     );
 
-    // Recuperer l'utilisateur pour le premier validateur (DEMANDEUR)
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
 
-    // Creer le workflow de validation avec step
     const workflow = await this.prisma.validationWorkflow.create({
       data: {
         purchaseId,
         step: PurchaseStep.DA,
-        currentStep: 1, // Passe au validateur suivant car DEMANDEUR valide automatiquement
+        currentStep: 1,
         validators: {
           create: requiredRoles.map((role, index) => ({
             role,
@@ -174,7 +177,7 @@ export class PurchaseService {
             userId: index === 0 ? userId : null,
             name: index === 0 ? user?.name : null,
             email: index === 0 ? user?.email : null,
-            isValidated: index === 0, // Le demandeur valide automatiquement
+            isValidated: index === 0,
             validatedAt: index === 0 ? new Date() : null,
             decision: index === 0 ? 'VALIDATED' : null,
           })),
@@ -187,7 +190,6 @@ export class PurchaseService {
       },
     });
 
-    // Mettre a jour le statut de la purchase
     await this.prisma.purchase.update({
       where: { id: purchaseId },
       data: {
@@ -211,9 +213,6 @@ export class PurchaseService {
     };
   }
 
-  /**
-   * Recuperer une DA par ID
-   */
   async getPurchaseById(purchaseId: string, userId: number) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
@@ -244,7 +243,6 @@ export class PurchaseService {
       throw new NotFoundException("Demande d'achat non trouvee");
     }
 
-    // Ajouter le message de status lisible
     const statusMessage = this.workflowConfigService.getStatusMessage(
       purchase.status,
       purchase.currentStep,
@@ -252,30 +250,40 @@ export class PurchaseService {
 
     return {
       ...purchase,
+      amount: purchase.items.reduce((sum, item) => sum + item.amount, 0),
       statusMessage,
     };
   }
 
-  /**
-   * Recuperer les DA de l'utilisateur avec pagination centralisée
-   */
   async getMyPurchases(userId: number, filters: FilterPurchaseDto = {}) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouve');
+    }
+
     const pagination = parsePaginationParams(filters, {
       defaultPage: 1,
       defaultLimit: 10,
       maxLimit: 100,
     });
 
-    const where: any = { creatorId: userId };
+    const where: any =
+      user.role === Role.ACHETEUR
+        ? { currentStep: 'QR' }
+        : { creatorId: userId };
 
     if (filters.status) {
       where.status = filters.status;
     }
 
-    if (filters.currentStep) {
+    if (filters.currentStep && user.role !== Role.ACHETEUR) {
       where.currentStep = filters.currentStep;
     }
-    if (filters.priority) {
+
+    if (filters.priority && user.role !== Role.ACHETEUR) {
       where.priority = filters.priority;
     }
 
@@ -284,16 +292,6 @@ export class PurchaseService {
         { reference: { contains: filters.search, mode: 'insensitive' } },
         { title: { contains: filters.search, mode: 'insensitive' } },
       ];
-    }
-
-    if (filters.minAmount !== undefined || filters.maxAmount !== undefined) {
-      where.amount = {};
-      if (filters.minAmount !== undefined) {
-        where.amount.gte = filters.minAmount;
-      }
-      if (filters.maxAmount !== undefined) {
-        where.amount.lte = filters.maxAmount;
-      }
     }
 
     if (filters.startDate || filters.endDate) {
@@ -306,7 +304,6 @@ export class PurchaseService {
       }
     }
 
-    // Exécuter les requêtes
     const [purchases, total] = await Promise.all([
       this.prisma.purchase.findMany({
         where,
@@ -328,9 +325,9 @@ export class PurchaseService {
       this.prisma.purchase.count({ where }),
     ]);
 
-    // Ajouter statusMessage à chaque purchase
     const purchasesWithStatus = purchases.map((purchase) => ({
       ...purchase,
+      amount: purchase.items.reduce((sum, item) => sum + item.amount, 0),
       statusMessage: this.workflowConfigService.getStatusMessage(
         purchase.status,
         purchase.currentStep,
@@ -376,6 +373,54 @@ export class PurchaseService {
     };
   }
 
+  async updateLogistics(
+    purchaseId: string,
+    userId: number,
+    dto: {
+      deliveryAddress?: string;
+      requestedDeliveryDate?: Date;
+      observations?: string;
+    },
+  ) {
+    const purchase = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+    });
+
+    if (!purchase) {
+      throw new NotFoundException("Demande d'achat non trouvee");
+    }
+
+    if (purchase.creatorId !== userId) {
+      throw new ForbiddenException(
+        "Vous n'etes pas autorise a modifier cette DA",
+      );
+    }
+
+    const updated = await this.prisma.purchase.update({
+      where: { id: purchaseId },
+      data: {
+        ...(dto.deliveryAddress !== undefined && {
+          deliveryAddress: dto.deliveryAddress,
+        }),
+        ...(dto.requestedDeliveryDate !== undefined && {
+          requestedDeliveryDate: new Date(dto.requestedDeliveryDate),
+        }),
+        ...(dto.observations !== undefined && {
+          observations: dto.observations,
+        }),
+      },
+    });
+
+    return {
+      id: updated.id,
+      reference: updated.reference,
+      deliveryAddress: updated.deliveryAddress,
+      requestedDeliveryDate: updated.requestedDeliveryDate,
+      observations: updated.observations,
+      message: 'Informations logistiques mises a jour avec succes',
+    };
+  }
+
   async updateAndRepublishPurchase(
     purchaseId: string,
     userId: number,
@@ -403,7 +448,6 @@ export class PurchaseService {
       );
     }
 
-    // Mettre à jour les informations de la DA
     const updateData: any = {
       ...updateDto,
       status: PurchaseStatus.DRAFT,
@@ -411,7 +455,6 @@ export class PurchaseService {
       closedAt: null,
     };
 
-    // Supprimer les champs vides pour éviter les erreurs de validation
     if (!updateData.requestedDeliveryDate) {
       delete updateData.requestedDeliveryDate;
     }
@@ -424,12 +467,10 @@ export class PurchaseService {
       data: updateData,
     });
 
-    // Mettre à jour les items si fournis
     if (itemsDto) {
       await this.addPurchaseItems(purchaseId, userId, itemsDto);
     }
 
-    // Supprimer les anciens workflows
     await this.prisma.validationWorkflow.deleteMany({
       where: { purchaseId },
     });
@@ -440,5 +481,78 @@ export class PurchaseService {
       status: PurchaseStatus.DRAFT,
       message: 'DA modifiee avec succes. Vous pouvez maintenant la republier.',
     };
+  }
+
+  async getBuyerWorkspace(filters: FilterPurchaseDto = {}) {
+    const pagination = parsePaginationParams(filters, {
+      defaultPage: 1,
+      defaultLimit: 10,
+      maxLimit: 100,
+    });
+
+    const where: any = {
+      status: {
+        in: [
+          PurchaseStatus.AWAITING_DOCUMENTS,
+          PurchaseStatus.PENDING_APPROVAL,
+          PurchaseStatus.IN_DEROGATION,
+          PurchaseStatus.PUBLISHED,
+        ],
+      },
+      currentStep: {
+        in: [
+          PurchaseStep.QR,
+          PurchaseStep.PV,
+          PurchaseStep.BC,
+          PurchaseStep.BR,
+        ],
+      },
+    };
+
+    if (filters.search) {
+      where.OR = [
+        { reference: { contains: filters.search, mode: 'insensitive' } },
+        { title: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [purchases, total] = await Promise.all([
+      this.prisma.purchase.findMany({
+        where,
+        include: {
+          items: true,
+          validationWorkflows: {
+            include: {
+              validators: {
+                orderBy: { order: 'asc' },
+              },
+            },
+          },
+          creator: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: pagination.skip,
+        take: pagination.limit,
+      }),
+      this.prisma.purchase.count({ where }),
+    ]);
+
+    const purchasesWithStatus = purchases.map((purchase) => ({
+      ...purchase,
+      amount: purchase.items.reduce((sum, item) => sum + item.amount, 0),
+      statusMessage: this.workflowConfigService.getStatusMessage(
+        purchase.status,
+        purchase.currentStep,
+      ),
+    }));
+
+    return buildPaginatedResponse(purchasesWithStatus, total, pagination);
   }
 }
