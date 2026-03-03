@@ -86,12 +86,11 @@ export class ValidationActionService {
     );
 
     // Déterminer le nouveau statut
-    // VALIDATED uniquement si TOUS les steps sont complétés
-    const newStatus = isComplete
-      ? PurchaseStatus.PUBLISHED // Reste PUBLISHED, pas VALIDATED
-      : PurchaseStatus.PUBLISHED;
+    // Si le workflow est complet, on garde PUBLISHED pour passer à l'étape suivante
+    // Sinon, on garde le statut actuel (PENDING_APPROVAL ou autre)
+    const newStatus = isComplete ? PurchaseStatus.PUBLISHED : purchase.status;
 
-    // Mettre à jour la demande
+    // Mettre à jour la demande seulement si le statut change
     const updatedPurchase = await this.purchaseRepo.update({
       where: { id: purchaseId },
       data: {
