@@ -358,6 +358,7 @@ model Supplier {
   phone       String
   email       String?
   label       String?
+  pvSuppliers PVSupplier[]
 
   active      Boolean  @default(true)
 
@@ -401,7 +402,7 @@ model PV {
 model PVSupplier {
   id          String   @id @default(cuid())
   pvId        String
-  supplierId  String?  // ← ajout
+  supplierId  String?
 
   order   Int
   name    String?
@@ -434,7 +435,7 @@ model PVSupplier {
   updatedAt   DateTime  @updatedAt
 
   @@index([pvId])
-  @@index([supplierId]) // ← ajout
+  @@index([supplierId])
   @@map("pv_suppliers")
 }
 
