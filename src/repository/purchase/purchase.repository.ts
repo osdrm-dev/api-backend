@@ -58,10 +58,17 @@ export class PurchaseRepository {
   /**
    * Trouve une purchase par ID
    */
-  async findById(id: string): Promise<PurchaseWithRelations | null> {
+  async findById(
+    id: string,
+    options?: { hideWorkflows?: boolean },
+  ): Promise<PurchaseWithRelations | null> {
+    const include = options?.hideWorkflows
+      ? { ...this.standardInclude, validationWorkflows: false }
+      : this.standardInclude;
+
     return this.prisma.purchase.findUnique({
       where: { id },
-      include: this.standardInclude,
+      include,
     }) as Promise<PurchaseWithRelations | null>;
   }
 
@@ -85,15 +92,20 @@ export class PurchaseRepository {
     take?: number;
     where?: Prisma.PurchaseWhereInput;
     orderBy?: Prisma.PurchaseOrderByWithRelationInput;
+    hideWorkflows?: boolean;
   }): Promise<PurchaseWithRelations[]> {
-    const { skip, take, where, orderBy } = params;
+    const { skip, take, where, orderBy, hideWorkflows } = params;
+
+    const include = hideWorkflows
+      ? { ...this.standardInclude, validationWorkflows: false }
+      : this.standardInclude;
 
     return this.prisma.purchase.findMany({
       skip,
       take,
       where,
       orderBy,
-      include: this.standardInclude,
+      include,
     }) as Promise<PurchaseWithRelations[]>;
   }
 

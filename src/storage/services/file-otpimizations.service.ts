@@ -110,7 +110,10 @@ export class FileOptimizationService {
 
     let pipeline = image;
 
-    if (metadata.width > maxWidth || metadata.height > maxHeight) {
+    if (
+      (metadata.width && metadata.width > maxWidth) ||
+      (metadata.height && metadata.height > maxHeight)
+    ) {
       pipeline = pipeline.resize(maxWidth, maxHeight, {
         fit: 'inside',
         withoutEnlargement: true,

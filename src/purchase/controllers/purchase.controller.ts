@@ -137,6 +137,31 @@ export class PurchaseController {
     return this.purchaseService.getPurchaseById(id, req.user.id);
   }
 
+  @Get(':id/validation-status')
+  @ApiOperation({
+    summary: "Statut de validation d'une DA (DEMANDEUR uniquement)",
+    description:
+      'Retourne le currentStep et tous les workflows de validation pour le créateur de la DA',
+  })
+  @ApiParam({ name: 'id', description: 'ID de la DA' })
+  @ApiSuccessResponse('Statut de validation', {
+    id: 'da-123',
+    reference: 'DA-2024-0001',
+    currentStep: 'QR',
+    status: 'PENDING_APPROVAL',
+    validationWorkflows: [],
+  })
+  @ApiNotFoundResponse('DA')
+  @ApiCommonResponses()
+  async getValidationStatus(
+    @Param('id') id: string,
+    @Query('purchaseId') queryId: string,
+    @Request() req,
+  ) {
+    const purchaseId = id !== ':id' ? id : queryId;
+    return this.purchaseService.getValidationStatus(purchaseId, req.user.id);
+  }
+
   @Get()
   @ApiOperation({
     summary: 'Lister les DA selon le profil',

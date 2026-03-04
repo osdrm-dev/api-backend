@@ -124,8 +124,14 @@ export class PurchaseQueryService {
     const total = validPurchases.length;
     const paginatedPurchases = validPurchases.slice(skip, skip + limit);
 
+    // Masquer les workflows pour les validateurs (non-demandeurs)
+    const sanitizedPurchases = paginatedPurchases.map((purchase) => {
+      const { validationWorkflows, ...rest } = purchase;
+      return rest;
+    });
+
     return {
-      data: paginatedPurchases,
+      data: sanitizedPurchases,
       pagination: {
         total,
         page,
