@@ -21,6 +21,67 @@ export class PVService {
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
+  private buildSupplierData(supplier: any) {
+    return {
+      order: supplier.order,
+      name: supplier.name,
+      rang: supplier.rang,
+      ...(supplier.supplierId && {
+        supplier: { connect: { id: supplier.supplierId } },
+      }),
+      reponseDansDelai: supplier.reponseDansDelai,
+      annexe1: supplier.annexe1,
+      devisSpecifications: supplier.devisSpecifications,
+      regulariteFiscale: supplier.regulariteFiscale,
+      copiecin: supplier.copiecin,
+      conformiteSpecs: supplier.conformiteSpecs,
+      distanceBureaux: supplier.distanceBureaux,
+      delaiLivraison: supplier.delaiLivraison,
+      sav: supplier.sav,
+      disponibiliteArticles: supplier.disponibiliteArticles,
+      qualiteArticles: supplier.qualiteArticles,
+      experienceAnterieure: supplier.experienceAnterieure,
+      producteurOuSousTraitant: supplier.producteurOuSousTraitant,
+      echantillonBat: supplier.echantillonBat,
+      validiteOffre: supplier.validiteOffre,
+      modePaiement: supplier.modePaiement,
+      delaiPaiement: supplier.delaiPaiement,
+      offreFinanciere: supplier.offreFinanciere,
+      items: supplier.items
+        ? {
+            create: supplier.items.map((item: any) => ({
+              purchaseItemId: item.purchaseItemId,
+              designation: item.designation,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              amount: item.quantity * item.unitPrice,
+              disponibilite: item.disponibilite,
+            })),
+          }
+        : undefined,
+    };
+  }
+
+  private async validateSuppliers(suppliers: any[]) {
+    for (const supplier of suppliers) {
+      if (supplier.supplierId) {
+        const existing = await this.prisma.supplier.findUnique({
+          where: { id: supplier.supplierId },
+        });
+        if (!existing) {
+          throw new NotFoundException(
+            `Fournisseur avec l'id ${supplier.supplierId} non trouve`,
+          );
+        }
+        if (!existing.active) {
+          throw new BadRequestException(
+            `Le fournisseur ${existing.name} n'est pas actif`,
+          );
+        }
+      }
+    }
+  }
+
   async createPV(purchaseId: string, userId: number, dto: CreatePVDto) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
@@ -48,6 +109,8 @@ export class PVService {
       );
     }
 
+    await this.validateSuppliers(dto.suppliers);
+
     const pv = await this.pvRepository.create({
       purchase: { connect: { id: purchaseId } },
       evaluateur: dto.evaluateur,
@@ -56,41 +119,7 @@ export class PVService {
       decisionFinale: dto.decisionFinale,
       status: PVStatus.DRAFT,
       suppliers: {
-        create: dto.suppliers.map((supplier) => ({
-          order: supplier.order,
-          name: supplier.name,
-          rang: supplier.rang,
-          reponseDansDelai: supplier.reponseDansDelai,
-          annexe1: supplier.annexe1,
-          devisSpecifications: supplier.devisSpecifications,
-          regulariteFiscale: supplier.regulariteFiscale,
-          copiecin: supplier.copiecin,
-          conformiteSpecs: supplier.conformiteSpecs,
-          distanceBureaux: supplier.distanceBureaux,
-          delaiLivraison: supplier.delaiLivraison,
-          sav: supplier.sav,
-          disponibiliteArticles: supplier.disponibiliteArticles,
-          qualiteArticles: supplier.qualiteArticles,
-          experienceAnterieure: supplier.experienceAnterieure,
-          producteurOuSousTraitant: supplier.producteurOuSousTraitant,
-          echantillonBat: supplier.echantillonBat,
-          validiteOffre: supplier.validiteOffre,
-          modePaiement: supplier.modePaiement,
-          delaiPaiement: supplier.delaiPaiement,
-          offreFinanciere: supplier.offreFinanciere,
-          items: supplier.items
-            ? {
-                create: supplier.items.map((item) => ({
-                  purchaseItemId: item.purchaseItemId,
-                  designation: item.designation,
-                  quantity: item.quantity,
-                  unitPrice: item.unitPrice,
-                  amount: item.quantity * item.unitPrice,
-                  disponibilite: item.disponibilite,
-                })),
-              }
-            : undefined,
-        })),
+        create: dto.suppliers.map((s) => this.buildSupplierData(s)),
       },
     });
 
@@ -123,8 +152,10 @@ export class PVService {
       throw new ForbiddenException('Seul un acheteur peut modifier un PV');
     }
 
-    // Supprimer les anciens suppliers (cascade supprime les items)
-    await this.pvRepository.deleteSuppliersById(purchase.pv.id);
+    if (dto.suppliers) {
+      await this.validateSuppliers(dto.suppliers);
+      await this.pvRepository.deleteSuppliersById(purchase.pv.id);
+    }
 
     const pv = await this.pvRepository.update({
       where: { id: purchase.pv.id },
@@ -136,43 +167,7 @@ export class PVService {
         natureObjet: dto.natureObjet,
         decisionFinale: dto.decisionFinale,
         suppliers: dto.suppliers
-          ? {
-              create: dto.suppliers.map((supplier) => ({
-                order: supplier.order,
-                name: supplier.name,
-                rang: supplier.rang,
-                reponseDansDelai: supplier.reponseDansDelai,
-                annexe1: supplier.annexe1,
-                devisSpecifications: supplier.devisSpecifications,
-                regulariteFiscale: supplier.regulariteFiscale,
-                copiecin: supplier.copiecin,
-                conformiteSpecs: supplier.conformiteSpecs,
-                distanceBureaux: supplier.distanceBureaux,
-                delaiLivraison: supplier.delaiLivraison,
-                sav: supplier.sav,
-                disponibiliteArticles: supplier.disponibiliteArticles,
-                qualiteArticles: supplier.qualiteArticles,
-                experienceAnterieure: supplier.experienceAnterieure,
-                producteurOuSousTraitant: supplier.producteurOuSousTraitant,
-                echantillonBat: supplier.echantillonBat,
-                validiteOffre: supplier.validiteOffre,
-                modePaiement: supplier.modePaiement,
-                delaiPaiement: supplier.delaiPaiement,
-                offreFinanciere: supplier.offreFinanciere,
-                items: supplier.items
-                  ? {
-                      create: supplier.items.map((item) => ({
-                        purchaseItemId: item.purchaseItemId,
-                        designation: item.designation,
-                        quantity: item.quantity,
-                        unitPrice: item.unitPrice,
-                        amount: item.quantity * item.unitPrice,
-                        disponibilite: item.disponibilite,
-                      })),
-                    }
-                  : undefined,
-              })),
-            }
+          ? { create: dto.suppliers.map((s) => this.buildSupplierData(s)) }
           : undefined,
       },
     });
@@ -218,9 +213,7 @@ export class PVService {
 
   async getPV(purchaseId: string) {
     const pv = await this.pvRepository.findByPurchaseId(purchaseId);
-
     if (!pv) throw new NotFoundException('Aucun PV trouve pour cette DA');
-
     return pv;
   }
 }

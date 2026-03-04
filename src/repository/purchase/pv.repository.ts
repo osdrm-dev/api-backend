@@ -12,7 +12,21 @@ export class PVRepository {
 
   private readonly standardInclude: Prisma.PVInclude = {
     suppliers: {
-      include: { items: true },
+      include: {
+        items: true,
+        supplier: {
+          select: {
+            id: true,
+            name: true,
+            address: true,
+            phone: true,
+            email: true,
+            nif: true,
+            stat: true,
+            region: true,
+          },
+        },
+      },
       orderBy: { order: 'asc' },
     },
   };

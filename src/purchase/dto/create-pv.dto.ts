@@ -34,6 +34,10 @@ export class CreatePVSupplierItemDto {
 }
 
 export class CreatePVSupplierDto {
+  @IsOptional()
+  @IsString()
+  supplierId?: string;
+
   @IsInt()
   @Min(1)
   @Max(3)

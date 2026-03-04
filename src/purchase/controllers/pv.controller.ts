@@ -18,7 +18,6 @@ import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 export class PVController {
   constructor(private readonly pvService: PVService) {}
 
-  // Créer le PV
   @Post()
   createPV(
     @Param('purchaseId') purchaseId: string,
@@ -28,7 +27,6 @@ export class PVController {
     return this.pvService.createPV(purchaseId, req.user.id, dto);
   }
 
-  // Modifier le PV (tant qu'il est en DRAFT)
   @Patch()
   updatePV(
     @Param('purchaseId') purchaseId: string,
@@ -38,13 +36,11 @@ export class PVController {
     return this.pvService.updatePV(purchaseId, req.user.id, dto);
   }
 
-  // Soumettre le PV pour validation
   @Post('submit')
   submitPV(@Param('purchaseId') purchaseId: string, @Request() req) {
     return this.pvService.submitPV(purchaseId, req.user.id);
   }
 
-  // Récupérer le PV
   @Get()
   getPV(@Param('purchaseId') purchaseId: string) {
     return this.pvService.getPV(purchaseId);

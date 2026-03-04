@@ -555,4 +555,38 @@ export class PurchaseService {
 
     return buildPaginatedResponse(purchasesWithStatus, total, pagination);
   }
+
+  async getValidationStatus(purchaseId: string, userId: number) {
+    const purchase = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+      include: {
+        validationWorkflows: {
+          include: {
+            validators: {
+              orderBy: { order: 'asc' },
+            },
+          },
+          orderBy: { step: 'asc' },
+        },
+      },
+    });
+
+    if (!purchase) {
+      throw new NotFoundException("Demande d'achat non trouvee");
+    }
+
+    if (purchase.creatorId !== userId) {
+      throw new ForbiddenException(
+        'Seul le créateur peut consulter le statut de validation',
+      );
+    }
+
+    return {
+      id: purchase.id,
+      reference: purchase.reference,
+      currentStep: purchase.currentStep,
+      status: purchase.status,
+      validationWorkflows: purchase.validationWorkflows,
+    };
+  }
 }
