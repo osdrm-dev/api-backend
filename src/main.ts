@@ -24,7 +24,14 @@ if (
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
+    bodyParser: true,
   });
+
+  // Augmenter le timeout pour les bases distantes
+  const server = app.getHttpServer();
+  server.setTimeout(60000); // 60 secondes
+  server.keepAliveTimeout = 65000;
+  server.headersTimeout = 66000;
 
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 

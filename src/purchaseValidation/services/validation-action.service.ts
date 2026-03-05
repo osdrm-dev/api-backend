@@ -42,13 +42,9 @@ export class ValidationActionService {
   async validate(context: ValidationContext): Promise<ValidationResult> {
     const { purchaseId, userId, userRole, comment } = context;
 
-    // Récupérer la demande
     const purchase = await this.getPurchaseWithWorkflow(purchaseId);
-
-    // Vérifications communes
     this.validatePurchaseState(purchase);
 
-    // Vérifier l'autorisation
     const { canValidate, validator } =
       await this.workflowService.canUserValidate(purchaseId, userRole);
 
@@ -58,15 +54,6 @@ export class ValidationActionService {
       );
     }
 
-    // Mettre à jour le validateur
-    await this.workflowService.updateValidator({
-      validatorId: validator.id,
-      userId,
-      decision: 'VALIDATED',
-      comment,
-    });
-
-    // Avancer le workflow
     const currentWorkflow = purchase.validationWorkflows?.find(
       (w) => w.step === purchase.currentStep,
     );
@@ -77,44 +64,50 @@ export class ValidationActionService {
       );
     }
 
-    await this.workflowService.advanceWorkflow(currentWorkflow.id);
-
-    // Vérifier si le workflow est complet
-    const updatedWorkflow = await this.workflowService.getWorkflow(purchaseId);
-    const isComplete = this.workflowConfig.isWorkflowComplete(
-      updatedWorkflow.validators,
-    );
-
-    // Déterminer le nouveau statut
-    // Si le workflow est complet, on garde PUBLISHED pour passer à l'étape suivante
-    // Sinon, on garde le statut actuel (PENDING_APPROVAL ou autre)
-    const newStatus = isComplete ? PurchaseStatus.PUBLISHED : purchase.status;
-
-    // Mettre à jour la demande seulement si le statut change
-    const updatedPurchase = await this.purchaseRepo.update({
-      where: { id: purchaseId },
-      data: {
-        status: newStatus,
-      },
-    });
-
-    // Audit log
-    await this.auditLogRepo.createValidationLog({
-      userId,
-      action: 'VALIDATE',
-      purchaseId,
-      details: {
+    // Exécuter les mises à jour critiques en parallèle
+    const [, updatedWorkflow] = await Promise.all([
+      this.workflowService.updateValidator({
+        validatorId: validator.id,
+        userId,
         decision: 'VALIDATED',
         comment,
-        validatorRole: userRole,
-        previousStatus: purchase.status,
-        newStatus,
-        isComplete,
-      },
+      }),
+      this.workflowService.advanceWorkflow(currentWorkflow.id),
+    ]);
+
+    // Vérifier si workflow complet depuis les données mises à jour
+    const validators = currentWorkflow.validators.map((v) =>
+      v.id === validator.id ? { ...v, isValidated: true } : v,
+    );
+    const isComplete = this.workflowConfig.isWorkflowComplete(validators);
+
+    const newStatus = isComplete ? PurchaseStatus.PUBLISHED : purchase.status;
+
+    // Mise à jour du status (critique, doit être awaitée)
+    await this.purchaseRepo.update({
+      where: { id: purchaseId },
+      data: { status: newStatus },
     });
 
+    // Audit log en arrière-plan (non critique)
+    this.auditLogRepo
+      .createValidationLog({
+        userId,
+        action: 'VALIDATE',
+        purchaseId,
+        details: {
+          decision: 'VALIDATED',
+          comment,
+          validatorRole: userRole,
+          previousStatus: purchase.status,
+          newStatus,
+          isComplete,
+        },
+      })
+      .catch((err) => console.error('Audit log failed:', err));
+
     return {
-      purchase: updatedPurchase,
+      purchase: { id: purchaseId, status: newStatus },
       wasCompleted: isComplete,
       nextStatus: newStatus,
     };
