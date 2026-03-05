@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Put, Param, Body, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Param,
+  Body,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
@@ -10,9 +19,14 @@ import {
 import { SupplierService } from '../services/supplier.service';
 import { CreateSupplierDto } from '../dto/create-supplier.dto';
 import { UpdateSupplierDto } from '../dto/update-supplier.dto';
+import { Roles } from 'src/auth/decorators/roles.decorator';
+import { RolesGuard } from 'src/auth/guards/roles.guard';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @ApiTags('Suppliers')
 @Controller('suppliers')
+@Roles('ADMIN', 'ACHETEUR')
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class SupplierController {
   constructor(private readonly supplierService: SupplierService) {}
 

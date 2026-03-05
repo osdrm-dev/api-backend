@@ -12,26 +12,34 @@ export class SupplierRepository {
     return this.prisma.supplier.create({ data });
   }
 
-  async findAll(filters: any): Promise<Supplier[]> {
+  async findAll(filters: any) {
+    const { status, region, active, skip = 0, take = 10 } = filters;
+
     const where: any = {};
 
-    if (filters.active !== undefined) {
-      where.active = filters.active === 'true'; // conversion string → boolean
-    }
+    if (status && status !== 'ALL') where.status = status;
+    if (region && region !== 'ALL') where.region = region;
+    if (active !== undefined)
+      where.active = active === 'true' || active === true;
+    const [data, total] = await Promise.all([
+      this.prisma.supplier.findMany({
+        where,
+        skip: Number(skip),
+        take: Number(take),
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.supplier.count({ where }),
+    ]);
 
-    if (filters.status) {
-      where.status = filters.status;
-    }
-
-    if (filters.region) {
-      where.region = filters.region;
-    }
-
-    if (filters.name) {
-      where.name = { contains: filters.name, mode: 'insensitive' };
-    }
-
-    return this.prisma.supplier.findMany({ where });
+    return {
+      data,
+      pagination: {
+        total,
+        page: Math.floor(Number(skip) / Number(take)) + 1,
+        limit: Number(take),
+        totalPages: Math.ceil(total / Number(take)),
+      },
+    };
   }
 
   async findOne(id: string): Promise<Supplier | null> {
