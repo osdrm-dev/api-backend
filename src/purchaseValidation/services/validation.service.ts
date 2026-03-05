@@ -92,6 +92,9 @@ export class DAValidationService {
         if (nextStep === PurchaseStep.QR) {
           // passer au statut AWAITING_DOCUMENTS quand on entre en étape QR
           newStatus = PurchaseStatus.AWAITING_DOCUMENTS;
+        } else if (nextStep === PurchaseStep.BC) {
+          // passer au statut AWAITING_DOCUMENTS quand on entre en étape BC
+          newStatus = PurchaseStatus.AWAITING_DOCUMENTS;
         }
 
         await this.purchaseRepo.update({

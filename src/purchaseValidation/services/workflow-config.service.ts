@@ -76,7 +76,6 @@ export class WorkflowConfigService {
       rules: {
         [OperationType.OPERATION]: [
           {
-            // l'étape QR ne dépend que du type d'opération, pas du montant
             roles: [ValidatorRole.OM, ValidatorRole.CFO, ValidatorRole.CEO],
           },
         ],
@@ -84,6 +83,50 @@ export class WorkflowConfigService {
           {
             roles: [
               ValidatorRole.OM,
+              ValidatorRole.DP,
+              ValidatorRole.CFO,
+              ValidatorRole.CEO,
+            ],
+          },
+        ],
+      },
+    },
+    {
+      step: PurchaseStep.PV,
+      rules: {
+        [OperationType.OPERATION]: [
+          {
+            maxAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.OM,
+              ValidatorRole.RFR,
+              ValidatorRole.CPR,
+            ],
+          },
+          {
+            minAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.OM,
+              ValidatorRole.CFO,
+              ValidatorRole.CEO,
+            ],
+          },
+        ],
+        [OperationType.PROGRAMME]: [
+          {
+            maxAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.RFR,
+              ValidatorRole.CPR,
+            ],
+          },
+          {
+            minAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
               ValidatorRole.DP,
               ValidatorRole.CFO,
               ValidatorRole.CEO,

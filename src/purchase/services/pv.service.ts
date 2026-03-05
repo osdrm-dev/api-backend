@@ -9,7 +9,8 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { PVRepository } from '../../repository/purchase/pv.repository';
 import { CreatePVDto } from '../dto/create-pv.dto';
 import { UpdatePVDto } from '../dto/update-pv.dto';
-import { PurchaseStep, PurchaseStatus, PVStatus, Role } from '@prisma/client';
+import { AddSupplierItemsDto } from '../dto/add-supplier-items.dto';
+import { PurchaseStep, PurchaseStatus, Role } from '@prisma/client';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 
@@ -117,7 +118,6 @@ export class PVService {
       dateEvaluation: dto.dateEvaluation ? new Date(dto.dateEvaluation) : null,
       natureObjet: dto.natureObjet,
       decisionFinale: dto.decisionFinale,
-      status: PVStatus.DRAFT,
       suppliers: {
         create: dto.suppliers.map((s) => this.buildSupplierData(s)),
       },
@@ -138,12 +138,9 @@ export class PVService {
     if (!purchase.pv)
       throw new NotFoundException('Aucun PV trouve pour cette DA');
 
-    if (
-      purchase.pv.status === PVStatus.SUBMITTED ||
-      purchase.pv.status === PVStatus.VALIDATED
-    ) {
+    if (purchase.status !== PurchaseStatus.PUBLISHED) {
       throw new BadRequestException(
-        'Ce PV ne peut plus etre modifie car il est deja soumis ou valide',
+        'Ce PV ne peut plus etre modifie car il est deja soumis pour validation',
       );
     }
 
@@ -187,7 +184,7 @@ export class PVService {
     if (!purchase.pv)
       throw new NotFoundException('Aucun PV trouve pour cette DA');
 
-    if (purchase.pv.status !== PVStatus.DRAFT) {
+    if (purchase.status !== PurchaseStatus.PUBLISHED) {
       throw new BadRequestException('Ce PV a deja ete soumis');
     }
 
@@ -197,23 +194,90 @@ export class PVService {
       );
     }
 
-    const pv = await this.pvRepository.updateStatus({
-      id: purchase.pv.id,
-      status: PVStatus.SUBMITTED,
+    await this.prisma.purchase.update({
+      where: { id: purchaseId },
+      data: { status: PurchaseStatus.PENDING_APPROVAL },
     });
 
     this.logger.info('PV soumis pour validation', {
-      pvId: pv.id,
+      pvId: purchase.pv.id,
       purchaseId,
       userId,
     });
 
-    return { ...pv, message: 'PV soumis pour validation' };
+    return { ...purchase.pv, message: 'PV soumis pour validation' };
   }
 
   async getPV(purchaseId: string) {
     const pv = await this.pvRepository.findByPurchaseId(purchaseId);
     if (!pv) throw new NotFoundException('Aucun PV trouve pour cette DA');
     return pv;
+  }
+
+  async addSupplierItems(
+    purchaseId: string,
+    supplierId: string,
+    userId: number,
+    dto: AddSupplierItemsDto,
+  ) {
+    const purchase = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+      include: { pv: { include: { suppliers: true } } },
+    });
+
+    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase.pv)
+      throw new NotFoundException('Aucun PV trouve pour cette DA');
+
+    if (purchase.status !== PurchaseStatus.PUBLISHED) {
+      throw new BadRequestException(
+        'Ce PV ne peut plus etre modifie car il est deja soumis pour validation',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.role !== Role.ACHETEUR) {
+      throw new ForbiddenException(
+        'Seul un acheteur peut ajouter des articles',
+      );
+    }
+
+    const supplier = purchase.pv.suppliers.find((s) => s.id === supplierId);
+    if (!supplier) {
+      throw new NotFoundException('Fournisseur non trouve dans ce PV');
+    }
+
+    await this.prisma.pVSupplierItem.deleteMany({
+      where: { supplierId: supplierId },
+    });
+
+    const items = await Promise.all(
+      dto.items.map((item) =>
+        this.prisma.pVSupplierItem.create({
+          data: {
+            supplierId: supplierId,
+            purchaseItemId: item.purchaseItemId,
+            designation: item.designation,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            amount: item.quantity * item.unitPrice,
+            disponibilite: item.disponibilite,
+          },
+        }),
+      ),
+    );
+
+    this.logger.info('Articles ajoutés au fournisseur PV', {
+      pvId: purchase.pv.id,
+      supplierId,
+      itemsCount: items.length,
+      userId,
+    });
+
+    return {
+      supplierId,
+      items,
+      message: 'Articles ajoutes au fournisseur avec succes',
+    };
   }
 }

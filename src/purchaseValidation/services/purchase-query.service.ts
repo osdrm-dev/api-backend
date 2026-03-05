@@ -66,14 +66,9 @@ export class PurchaseQueryService {
     } = filters;
     const skip = (page - 1) * limit;
 
-    // Le client peut envoyer un `status` (souvent "PUBLISHED") mais cela ne doit
-    // pas écraser notre liste métier de statuts attendus pour les validations en
-    // cours. En particulier l'étape QR passe en PENDING_APPROVAL/IN_DEROGATION et, si
-    // on remplace la clause par le filtre client, ces enregistrements disparaissent.
     const filtersForQuery: FilterOptions = { ...filters };
     delete filtersForQuery.status;
 
-    // Récupérer toutes les DA publiées, en attente d'approbation ou en dérogation où le validateur est présent
     const where = this.buildWhereClause(filtersForQuery, {
       status: { in: ['PUBLISHED', 'PENDING_APPROVAL', 'IN_DEROGATION'] },
       validationWorkflows: {
@@ -92,16 +87,13 @@ export class PurchaseQueryService {
       orderBy: { [sortBy]: sortOrder },
     });
 
-    // Filtrer pour ne garder que celles où c'est son tour
     const validPurchases = allPurchases.filter((purchase) => {
-      // Vérifier que validationWorkflows existe
       if (
         !purchase.validationWorkflows ||
         purchase.validationWorkflows.length === 0
       )
         return false;
 
-      // Trouver le workflow du step actuel
       const currentWorkflow = purchase.validationWorkflows.find(
         (w) => w.step === purchase.currentStep,
       );
@@ -110,7 +102,6 @@ export class PurchaseQueryService {
 
       const validators = currentWorkflow.validators;
 
-      // Vérifier que validators existe
       if (!validators || validators.length === 0) return false;
 
       const nextValidator = validators
@@ -127,7 +118,9 @@ export class PurchaseQueryService {
     // Masquer les workflows pour les validateurs (non-demandeurs)
     const sanitizedPurchases = paginatedPurchases.map((purchase) => {
       const { validationWorkflows, ...rest } = purchase;
-      return rest;
+      const amount =
+        purchase.items?.reduce((sum, item) => sum + item.amount, 0) || 0;
+      return { ...rest, amount };
     });
 
     return {

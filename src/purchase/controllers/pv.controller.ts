@@ -11,6 +11,7 @@ import {
 import { PVService } from '../services/pv.service';
 import { CreatePVDto } from '../dto/create-pv.dto';
 import { UpdatePVDto } from '../dto/update-pv.dto';
+import { AddSupplierItemsDto } from '../dto/add-supplier-items.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @Controller('purchases/:purchaseId/pv')
@@ -44,5 +45,20 @@ export class PVController {
   @Get()
   getPV(@Param('purchaseId') purchaseId: string) {
     return this.pvService.getPV(purchaseId);
+  }
+
+  @Post('suppliers/:supplierId/items')
+  addSupplierItems(
+    @Param('purchaseId') purchaseId: string,
+    @Param('supplierId') supplierId: string,
+    @Request() req,
+    @Body() dto: AddSupplierItemsDto,
+  ) {
+    return this.pvService.addSupplierItems(
+      purchaseId,
+      supplierId,
+      req.user.id,
+      dto,
+    );
   }
 }
