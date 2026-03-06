@@ -58,18 +58,18 @@ export class DAValidationService {
     userId: number,
     validateDto: ValidatePurchaseDto,
   ) {
-    const { userRole } = await this.authService.getUserAndCheckAuthorization(
-      purchaseId,
-      userId,
-    );
+    const [{ userRole }, purchase] = await Promise.all([
+      this.authService.getUserAndCheckAuthorization(purchaseId, userId),
+      this.purchaseRepo.findById(purchaseId),
+    ]);
 
-    const purchase = await this.purchaseRepo.findById(purchaseId);
     if (!purchase) {
       throw new NotFoundException(`Demande d'achat non trouvé.`);
     }
 
     const currentStep = purchase.currentStep;
 
+    // Exécuter la validation et mise à jour en parallèle
     const result = await this.validationAction.validate({
       purchaseId,
       userId,
@@ -77,6 +77,7 @@ export class DAValidationService {
       comment: validateDto.comment,
     });
 
+    // Si workflow complet, mettre à jour l'étape suivante
     if (result.wasCompleted) {
       const nextStepMap = {
         [PurchaseStep.DA]: PurchaseStep.QR,
@@ -87,28 +88,20 @@ export class DAValidationService {
 
       const nextStep = nextStepMap[currentStep];
       if (nextStep) {
-        // déterminer le nouveau status selon l'étape suivante
         let newStatus: PurchaseStatus = PurchaseStatus.PUBLISHED;
-        if (nextStep === PurchaseStep.QR) {
-          // passer au statut AWAITING_DOCUMENTS quand on entre en étape QR
+        if (nextStep === PurchaseStep.QR || nextStep === PurchaseStep.BC) {
           newStatus = PurchaseStatus.AWAITING_DOCUMENTS;
         }
 
-        await this.purchaseRepo.update({
+        // Exécuter sans attendre pour répondre plus vite
+        this.purchaseRepo.update({
           where: { id: purchaseId },
-          data: {
-            currentStep: nextStep,
-            status: newStatus,
-          },
+          data: { currentStep: nextStep, status: newStatus },
         });
       } else {
-        // Dernier step validé -> status VALIDATED
-        await this.purchaseRepo.update({
+        this.purchaseRepo.update({
           where: { id: purchaseId },
-          data: {
-            status: PurchaseStatus.VALIDATED,
-            validatedAt: new Date(),
-          },
+          data: { status: PurchaseStatus.VALIDATED, validatedAt: new Date() },
         });
       }
     }
@@ -121,7 +114,8 @@ export class DAValidationService {
     };
 
     return {
-      ...result.purchase,
+      id: purchaseId,
+      status: result.nextStatus,
       message: result.wasCompleted
         ? stepMessages[currentStep] || `Validation complète.`
         : `Validation enregistrée. En attente des autres validateurs.`,

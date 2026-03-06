@@ -79,6 +79,28 @@ async function main() {
     },
   });
 
+  const rfr = await prisma.user.create({
+    data: {
+      email: 'rfr@osdrm.mg',
+      password: hashedPassword,
+      name: 'Rakoto Fara',
+      fonction: 'Responsable Financier Régional',
+      role: Role.RFR,
+      isActive: true,
+    },
+  });
+
+  const cpr = await prisma.user.create({
+    data: {
+      email: 'cpr@osdrm.mg',
+      password: hashedPassword,
+      name: 'Caroline Raso',
+      fonction: 'Chef de Projet Régional',
+      role: Role.CPR,
+      isActive: true,
+    },
+  });
+
   const om = await prisma.user.create({
     data: {
       email: 'om@osdrm.mg',

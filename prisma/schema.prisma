@@ -53,6 +53,8 @@ enum Role {
   CFO
   CEO
   DP
+  RFR
+  CPR
   ADMIN
   ACHETEUR
 }

@@ -66,14 +66,9 @@ export class PurchaseQueryService {
     } = filters;
     const skip = (page - 1) * limit;
 
-    // Le client peut envoyer un `status` (souvent "PUBLISHED") mais cela ne doit
-    // pas écraser notre liste métier de statuts attendus pour les validations en
-    // cours. En particulier l'étape QR passe en PENDING_APPROVAL/IN_DEROGATION et, si
-    // on remplace la clause par le filtre client, ces enregistrements disparaissent.
     const filtersForQuery: FilterOptions = { ...filters };
     delete filtersForQuery.status;
 
-    // Récupérer toutes les DA publiées, en attente d'approbation ou en dérogation où le validateur est présent
     const where = this.buildWhereClause(filtersForQuery, {
       status: { in: ['PUBLISHED', 'PENDING_APPROVAL', 'IN_DEROGATION'] },
       validationWorkflows: {
@@ -81,53 +76,46 @@ export class PurchaseQueryService {
           validators: {
             some: {
               role: userRole,
+              isValidated: false,
             },
           },
         },
       },
     });
 
-    const allPurchases = await this.purchaseRepo.findMany({
-      where,
-      orderBy: { [sortBy]: sortOrder },
-    });
+    // Récupérer en parallèle : page courante + count total
+    const [purchases, allPurchases] = await Promise.all([
+      this.purchaseRepo.findMany({
+        where,
+        skip,
+        take: limit * 3, // Prendre plus pour compenser le filtrage
+        orderBy: { [sortBy]: sortOrder },
+      }),
+      this.purchaseRepo.findMany({ where }),
+    ]);
 
-    // Filtrer pour ne garder que celles où c'est son tour
-    const validPurchases = allPurchases.filter((purchase) => {
-      // Vérifier que validationWorkflows existe
-      if (
-        !purchase.validationWorkflows ||
-        purchase.validationWorkflows.length === 0
-      )
-        return false;
-
-      // Trouver le workflow du step actuel
-      const currentWorkflow = purchase.validationWorkflows.find(
+    // Filtrer pour ne garder que celles où c'est le tour du validateur
+    const filterByTurn = (purchase: any) => {
+      const currentWorkflow = purchase.validationWorkflows?.find(
         (w) => w.step === purchase.currentStep,
       );
+      if (!currentWorkflow?.validators?.length) return false;
 
-      if (!currentWorkflow) return false;
-
-      const validators = currentWorkflow.validators;
-
-      // Vérifier que validators existe
-      if (!validators || validators.length === 0) return false;
-
-      const nextValidator = validators
+      const nextValidator = currentWorkflow.validators
         .filter((v) => !v.isValidated)
         .sort((a, b) => a.order - b.order)[0];
 
-      return nextValidator && nextValidator.role === userRole;
-    });
+      return nextValidator?.role === userRole;
+    };
 
-    // Pagination sur les résultats filtrés
-    const total = validPurchases.length;
-    const paginatedPurchases = validPurchases.slice(skip, skip + limit);
+    const validPurchases = purchases.filter(filterByTurn).slice(0, limit);
+    const total = allPurchases.filter(filterByTurn).length;
 
-    // Masquer les workflows pour les validateurs (non-demandeurs)
-    const sanitizedPurchases = paginatedPurchases.map((purchase) => {
+    const sanitizedPurchases = validPurchases.map((purchase) => {
       const { validationWorkflows, ...rest } = purchase;
-      return rest;
+      const amount =
+        purchase.items?.reduce((sum, item) => sum + item.amount, 0) || 0;
+      return { ...rest, amount };
     });
 
     return {
