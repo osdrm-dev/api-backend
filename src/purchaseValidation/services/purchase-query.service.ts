@@ -76,47 +76,42 @@ export class PurchaseQueryService {
           validators: {
             some: {
               role: userRole,
+              isValidated: false,
             },
           },
         },
       },
     });
 
-    const allPurchases = await this.purchaseRepo.findMany({
-      where,
-      orderBy: { [sortBy]: sortOrder },
-    });
+    // Récupérer en parallèle : page courante + count total
+    const [purchases, allPurchases] = await Promise.all([
+      this.purchaseRepo.findMany({
+        where,
+        skip,
+        take: limit * 3, // Prendre plus pour compenser le filtrage
+        orderBy: { [sortBy]: sortOrder },
+      }),
+      this.purchaseRepo.findMany({ where }),
+    ]);
 
-    const validPurchases = allPurchases.filter((purchase) => {
-      if (
-        !purchase.validationWorkflows ||
-        purchase.validationWorkflows.length === 0
-      )
-        return false;
-
-      const currentWorkflow = purchase.validationWorkflows.find(
+    // Filtrer pour ne garder que celles où c'est le tour du validateur
+    const filterByTurn = (purchase: any) => {
+      const currentWorkflow = purchase.validationWorkflows?.find(
         (w) => w.step === purchase.currentStep,
       );
+      if (!currentWorkflow?.validators?.length) return false;
 
-      if (!currentWorkflow) return false;
-
-      const validators = currentWorkflow.validators;
-
-      if (!validators || validators.length === 0) return false;
-
-      const nextValidator = validators
+      const nextValidator = currentWorkflow.validators
         .filter((v) => !v.isValidated)
         .sort((a, b) => a.order - b.order)[0];
 
-      return nextValidator && nextValidator.role === userRole;
-    });
+      return nextValidator?.role === userRole;
+    };
 
-    // Pagination sur les résultats filtrés
-    const total = validPurchases.length;
-    const paginatedPurchases = validPurchases.slice(skip, skip + limit);
+    const validPurchases = purchases.filter(filterByTurn).slice(0, limit);
+    const total = allPurchases.filter(filterByTurn).length;
 
-    // Masquer les workflows pour les validateurs (non-demandeurs)
-    const sanitizedPurchases = paginatedPurchases.map((purchase) => {
+    const sanitizedPurchases = validPurchases.map((purchase) => {
       const { validationWorkflows, ...rest } = purchase;
       const amount =
         purchase.items?.reduce((sum, item) => sum + item.amount, 0) || 0;
