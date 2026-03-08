@@ -16,21 +16,22 @@ import {
   ApiQuery,
   ApiBody,
 } from '@nestjs/swagger';
-import { SupplierService } from '../services/supplier.service';
-import { CreateSupplierDto } from '../dto/create-supplier.dto';
-import { UpdateSupplierDto } from '../dto/update-supplier.dto';
+import { SupplierService } from 'src/supplier/services/supplier.service';
+import { CreateSupplierDto } from 'src/supplier/dto/create-supplier.dto';
+import { UpdateSupplierDto } from 'src/supplier/dto/update-supplier.dto';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 
 @ApiTags('Suppliers')
 @Controller('suppliers')
-@Roles('ADMIN', 'ACHETEUR')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard)
 export class SupplierController {
   constructor(private readonly supplierService: SupplierService) {}
 
   @Post()
+  @Roles('ADMIN', 'ACHETEUR')
+  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Create a new supplier' })
   @ApiBody({
     type: CreateSupplierDto,
@@ -91,6 +92,8 @@ export class SupplierController {
   }
 
   @Put(':id')
+  @Roles('ADMIN', 'ACHETEUR')
+  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Update supplier details' })
   @ApiParam({ name: 'id', description: 'Supplier unique identifier' })
   @ApiBody({
@@ -119,6 +122,8 @@ export class SupplierController {
   }
 
   @Put(':id/active')
+  @Roles('ADMIN', 'ACHETEUR')
+  @UseGuards(RolesGuard)
   @ApiOperation({ summary: 'Activate or deactivate a supplier' })
   @ApiParam({ name: 'id', description: 'Supplier unique identifier' })
   @ApiBody({
