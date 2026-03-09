@@ -13,7 +13,7 @@ import { SubmitService } from './submit.service';
 import { CreatePurchaseDto } from '../dto/create-purchase.dto';
 import { AddPurchaseItemsDto } from '../dto/purchase-item.dto';
 import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
-import { PurchaseStatus, PurchaseStep, Role } from '@prisma/client';
+import { PurchaseStatus, PurchaseStep } from '@prisma/client';
 import {
   buildPaginatedResponse,
   parsePaginationParams,
@@ -33,18 +33,11 @@ export class PurchaseService {
   ) {}
 
   async createPurchase(userId: number, createDto: CreatePurchaseDto) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Utilisateur non trouve');
-    }
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Utilisateur non trouve');
 
     const year = new Date().getFullYear();
-    const count = await this.prisma.purchase.count({
-      where: { year },
-    });
+    const count = await this.prisma.purchase.count({ where: { year } });
     const sequentialNumber = String(count + 1).padStart(4, '0');
     const reference = `DA-${year}-${sequentialNumber}`;
 
@@ -60,7 +53,7 @@ export class PurchaseService {
       },
     });
 
-    this.logger.info('DA créée', {
+    this.logger.info('DA creee', {
       purchaseId: purchase.id,
       reference: purchase.reference,
       userId,
@@ -85,23 +78,15 @@ export class PurchaseService {
       include: { items: true },
     });
 
-    if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
-    }
-
-    if (purchase.creatorId !== userId) {
+    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (purchase.creatorId !== userId)
       throw new ForbiddenException(
         "Vous n'etes pas autorise a modifier cette DA",
       );
-    }
-
-    if (purchase.status !== PurchaseStatus.DRAFT) {
+    if (purchase.status !== PurchaseStatus.DRAFT)
       throw new BadRequestException('Cette DA ne peut plus etre modifiee');
-    }
 
-    await this.prisma.purchaseItem.deleteMany({
-      where: { purchaseId },
-    });
+    await this.prisma.purchaseItem.deleteMany({ where: { purchaseId } });
 
     const items = await Promise.all(
       itemsDto.items.map((item) =>
@@ -119,11 +104,7 @@ export class PurchaseService {
       ),
     );
 
-    return {
-      purchaseId,
-      items,
-      message: 'Articles ajoutes avec succes',
-    };
+    return { purchaseId, items, message: 'Articles ajoutes avec succes' };
   }
 
   async publishPurchaseForValidation(purchaseId: string, userId: number) {
@@ -132,25 +113,17 @@ export class PurchaseService {
       include: { items: true, validationWorkflows: true },
     });
 
-    if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
-    }
-
-    if (purchase.creatorId !== userId) {
+    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (purchase.creatorId !== userId)
       throw new ForbiddenException(
         "Vous n'etes pas autorise a publier cette DA",
       );
-    }
-
-    if (purchase.status !== PurchaseStatus.DRAFT) {
+    if (purchase.status !== PurchaseStatus.DRAFT)
       throw new BadRequestException('Cette DA a deja ete publiee');
-    }
-
-    if (purchase.items.length === 0) {
+    if (purchase.items.length === 0)
       throw new BadRequestException(
         'Ajoutez au moins un article avant de publier',
       );
-    }
 
     const totalAmount = purchase.items.reduce(
       (sum, item) => sum + item.amount,
@@ -163,9 +136,7 @@ export class PurchaseService {
       totalAmount,
     );
 
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
     const workflow = await this.prisma.validationWorkflow.create({
       data: {
@@ -186,20 +157,16 @@ export class PurchaseService {
         },
       },
       include: {
-        validators: {
-          orderBy: { order: 'asc' },
-        },
+        validators: { orderBy: { order: 'asc' } },
       },
     });
 
     await this.prisma.purchase.update({
       where: { id: purchaseId },
-      data: {
-        status: PurchaseStatus.PUBLISHED,
-      },
+      data: { status: PurchaseStatus.PUBLISHED },
     });
 
-    this.logger.info('DA publiée pour validation', {
+    this.logger.info('DA publiee pour validation', {
       purchaseId: purchase.id,
       reference: purchase.reference,
       userId,
@@ -224,26 +191,17 @@ export class PurchaseService {
         derogation: true,
         validationWorkflows: {
           include: {
-            validators: {
-              orderBy: { order: 'asc' },
-            },
+            validators: { orderBy: { order: 'asc' } },
           },
           orderBy: { createdAt: 'desc' },
         },
         creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true,
-          },
+          select: { id: true, name: true, email: true, role: true },
         },
       },
     });
 
-    if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
-    }
+    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
 
     const statusMessage = this.workflowConfigService.getStatusMessage(
       purchase.status,
@@ -258,13 +216,8 @@ export class PurchaseService {
   }
 
   async getMyPurchases(userId: number, filters: FilterPurchaseDto = {}) {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('Utilisateur non trouve');
-    }
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Utilisateur non trouve');
 
     const pagination = parsePaginationParams(filters, {
       defaultPage: 1,
@@ -272,22 +225,11 @@ export class PurchaseService {
       maxLimit: 100,
     });
 
-    const where: any =
-      user.role === Role.ACHETEUR
-        ? { currentStep: 'QR' }
-        : { creatorId: userId };
+    const where: any = { creatorId: userId };
 
-    if (filters.status) {
-      where.status = filters.status;
-    }
-
-    if (filters.currentStep && user.role !== Role.ACHETEUR) {
-      where.currentStep = filters.currentStep;
-    }
-
-    if (filters.priority && user.role !== Role.ACHETEUR) {
-      where.priority = filters.priority;
-    }
+    if (filters.status) where.status = filters.status;
+    if (filters.currentStep) where.currentStep = filters.currentStep;
+    if (filters.priority) where.priority = filters.priority;
 
     if (filters.search) {
       where.OR = [
@@ -298,12 +240,8 @@ export class PurchaseService {
 
     if (filters.startDate || filters.endDate) {
       where.createdAt = {};
-      if (filters.startDate) {
-        where.createdAt.gte = new Date(filters.startDate);
-      }
-      if (filters.endDate) {
-        where.createdAt.lte = new Date(filters.endDate);
-      }
+      if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
+      if (filters.endDate) where.createdAt.lte = new Date(filters.endDate);
     }
 
     const [purchases, total] = await Promise.all([
@@ -313,9 +251,7 @@ export class PurchaseService {
           items: true,
           validationWorkflows: {
             include: {
-              validators: {
-                orderBy: { order: 'asc' },
-              },
+              validators: { orderBy: { order: 'asc' } },
             },
             orderBy: { createdAt: 'desc' },
           },
@@ -344,35 +280,25 @@ export class PurchaseService {
       where: { id: purchaseId },
     });
 
-    if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
-    }
-
-    if (purchase.creatorId !== userId) {
+    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (purchase.creatorId !== userId)
       throw new ForbiddenException(
         "Vous n'etes pas autorise a supprimer cette DA",
       );
-    }
-
-    if (purchase.status !== PurchaseStatus.DRAFT) {
+    if (purchase.status !== PurchaseStatus.DRAFT)
       throw new BadRequestException(
         'Seules les DA en brouillon peuvent etre supprimees',
       );
-    }
 
-    await this.prisma.purchase.delete({
-      where: { id: purchaseId },
-    });
+    await this.prisma.purchase.delete({ where: { id: purchaseId } });
 
-    this.logger.info('DA supprimée', {
+    this.logger.info('DA supprimee', {
       purchaseId,
       reference: purchase.reference,
       userId,
     });
 
-    return {
-      message: 'DA supprimee avec succes',
-    };
+    return { message: 'DA supprimee avec succes' };
   }
 
   async updateLogistics(
@@ -388,15 +314,11 @@ export class PurchaseService {
       where: { id: purchaseId },
     });
 
-    if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
-    }
-
-    if (purchase.creatorId !== userId) {
+    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (purchase.creatorId !== userId)
       throw new ForbiddenException(
         "Vous n'etes pas autorise a modifier cette DA",
       );
-    }
 
     const updated = await this.prisma.purchase.update({
       where: { id: purchaseId },
@@ -434,21 +356,15 @@ export class PurchaseService {
       include: { validationWorkflows: true },
     });
 
-    if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
-    }
-
-    if (purchase.creatorId !== userId) {
+    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (purchase.creatorId !== userId)
       throw new ForbiddenException(
         "Vous n'etes pas autorise a modifier cette DA",
       );
-    }
-
-    if (purchase.status !== PurchaseStatus.CHANGE_REQUESTED) {
+    if (purchase.status !== PurchaseStatus.CHANGE_REQUESTED)
       throw new BadRequestException(
         'Seules les DA avec modifications demandees peuvent etre republiees',
       );
-    }
 
     const updateData: any = {
       ...updateDto,
@@ -457,12 +373,9 @@ export class PurchaseService {
       closedAt: null,
     };
 
-    if (!updateData.requestedDeliveryDate) {
+    if (!updateData.requestedDeliveryDate)
       delete updateData.requestedDeliveryDate;
-    }
-    if (!updateData.deliveryAddress) {
-      delete updateData.deliveryAddress;
-    }
+    if (!updateData.deliveryAddress) delete updateData.deliveryAddress;
 
     await this.prisma.purchase.update({
       where: { id: purchaseId },
@@ -473,9 +386,7 @@ export class PurchaseService {
       await this.addPurchaseItems(purchaseId, userId, itemsDto);
     }
 
-    await this.prisma.validationWorkflow.deleteMany({
-      where: { purchaseId },
-    });
+    await this.prisma.validationWorkflow.deleteMany({ where: { purchaseId } });
 
     return {
       id: purchase.id,
@@ -518,6 +429,8 @@ export class PurchaseService {
       ];
     }
 
+    if (filters.currentStep) where.currentStep = filters.currentStep;
+
     const [purchases, total] = await Promise.all([
       this.prisma.purchase.findMany({
         where,
@@ -525,18 +438,11 @@ export class PurchaseService {
           items: true,
           validationWorkflows: {
             include: {
-              validators: {
-                orderBy: { order: 'asc' },
-              },
+              validators: { orderBy: { order: 'asc' } },
             },
           },
           creator: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              role: true,
-            },
+            select: { id: true, name: true, email: true, role: true },
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -564,24 +470,18 @@ export class PurchaseService {
       include: {
         validationWorkflows: {
           include: {
-            validators: {
-              orderBy: { order: 'asc' },
-            },
+            validators: { orderBy: { order: 'asc' } },
           },
           orderBy: { step: 'asc' },
         },
       },
     });
 
-    if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
-    }
-
-    if (purchase.creatorId !== userId) {
+    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (purchase.creatorId !== userId)
       throw new ForbiddenException(
-        'Seul le créateur peut consulter le statut de validation',
+        'Seul le createur peut consulter le statut de validation',
       );
-    }
 
     return {
       id: purchase.id,
