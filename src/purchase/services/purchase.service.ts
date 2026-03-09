@@ -9,6 +9,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { WorkflowService } from './workflow.service';
 import { WorkflowConfigService } from '../../purchaseValidation/services/workflow-config.service';
 import { PurchaseQueryService } from '../../purchaseValidation/services/purchase-query.service';
+import { SubmitService } from './submit.service';
 import { CreatePurchaseDto } from '../dto/create-purchase.dto';
 import { AddPurchaseItemsDto } from '../dto/purchase-item.dto';
 import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
@@ -27,6 +28,7 @@ export class PurchaseService {
     private readonly workflowService: WorkflowService,
     private readonly workflowConfigService: WorkflowConfigService,
     private readonly purchaseQueryService: PurchaseQueryService,
+    private readonly submitService: SubmitService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
@@ -588,5 +590,9 @@ export class PurchaseService {
       status: purchase.status,
       validationWorkflows: purchase.validationWorkflows,
     };
+  }
+
+  async submitForValidation(purchaseId: string, userId: number) {
+    return this.submitService.submitForValidation(purchaseId, userId);
   }
 }

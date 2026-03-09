@@ -76,7 +76,12 @@ export class WorkflowConfigService {
       rules: {
         [OperationType.OPERATION]: [
           {
-            roles: [ValidatorRole.OM, ValidatorRole.CFO, ValidatorRole.CEO],
+            roles: [
+              ValidatorRole.OM,
+              ValidatorRole.CFO,
+              ValidatorRole.CEO,
+              ValidatorRole.DEMANDEUR,
+            ],
           },
         ],
         [OperationType.PROGRAMME]: [
@@ -86,6 +91,7 @@ export class WorkflowConfigService {
               ValidatorRole.DP,
               ValidatorRole.CFO,
               ValidatorRole.CEO,
+              ValidatorRole.DEMANDEUR,
             ],
           },
         ],
