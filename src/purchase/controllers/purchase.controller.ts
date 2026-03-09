@@ -250,4 +250,33 @@ export class PurchaseController {
   ) {
     return this.purchaseService.updateLogistics(id, req.user.id, dto);
   }
+
+  @Post(':id/submit')
+  @ApiOperation({
+    summary: 'Soumettre pour validation (PV, BC)',
+    description: `
+      Endpoint generique pour soumettre une etape a validation.
+      Detecte automatiquement le currentStep et cree le workflow approprie.
+      
+      - PV: Soumet le proces-verbal pour validation (remplace POST /pv/submit)
+      - BC: Soumet le bon de commande pour validation
+      
+      Note: Pour QR, utilisez POST /purchases/:id/quotations/submit (gere la derogation)
+    `,
+  })
+  @ApiParam({ name: 'id', description: 'ID de la DA' })
+  @ApiSuccessResponse('Soumis pour validation', {
+    id: 'da-123',
+    reference: 'DA-2024-0001',
+    status: 'PENDING_APPROVAL',
+    currentStep: 'QR',
+    workflow: [],
+    message: 'Soumis pour validation avec succes',
+  })
+  @ApiNotFoundResponse('DA')
+  @ApiBadRequestResponse('Documents requis manquants')
+  @ApiCommonResponses()
+  async submitForValidation(@Param('id') id: string, @Request() req) {
+    return this.purchaseService.submitForValidation(id, req.user.id);
+  }
 }
