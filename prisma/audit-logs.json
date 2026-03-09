@@ -1,0 +1,65 @@
+[
+  {
+    "userKey": "demandeur1",
+    "action": "PURCHASE_CREATED",
+    "resource": "Purchase",
+    "purchaseRef": "DA-2026-002",
+    "details": { "reference": "DA-2026-002" }
+  },
+  {
+    "userKey": "demandeur2",
+    "action": "PURCHASE_CREATED",
+    "resource": "Purchase",
+    "purchaseRef": "DA-2026-008",
+    "details": { "reference": "DA-2026-008" }
+  },
+  {
+    "userKey": "acheteur",
+    "action": "QUOTES_UPLOADED",
+    "resource": "Purchase",
+    "purchaseRef": "DA-2026-008",
+    "details": { "count": 3, "reference": "DA-2026-008" }
+  },
+  {
+    "userKey": "acheteur",
+    "action": "QR_SUBMITTED",
+    "resource": "Purchase",
+    "purchaseRef": "DA-2026-008",
+    "details": { "reference": "DA-2026-008" }
+  },
+  {
+    "userKey": "acheteur",
+    "action": "PV_SUBMITTED",
+    "resource": "Purchase",
+    "purchaseRef": "DA-2026-011",
+    "details": { "reference": "DA-2026-011" }
+  },
+  {
+    "userKey": "cfo",
+    "action": "VALIDATION_APPROVED",
+    "resource": "Purchase",
+    "purchaseRef": "DA-2026-012",
+    "details": { "step": "QR", "reference": "DA-2026-012" }
+  },
+  {
+    "userKey": "acheteur",
+    "action": "BC_UPLOADED",
+    "resource": "Purchase",
+    "purchaseRef": "DA-2026-013",
+    "details": { "reference": "DA-2026-013" }
+  },
+  {
+    "userKey": "cfo",
+    "action": "VALIDATION_REJECTED",
+    "resource": "Purchase",
+    "purchaseRef": "DA-2026-006",
+    "details": { "comment": "Hors budget 2026", "reference": "DA-2026-006" }
+  },
+  {
+    "userKey": "cfo",
+    "action": "PAYMENT_VALIDATED",
+    "resource": "Purchase",
+    "purchaseRef": "DA-2026-018",
+    "details": { "reference": "DA-2026-018", "amount": 4300000 }
+  }
+]

@@ -1,0 +1,114 @@
+{
+  "users": [
+    {
+      "key": "admin",
+      "email": "admin@osdrm.mg",
+      "name": "Admin Principal",
+      "fonction": "Administrateur Système",
+      "role": "ADMIN"
+    },
+    {
+      "key": "ceo",
+      "email": "ceo@osdrm.mg",
+      "name": "Jean Rakoto",
+      "fonction": "Directeur Général",
+      "role": "CEO"
+    },
+    {
+      "key": "cfo",
+      "email": "cfo@osdrm.mg",
+      "name": "Marie Rasoa",
+      "fonction": "Directeur Financier",
+      "role": "CFO"
+    },
+    {
+      "key": "dp",
+      "email": "dp@osdrm.mg",
+      "name": "Paul Ravelo",
+      "fonction": "Directeur de Programme",
+      "role": "DP"
+    },
+    {
+      "key": "om",
+      "email": "om@osdrm.mg",
+      "name": "Sophie Rabe",
+      "fonction": "Operations Manager",
+      "role": "OM"
+    },
+    {
+      "key": "demandeur1",
+      "email": "demandeur1@osdrm.mg",
+      "name": "Pierre Andry",
+      "fonction": "Chef de Projet",
+      "role": "DEMANDEUR"
+    },
+    {
+      "key": "demandeur2",
+      "email": "demandeur2@osdrm.mg",
+      "name": "Julie Fara",
+      "fonction": "Responsable Logistique",
+      "role": "DEMANDEUR"
+    },
+    {
+      "key": "acheteur",
+      "email": "acheteur@osdrm.mg",
+      "name": "Marc Rivo",
+      "fonction": "Acheteur",
+      "role": "ACHETEUR"
+    }
+  ],
+  "suppliers": [
+    {
+      "key": "sup1",
+      "name": "Global Trade SARL",
+      "status": "active",
+      "nif": "1001001001",
+      "stat": "STAT001",
+      "rcs": "RCS001",
+      "region": "Analamanga",
+      "address": "Lot II A 45, Antananarivo",
+      "phone": "+261 34 12 345 67",
+      "email": "contact@globaltrade.mg",
+      "label": "Informatique & bureautique"
+    },
+    {
+      "key": "sup2",
+      "name": "MedSupply Madagascar",
+      "status": "active",
+      "nif": "2002002002",
+      "stat": "STAT002",
+      "rcs": "RCS002",
+      "region": "Analamanga",
+      "address": "Rue Andrianary, Antananarivo",
+      "phone": "+261 33 22 456 78",
+      "email": "info@medsupply.mg",
+      "label": "Equipements medicaux"
+    },
+    {
+      "key": "sup3",
+      "name": "AgroTech Mada",
+      "status": "active",
+      "nif": "3003003003",
+      "stat": "STAT003",
+      "rcs": "RCS003",
+      "region": "Haute Matsiatra",
+      "address": "Ambohimandroso, Fianarantsoa",
+      "phone": "+261 32 11 789 01",
+      "email": "agro@agrotech.mg",
+      "label": "Materiel agricole"
+    },
+    {
+      "key": "sup4",
+      "name": "BoisMada Menuiserie",
+      "status": "active",
+      "nif": "4004004004",
+      "stat": "STAT004",
+      "rcs": "RCS004",
+      "region": "Analamanga",
+      "address": "Zone Industrielle Tanjombato",
+      "phone": "+261 34 55 123 45",
+      "email": "contact@boismada.mg",
+      "label": "Mobilier scolaire"
+    }
+  ]
+}

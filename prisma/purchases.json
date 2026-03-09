@@ -1,0 +1,1327 @@
+[
+  {
+    "reference": "DA-2026-001",
+    "year": 2026,
+    "site": "Antananarivo",
+    "sequentialNumber": "001",
+    "project": "PROJET HEALTH",
+    "region": "Analamanga",
+    "projectCode": "PRJ-2026-001",
+    "grantCode": "GNT-2026-H01",
+    "activityCode": "ACT-001",
+    "costCenter": "CC-HEALTH-001",
+    "title": "Fournitures de bureau",
+    "description": "Renouvellement annuel des fournitures pour les equipes terrain",
+    "marketType": "Consultation",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-04-01",
+    "priority": "BASSE",
+    "justification": "Renouvellement annuel des fournitures de bureau",
+    "deliveryAddress": "Siege OSDRM, Antananarivo",
+    "status": "DRAFT",
+    "currentStep": "DA",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Rames de papier A4",
+        "quantity": 50,
+        "unitPrice": 15000,
+        "amount": 750000,
+        "unit": "rame"
+      },
+      {
+        "designation": "Stylos bille bleus",
+        "quantity": 200,
+        "unitPrice": 500,
+        "amount": 100000,
+        "unit": "piece"
+      },
+      {
+        "designation": "Classeurs A4",
+        "quantity": 100,
+        "unitPrice": 3500,
+        "amount": 350000,
+        "unit": "piece"
+      }
+    ]
+  },
+  {
+    "reference": "DA-2026-002",
+    "year": 2026,
+    "site": "Antananarivo",
+    "sequentialNumber": "002",
+    "project": "PROJET HEALTH",
+    "region": "Analamanga",
+    "projectCode": "PRJ-2026-001",
+    "grantCode": "GNT-2026-H01",
+    "activityCode": "ACT-002",
+    "costCenter": "CC-HEALTH-001",
+    "title": "Materiel medical - en attente validation OM",
+    "description": "Materiel medical pour campagne de vaccination",
+    "marketType": "Consultation",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-04-15",
+    "priority": "HAUTE",
+    "justification": "Campagne de vaccination imminente, materiel necessaire",
+    "deliveryAddress": "Centre de Sante, Antananarivo",
+    "status": "PUBLISHED",
+    "currentStep": "DA",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Seringues jetables 5ml",
+        "quantity": 1000,
+        "unitPrice": 500,
+        "amount": 500000,
+        "unit": "piece",
+        "specifications": "Conformes ISO"
+      },
+      {
+        "designation": "Gants medicaux taille M",
+        "quantity": 500,
+        "unitPrice": 1000,
+        "amount": 500000,
+        "unit": "boite",
+        "specifications": "Boite 100 pieces, latex"
+      },
+      {
+        "designation": "Masques chirurgicaux",
+        "quantity": 2000,
+        "unitPrice": 300,
+        "amount": 600000,
+        "unit": "piece",
+        "specifications": "Type IIR, 3 plis"
+      }
+    ],
+    "daWorkflow": {
+      "currentStep": 1,
+      "isComplete": false,
+      "validators": [
+        {
+          "role": "DEMANDEUR",
+          "order": 0,
+          "userKey": "demandeur1",
+          "isValidated": true,
+          "validatedAt": "2026-02-10",
+          "decision": "APPROVED",
+          "comment": "Publication de la demande"
+        },
+        { "role": "OM", "order": 1, "userKey": "om", "isValidated": false },
+        { "role": "CFO", "order": 2, "userKey": "cfo", "isValidated": false },
+        { "role": "CEO", "order": 3, "userKey": "ceo", "isValidated": false }
+      ]
+    }
+  },
+  {
+    "reference": "DA-2026-003",
+    "year": 2026,
+    "site": "Mahajanga",
+    "sequentialNumber": "003",
+    "project": "PROJET AGRICULTURE",
+    "region": "Boeny",
+    "projectCode": "PRJ-2026-003",
+    "grantCode": "GNT-2026-A01",
+    "activityCode": "ACT-003",
+    "costCenter": "CC-AGRI-001",
+    "title": "Semences certifiees - en attente validation DP",
+    "description": "Semences pour distribution aux agriculteurs de la region Boeny",
+    "marketType": "Consultation",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-03-30",
+    "priority": "HAUTE",
+    "justification": "Distribution avant la saison des pluies",
+    "deliveryAddress": "Direction Regionale Agriculture, Mahajanga",
+    "status": "PUBLISHED",
+    "currentStep": "DA",
+    "creatorKey": "demandeur2",
+    "items": [
+      {
+        "designation": "Semences riz SEBOTA",
+        "quantity": 2000,
+        "unitPrice": 8000,
+        "amount": 16000000,
+        "unit": "kg",
+        "specifications": "Certifiees R1, taux germination >95%"
+      },
+      {
+        "designation": "Semences mais hybride F1",
+        "quantity": 500,
+        "unitPrice": 12000,
+        "amount": 6000000,
+        "unit": "kg"
+      }
+    ],
+    "daWorkflow": {
+      "currentStep": 2,
+      "isComplete": false,
+      "validators": [
+        {
+          "role": "DEMANDEUR",
+          "order": 0,
+          "userKey": "demandeur2",
+          "isValidated": true,
+          "validatedAt": "2026-02-12",
+          "decision": "APPROVED"
+        },
+        {
+          "role": "OM",
+          "order": 1,
+          "userKey": "om",
+          "isValidated": true,
+          "validatedAt": "2026-02-13",
+          "decision": "APPROVED",
+          "comment": "Budget disponible"
+        },
+        { "role": "DP", "order": 2, "userKey": "dp", "isValidated": false },
+        { "role": "CFO", "order": 3, "userKey": "cfo", "isValidated": false },
+        { "role": "CEO", "order": 4, "userKey": "ceo", "isValidated": false }
+      ]
+    }
+  },
+  {
+    "reference": "DA-2026-004",
+    "year": 2026,
+    "site": "Toamasina",
+    "sequentialNumber": "004",
+    "project": "PROJET EDUCATION",
+    "region": "Atsinanana",
+    "projectCode": "PRJ-2026-002",
+    "grantCode": "GNT-2026-E01",
+    "activityCode": "ACT-004",
+    "costCenter": "CC-EDU-001",
+    "title": "Materiel informatique - en attente CEO",
+    "description": "Ordinateurs pour salle informatique EPP Toamasina",
+    "marketType": "Appel d'offres",
+    "operationType": "OPERATION",
+    "requestedDeliveryDate": "2026-05-01",
+    "priority": "MOYENNE",
+    "justification": "Modernisation de l'infrastructure informatique scolaire",
+    "deliveryAddress": "EPP Toamasina Centre",
+    "status": "PENDING_APPROVAL",
+    "currentStep": "DA",
+    "creatorKey": "demandeur2",
+    "items": [
+      {
+        "designation": "Ordinateur portable Dell",
+        "quantity": 20,
+        "unitPrice": 2000000,
+        "amount": 40000000,
+        "unit": "unite",
+        "specifications": "RAM 8GB, SSD 256GB, 15.6\""
+      },
+      {
+        "designation": "Projecteur multimedia Full HD",
+        "quantity": 2,
+        "unitPrice": 2500000,
+        "amount": 5000000,
+        "unit": "unite",
+        "specifications": "3000 lumens, Full HD"
+      }
+    ],
+    "daWorkflow": {
+      "currentStep": 3,
+      "isComplete": false,
+      "validators": [
+        {
+          "role": "DEMANDEUR",
+          "order": 0,
+          "userKey": "demandeur2",
+          "isValidated": true,
+          "validatedAt": "2026-02-14",
+          "decision": "APPROVED"
+        },
+        {
+          "role": "OM",
+          "order": 1,
+          "userKey": "om",
+          "isValidated": true,
+          "validatedAt": "2026-02-15",
+          "decision": "APPROVED",
+          "comment": "OK operations"
+        },
+        {
+          "role": "CFO",
+          "order": 2,
+          "userKey": "cfo",
+          "isValidated": true,
+          "validatedAt": "2026-02-16",
+          "decision": "APPROVED",
+          "comment": "Budget valide"
+        },
+        { "role": "CEO", "order": 3, "userKey": "ceo", "isValidated": false }
+      ]
+    }
+  },
+  {
+    "reference": "DA-2026-005",
+    "year": 2026,
+    "site": "Antananarivo",
+    "sequentialNumber": "005",
+    "project": "PROJET HEALTH",
+    "region": "Analamanga",
+    "projectCode": "PRJ-2026-001",
+    "grantCode": "GNT-2026-H01",
+    "activityCode": "ACT-005",
+    "costCenter": "CC-HEALTH-001",
+    "title": "Ambulances - specifications a revoir",
+    "description": "Ambulances medicalisees pour le reseau de sante",
+    "marketType": "Appel d'offres",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-06-01",
+    "priority": "HAUTE",
+    "justification": "Renforcement du reseau d'urgences medicales",
+    "deliveryAddress": "DRSP Antananarivo",
+    "status": "CHANGE_REQUESTED",
+    "currentStep": "DA",
+    "observations": "DP: Specifications trop vagues - preciser marque, motorisation, equipements medicaux integres et normes de securite. Resoumission requise.",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Ambulance medicalisee",
+        "quantity": 3,
+        "unitPrice": 55000000,
+        "amount": 165000000,
+        "unit": "unite",
+        "specifications": "A preciser"
+      }
+    ]
+  },
+  {
+    "reference": "DA-2026-006",
+    "year": 2026,
+    "site": "Taolagnaro",
+    "sequentialNumber": "006",
+    "project": "PROJET LOGISTIQUE",
+    "region": "Anosy",
+    "projectCode": "PRJ-2026-006",
+    "grantCode": "GNT-2026-L01",
+    "activityCode": "ACT-006",
+    "costCenter": "CC-LOG-001",
+    "title": "Drone de surveillance - hors budget",
+    "description": "Drone pour surveillance des zones enclavees",
+    "marketType": "Gre a gre",
+    "operationType": "OPERATION",
+    "requestedDeliveryDate": "2026-05-01",
+    "priority": "BASSE",
+    "justification": "Amelioration de la couverture terrain dans les zones isolees",
+    "deliveryAddress": "Bureau OSDRM Taolagnaro",
+    "status": "REJECTED",
+    "currentStep": "DA",
+    "observations": "CFO: Depense non prioritaire, hors allocation budgetaire 2026. Resoumission possible en 2027.",
+    "closedAt": "2026-02-20",
+    "creatorKey": "demandeur2",
+    "items": [
+      {
+        "designation": "Drone DJI Matrice 300 RTK",
+        "quantity": 1,
+        "unitPrice": 35000000,
+        "amount": 35000000,
+        "unit": "unite"
+      }
+    ],
+    "daWorkflow": {
+      "currentStep": 2,
+      "isComplete": false,
+      "validators": [
+        {
+          "role": "DEMANDEUR",
+          "order": 0,
+          "userKey": "demandeur2",
+          "isValidated": true,
+          "validatedAt": "2026-02-15",
+          "decision": "APPROVED"
+        },
+        {
+          "role": "OM",
+          "order": 1,
+          "userKey": "om",
+          "isValidated": true,
+          "validatedAt": "2026-02-16",
+          "decision": "APPROVED",
+          "comment": "Sous reserve approbation CFO"
+        },
+        {
+          "role": "CFO",
+          "order": 2,
+          "userKey": "cfo",
+          "isValidated": false,
+          "decision": "REJECTED",
+          "comment": "Hors budget 2026, non prioritaire"
+        },
+        { "role": "CEO", "order": 3, "userKey": "ceo", "isValidated": false }
+      ]
+    }
+  },
+  {
+    "reference": "DA-2026-007",
+    "year": 2026,
+    "site": "Toamasina",
+    "sequentialNumber": "007",
+    "project": "PROJET EDUCATION",
+    "region": "Atsinanana",
+    "projectCode": "PRJ-2026-002",
+    "grantCode": "GNT-2026-E01",
+    "activityCode": "ACT-007",
+    "costCenter": "CC-EDU-001",
+    "title": "Equipements audiovisuels - 1/3 devis uploade",
+    "description": "Equipements audiovisuels pour salles de formation",
+    "marketType": "Consultation",
+    "operationType": "OPERATION",
+    "requestedDeliveryDate": "2026-05-15",
+    "priority": "MOYENNE",
+    "justification": "Equipement des nouvelles salles de formation regionale",
+    "deliveryAddress": "Centre de Formation, Toamasina",
+    "status": "AWAITING_DOCUMENTS",
+    "currentStep": "QR",
+    "creatorKey": "demandeur2",
+    "items": [
+      {
+        "designation": "Ecran LED 65 pouces",
+        "quantity": 5,
+        "unitPrice": 3500000,
+        "amount": 17500000,
+        "unit": "unite"
+      },
+      {
+        "designation": "Systeme audio Bluetooth",
+        "quantity": 5,
+        "unitPrice": 1200000,
+        "amount": 6000000,
+        "unit": "unite"
+      }
+    ],
+    "daWorkflowApproved": {
+      "demandeurKey": "demandeur2",
+      "omKey": "om",
+      "cfoKey": "cfo",
+      "ceoKey": "ceo",
+      "baseDate": "2026-02-01"
+    },
+    "attachments": [
+      {
+        "type": "QUOTE",
+        "fileName": "devis_av_globaltrade.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/p7_devis_1.pdf",
+        "fileSize": 320000,
+        "description": "Devis Global Trade SARL (1/3)",
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-01"
+      }
+    ]
+  },
+  {
+    "reference": "DA-2026-008",
+    "year": 2026,
+    "site": "Mahajanga",
+    "sequentialNumber": "008",
+    "project": "PROJET SANTE",
+    "region": "Boeny",
+    "projectCode": "PRJ-2026-004",
+    "grantCode": "GNT-2026-S01",
+    "activityCode": "ACT-008",
+    "costCenter": "CC-SANTE-001",
+    "title": "Medicaments essentiels - 3 devis soumis, en attente CFO",
+    "description": "Stock de medicaments essentiels pour le district sanitaire",
+    "marketType": "Appel d'offres",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-05-20",
+    "priority": "HAUTE",
+    "justification": "Renouvellement stock medicaments essentiels district Mahajanga",
+    "deliveryAddress": "District Sanitaire Mahajanga",
+    "status": "PENDING_APPROVAL",
+    "currentStep": "QR",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Paracetamol 500mg (boite 1000)",
+        "quantity": 100,
+        "unitPrice": 45000,
+        "amount": 4500000,
+        "unit": "boite"
+      },
+      {
+        "designation": "Amoxicilline 250mg (boite 500)",
+        "quantity": 80,
+        "unitPrice": 65000,
+        "amount": 5200000,
+        "unit": "boite"
+      },
+      {
+        "designation": "Serum glucose 500ml",
+        "quantity": 200,
+        "unitPrice": 12000,
+        "amount": 2400000,
+        "unit": "flacon"
+      }
+    ],
+    "daWorkflowApproved": {
+      "demandeurKey": "demandeur1",
+      "dpKey": "dp",
+      "cfoKey": "cfo",
+      "ceoKey": "ceo",
+      "baseDate": "2026-02-05"
+    },
+    "qrWorkflow": {
+      "currentStep": 1,
+      "isComplete": false,
+      "validators": [
+        {
+          "role": "DEMANDEUR",
+          "order": 0,
+          "userKey": "acheteur",
+          "isValidated": true,
+          "validatedAt": "2026-03-01",
+          "decision": "APPROVED",
+          "comment": "3 devis uploades et conformes"
+        },
+        { "role": "CFO", "order": 1, "userKey": "cfo", "isValidated": false }
+      ]
+    },
+    "attachments": [
+      {
+        "type": "QUOTE",
+        "fileName": "devis_med_medsupply.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/p8_devis_1.pdf",
+        "fileSize": 280000,
+        "description": "Devis MedSupply Madagascar",
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-02-25"
+      },
+      {
+        "type": "QUOTE",
+        "fileName": "devis_med_pharma.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/p8_devis_2.pdf",
+        "fileSize": 310000,
+        "description": "Devis PharmaMada SARL",
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-02-26"
+      },
+      {
+        "type": "QUOTE",
+        "fileName": "devis_med_healthcare.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/p8_devis_3.pdf",
+        "fileSize": 295000,
+        "description": "Devis HealthCare Madagascar",
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-02-27"
+      }
+    ]
+  },
+  {
+    "reference": "DA-2026-009",
+    "year": 2026,
+    "site": "Fianarantsoa",
+    "sequentialNumber": "009",
+    "project": "PROJET AGRICULTURE",
+    "region": "Haute Matsiatra",
+    "projectCode": "PRJ-2026-003",
+    "grantCode": "GNT-2026-A01",
+    "activityCode": "ACT-009",
+    "costCenter": "CC-AGRI-001",
+    "title": "Motoculteurs - fournisseur unique, derogation en attente",
+    "description": "Materiel agricole pour cooperatives rurales de la Haute Matsiatra",
+    "marketType": "Gre a gre",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-04-01",
+    "priority": "HAUTE",
+    "justification": "Saison de plantation imminente, fournisseur certifie unique dans la region",
+    "deliveryAddress": "Cooperative FANOME, Fianarantsoa",
+    "status": "IN_DEROGATION",
+    "currentStep": "QR",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Motoculteur diesel 8CV",
+        "quantity": 3,
+        "unitPrice": 5000000,
+        "amount": 15000000,
+        "unit": "unite",
+        "specifications": "Diesel, avec charrue reversible"
+      },
+      {
+        "designation": "Charrue reversible",
+        "quantity": 3,
+        "unitPrice": 1500000,
+        "amount": 4500000,
+        "unit": "unite"
+      }
+    ],
+    "daWorkflowApproved": {
+      "demandeurKey": "demandeur1",
+      "dpKey": "dp",
+      "cfoKey": "cfo",
+      "ceoKey": "ceo",
+      "baseDate": "2026-01-20"
+    },
+    "attachments": [
+      {
+        "type": "QUOTE",
+        "fileName": "devis_moto_agrotech.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/p9_devis_1.pdf",
+        "fileSize": 195000,
+        "description": "Seul devis disponible - AgroTech Mada (certifie unique)",
+        "uploadedByKey": "acheteur"
+      }
+    ],
+    "derogation": {
+      "reason": "Nombre de devis insuffisant - fournisseur certifie unique dans la region",
+      "justification": "La region Haute Matsiatra ne dispose que d'un seul fournisseur certifie pour ce type de materiel agricole lourd. La saison de plantation ne permet pas d'attendre des devis supplementaires de fournisseurs hors region.",
+      "status": "PENDING"
+    }
+  },
+  {
+    "reference": "DA-2026-010",
+    "year": 2026,
+    "site": "Antananarivo",
+    "sequentialNumber": "010",
+    "project": "PROJET EDUCATION",
+    "region": "Analamanga",
+    "projectCode": "PRJ-2026-002",
+    "grantCode": "GNT-2026-E01",
+    "activityCode": "ACT-010",
+    "costCenter": "CC-EDU-001",
+    "title": "Mobilier scolaire - pret pour evaluation fournisseurs",
+    "description": "Tables et chaises pour 10 salles de classe, 3 devis recus et valides",
+    "marketType": "Consultation",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-06-01",
+    "priority": "MOYENNE",
+    "justification": "Remplacement du mobilier vetuste dans les ecoles du projet",
+    "deliveryAddress": "EPP Analamanga Centre",
+    "status": "PUBLISHED",
+    "currentStep": "PV",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Table double eleve",
+        "quantity": 100,
+        "unitPrice": 85000,
+        "amount": 8500000,
+        "unit": "unite",
+        "specifications": "Bois traite, 120x60cm"
+      },
+      {
+        "designation": "Chaise eleve",
+        "quantity": 200,
+        "unitPrice": 35000,
+        "amount": 7000000,
+        "unit": "unite",
+        "specifications": "Bois traite, hauteur 40cm"
+      },
+      {
+        "designation": "Bureau enseignant",
+        "quantity": 10,
+        "unitPrice": 150000,
+        "amount": 1500000,
+        "unit": "unite",
+        "specifications": "Avec tiroir verrouillable"
+      }
+    ],
+    "daWorkflowApproved": {
+      "demandeurKey": "demandeur1",
+      "dpKey": "dp",
+      "cfoKey": "cfo",
+      "ceoKey": "ceo",
+      "baseDate": "2026-02-10"
+    },
+    "qrWorkflowApproved": true,
+    "attachments": [
+      {
+        "type": "QUOTE",
+        "fileName": "devis_mob_boismada.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/p10_devis_1.pdf",
+        "fileSize": 250000,
+        "description": "Devis BoisMada Menuiserie",
+        "uploadedByKey": "acheteur"
+      },
+      {
+        "type": "QUOTE",
+        "fileName": "devis_mob_mobischool.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/p10_devis_2.pdf",
+        "fileSize": 270000,
+        "description": "Devis MobiSchool SARL",
+        "uploadedByKey": "acheteur"
+      },
+      {
+        "type": "QUOTE",
+        "fileName": "devis_mob_menuiserie.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/p10_devis_3.pdf",
+        "fileSize": 240000,
+        "description": "Devis Menuiserie Nationale",
+        "uploadedByKey": "acheteur"
+      }
+    ]
+  },
+  {
+    "reference": "DA-2026-011",
+    "year": 2026,
+    "site": "Antsirabe",
+    "sequentialNumber": "011",
+    "project": "PROJET SANTE",
+    "region": "Vakinankaratra",
+    "projectCode": "PRJ-2026-004",
+    "grantCode": "GNT-2026-S01",
+    "activityCode": "ACT-011",
+    "costCenter": "CC-SANTE-001",
+    "title": "Equipements chirurgicaux - PV en attente de validation",
+    "description": "Equipements chirurgicaux pour le bloc operatoire CHD Antsirabe",
+    "marketType": "Appel d'offres",
+    "operationType": "OPERATION",
+    "requestedDeliveryDate": "2026-06-15",
+    "priority": "HAUTE",
+    "justification": "Equipement du nouveau bloc operatoire CHD Antsirabe",
+    "deliveryAddress": "CHD Antsirabe",
+    "status": "PENDING_APPROVAL",
+    "currentStep": "PV",
+    "creatorKey": "demandeur2",
+    "items": [
+      {
+        "designation": "Bistouri electrique monopolaire/bipolaire",
+        "quantity": 2,
+        "unitPrice": 8500000,
+        "amount": 17000000,
+        "unit": "unite",
+        "specifications": "300W, certifie CE"
+      },
+      {
+        "designation": "Table operatoire electrique",
+        "quantity": 1,
+        "unitPrice": 25000000,
+        "amount": 25000000,
+        "unit": "unite",
+        "specifications": "Toutes positions, radiotransparente"
+      },
+      {
+        "designation": "Scialytique LED double dome",
+        "quantity": 2,
+        "unitPrice": 12000000,
+        "amount": 24000000,
+        "unit": "unite",
+        "specifications": "120 000 lux"
+      }
+    ],
+    "daWorkflowApproved": {
+      "demandeurKey": "demandeur2",
+      "omKey": "om",
+      "cfoKey": "cfo",
+      "ceoKey": "ceo",
+      "baseDate": "2026-02-15"
+    },
+    "qrWorkflowApproved": true,
+    "pv": {
+      "evaluateurKey": "acheteur",
+      "dateEvaluation": "2026-03-15",
+      "natureObjet": "Equipements chirurgicaux pour bloc operatoire CHD Antsirabe",
+      "decisionFinale": "Retenir MedSupply Madagascar (rang 1) - offre financierement competitive a 63 500 000 Ar, conformite technique totale et SAV inclus 2 ans. SurgTech Madagascar classe 2eme - delai non conforme et SAV absent.",
+      "status": "SUBMITTED",
+      "suppliers": [
+        {
+          "supplierKey": "sup2",
+          "order": 1,
+          "rang": 1,
+          "reponseDansDelai": "Oui",
+          "annexe1": "Oui",
+          "devisSpecifications": "Oui",
+          "regulariteFiscale": "Oui",
+          "copiecin": "Oui",
+          "conformiteSpecs": "Oui",
+          "distanceBureaux": "Oui",
+          "delaiLivraison": "Oui",
+          "sav": "Oui",
+          "disponibiliteArticles": "Oui",
+          "qualiteArticles": "Oui",
+          "experienceAnterieure": "Oui",
+          "producteurOuSousTraitant": "Partiel",
+          "echantillonBat": "Oui",
+          "validiteOffre": "Oui",
+          "modePaiement": "Oui",
+          "delaiPaiement": "Partiel",
+          "offreFinanciere": 63500000,
+          "items": [
+            {
+              "designation": "Bistouri electrique",
+              "quantity": 2,
+              "unitPrice": 8500000,
+              "amount": 17000000,
+              "disponibilite": "Oui"
+            },
+            {
+              "designation": "Table operatoire",
+              "quantity": 1,
+              "unitPrice": 22000000,
+              "amount": 22000000,
+              "disponibilite": "Oui"
+            },
+            {
+              "designation": "Scialytique LED",
+              "quantity": 2,
+              "unitPrice": 12250000,
+              "amount": 24500000,
+              "disponibilite": "Oui"
+            }
+          ]
+        },
+        {
+          "name": "SurgTech Madagascar",
+          "order": 2,
+          "rang": 2,
+          "reponseDansDelai": "Oui",
+          "annexe1": "Oui",
+          "devisSpecifications": "Partiel",
+          "regulariteFiscale": "Oui",
+          "copiecin": "Oui",
+          "conformiteSpecs": "Partiel",
+          "distanceBureaux": "Non",
+          "delaiLivraison": "Non",
+          "sav": "Non",
+          "disponibiliteArticles": "Partiel",
+          "qualiteArticles": "Partiel",
+          "experienceAnterieure": "Non",
+          "producteurOuSousTraitant": "Non",
+          "echantillonBat": "Non",
+          "validiteOffre": "Oui",
+          "modePaiement": "Oui",
+          "delaiPaiement": "Oui",
+          "offreFinanciere": 71000000,
+          "items": [
+            {
+              "designation": "Bistouri electrique",
+              "quantity": 2,
+              "unitPrice": 9500000,
+              "amount": 19000000,
+              "disponibilite": "Oui"
+            },
+            {
+              "designation": "Table operatoire",
+              "quantity": 1,
+              "unitPrice": 28000000,
+              "amount": 28000000,
+              "disponibilite": "Partiel"
+            },
+            {
+              "designation": "Scialytique LED",
+              "quantity": 2,
+              "unitPrice": 12000000,
+              "amount": 24000000,
+              "disponibilite": "Oui"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "reference": "DA-2026-012",
+    "year": 2026,
+    "site": "Antananarivo",
+    "sequentialNumber": "012",
+    "project": "PROJET IT",
+    "region": "Analamanga",
+    "projectCode": "PRJ-2026-005",
+    "grantCode": "GNT-2026-IT01",
+    "activityCode": "ACT-012",
+    "costCenter": "CC-IT-001",
+    "title": "Serveurs informatiques - BC a emettre",
+    "description": "Infrastructure serveur pour le siege OSDRM",
+    "marketType": "Appel d'offres",
+    "operationType": "OPERATION",
+    "requestedDeliveryDate": "2026-07-01",
+    "priority": "HAUTE",
+    "justification": "Remplacement serveurs obsoletes, risque de panne critique",
+    "deliveryAddress": "Siege OSDRM, Antananarivo",
+    "status": "AWAITING_DOCUMENTS",
+    "currentStep": "BC",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Serveur Dell PowerEdge R750",
+        "quantity": 2,
+        "unitPrice": 45000000,
+        "amount": 90000000,
+        "unit": "unite",
+        "specifications": "2x Xeon, 128GB RAM, 10TB SSD"
+      },
+      {
+        "designation": "Switch reseau 48 ports manageable",
+        "quantity": 2,
+        "unitPrice": 8000000,
+        "amount": 16000000,
+        "unit": "unite",
+        "specifications": "10GbE uplink"
+      },
+      {
+        "designation": "Onduleur 10KVA",
+        "quantity": 1,
+        "unitPrice": 12000000,
+        "amount": 12000000,
+        "unit": "unite"
+      }
+    ],
+    "daWorkflowApproved": {
+      "demandeurKey": "demandeur1",
+      "omKey": "om",
+      "cfoKey": "cfo",
+      "ceoKey": "ceo",
+      "baseDate": "2026-02-20"
+    },
+    "pv": {
+      "evaluateurKey": "acheteur",
+      "dateEvaluation": "2026-03-20",
+      "natureObjet": "Infrastructure serveur siege OSDRM",
+      "decisionFinale": "Retenir Global Trade SARL - offre technique la plus complete, meilleur rapport qualite/prix a 115 000 000 Ar, garantie 3 ans on-site.",
+      "status": "VALIDATED",
+      "suppliers": [
+        {
+          "supplierKey": "sup1",
+          "order": 1,
+          "rang": 1,
+          "reponseDansDelai": "Oui",
+          "annexe1": "Oui",
+          "devisSpecifications": "Oui",
+          "regulariteFiscale": "Oui",
+          "copiecin": "Oui",
+          "conformiteSpecs": "Oui",
+          "distanceBureaux": "Oui",
+          "delaiLivraison": "Oui",
+          "sav": "Oui",
+          "disponibiliteArticles": "Oui",
+          "qualiteArticles": "Oui",
+          "experienceAnterieure": "Oui",
+          "producteurOuSousTraitant": "Non",
+          "echantillonBat": "N/A",
+          "validiteOffre": "Oui",
+          "modePaiement": "Oui",
+          "delaiPaiement": "Oui",
+          "offreFinanciere": 115000000,
+          "items": [
+            {
+              "designation": "Serveur Dell PowerEdge R750",
+              "quantity": 2,
+              "unitPrice": 44000000,
+              "amount": 88000000,
+              "disponibilite": "Oui"
+            },
+            {
+              "designation": "Switch reseau 48 ports",
+              "quantity": 2,
+              "unitPrice": 7500000,
+              "amount": 15000000,
+              "disponibilite": "Oui"
+            },
+            {
+              "designation": "Onduleur 10KVA",
+              "quantity": 1,
+              "unitPrice": 12000000,
+              "amount": 12000000,
+              "disponibilite": "Oui"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "reference": "DA-2026-013",
+    "year": 2026,
+    "site": "Mahajanga",
+    "sequentialNumber": "013",
+    "project": "PROJET LOGISTIQUE",
+    "region": "Boeny",
+    "projectCode": "PRJ-2026-006",
+    "grantCode": "GNT-2026-L01",
+    "activityCode": "ACT-013",
+    "costCenter": "CC-LOG-001",
+    "title": "Vehicule 4x4 - BC en attente de validation",
+    "description": "Vehicule tout-terrain pour les missions terrain region Boeny",
+    "marketType": "Appel d'offres",
+    "operationType": "OPERATION",
+    "requestedDeliveryDate": "2026-07-15",
+    "priority": "HAUTE",
+    "justification": "Vehicule de mission indispensable pour les zones rurales enclavees",
+    "deliveryAddress": "Bureau OSDRM Mahajanga",
+    "status": "PENDING_APPROVAL",
+    "currentStep": "BC",
+    "creatorKey": "demandeur2",
+    "items": [
+      {
+        "designation": "Toyota Land Cruiser 4x4 (neuf)",
+        "quantity": 1,
+        "unitPrice": 120000000,
+        "amount": 120000000,
+        "unit": "unite",
+        "specifications": "Diesel, boite auto, climatise, GPS integre"
+      }
+    ],
+    "daWorkflowApproved": {
+      "demandeurKey": "demandeur2",
+      "omKey": "om",
+      "cfoKey": "cfo",
+      "ceoKey": "ceo",
+      "baseDate": "2026-02-25"
+    },
+    "attachments": [
+      {
+        "type": "PURCHASE_ORDER",
+        "fileName": "BC-2026-013-Toyota.pdf",
+        "fileUrl": "s3://osdrm-bucket/bc/p13_bc.pdf",
+        "fileSize": 450000,
+        "description": "Bon de Commande - Toyota Land Cruiser",
+        "uploadedByKey": "acheteur"
+      }
+    ]
+  },
+  {
+    "reference": "DA-2026-014",
+    "year": 2026,
+    "site": "Fianarantsoa",
+    "sequentialNumber": "014",
+    "project": "PROJET AGRICULTURE",
+    "region": "Haute Matsiatra",
+    "projectCode": "PRJ-2026-003",
+    "grantCode": "GNT-2026-A01",
+    "activityCode": "ACT-014",
+    "costCenter": "CC-AGRI-001",
+    "title": "Engrais et intrants - livraison effectuee, BR a uploader",
+    "description": "Engrais et intrants agricoles pour la saison 2026",
+    "marketType": "Consultation",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-04-15",
+    "priority": "HAUTE",
+    "justification": "Distribution aux agriculteurs avant la saison des pluies",
+    "deliveryAddress": "Direction Regionale Agriculture, Fianarantsoa",
+    "status": "AWAITING_DOCUMENTS",
+    "currentStep": "BR",
+    "receivedAt": "2026-04-10",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Engrais NPK 15-15-15",
+        "quantity": 5000,
+        "unitPrice": 5000,
+        "amount": 25000000,
+        "unit": "kg"
+      },
+      {
+        "designation": "Uree 46%",
+        "quantity": 2000,
+        "unitPrice": 6500,
+        "amount": 13000000,
+        "unit": "kg"
+      }
+    ],
+    "daWorkflowApproved": {
+      "demandeurKey": "demandeur1",
+      "dpKey": "dp",
+      "cfoKey": "cfo",
+      "ceoKey": "ceo",
+      "baseDate": "2026-01-10"
+    },
+    "attachments": [
+      {
+        "type": "PURCHASE_ORDER",
+        "fileName": "BC-2026-014.pdf",
+        "fileUrl": "s3://osdrm-bucket/bc/p14_bc.pdf",
+        "fileSize": 210000,
+        "description": "Bon de Commande emis et valide",
+        "uploadedByKey": "acheteur"
+      }
+    ]
+  },
+  {
+    "reference": "DA-2026-015",
+    "year": 2026,
+    "site": "Toamasina",
+    "sequentialNumber": "015",
+    "project": "PROJET SANTE",
+    "region": "Atsinanana",
+    "projectCode": "PRJ-2026-004",
+    "grantCode": "GNT-2026-S01",
+    "activityCode": "ACT-015",
+    "costCenter": "CC-SANTE-001",
+    "title": "Consommables labo - BR signe, facture attendue",
+    "description": "Consommables pour le laboratoire d'analyses CHD Toamasina",
+    "marketType": "Consultation",
+    "operationType": "OPERATION",
+    "requestedDeliveryDate": "2026-05-01",
+    "priority": "MOYENNE",
+    "justification": "Renouvellement consommables laboratoire",
+    "deliveryAddress": "Laboratoire CHD Toamasina",
+    "status": "AWAITING_DOCUMENTS",
+    "currentStep": "INVOICE",
+    "receivedAt": "2026-04-28",
+    "creatorKey": "demandeur2",
+    "items": [
+      {
+        "designation": "Reactifs hematologie",
+        "quantity": 50,
+        "unitPrice": 180000,
+        "amount": 9000000,
+        "unit": "kit"
+      },
+      {
+        "designation": "Tubes prelevement EDTA",
+        "quantity": 5000,
+        "unitPrice": 1200,
+        "amount": 6000000,
+        "unit": "piece"
+      }
+    ],
+    "attachments": [
+      {
+        "type": "PURCHASE_ORDER",
+        "fileName": "BC-2026-015.pdf",
+        "fileUrl": "s3://osdrm-bucket/bc/p15_bc.pdf",
+        "fileSize": 200000,
+        "description": "Bon de Commande",
+        "uploadedByKey": "acheteur"
+      },
+      {
+        "type": "DELIVERY_NOTE",
+        "fileName": "BR-2026-015.pdf",
+        "fileUrl": "s3://osdrm-bucket/br/p15_br.pdf",
+        "fileSize": 180000,
+        "description": "Bon de Reception signe",
+        "uploadedByKey": "demandeur2"
+      }
+    ]
+  },
+  {
+    "reference": "DA-2026-016",
+    "year": 2026,
+    "site": "Antananarivo",
+    "sequentialNumber": "016",
+    "project": "PROJET HEALTH",
+    "region": "Analamanga",
+    "projectCode": "PRJ-2026-001",
+    "grantCode": "GNT-2026-H01",
+    "activityCode": "ACT-016",
+    "costCenter": "CC-HEALTH-001",
+    "title": "Kits premiers secours - facture recue, DAP a etablir",
+    "description": "Kits de premiers secours pour equipes terrain",
+    "marketType": "Consultation",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-03-15",
+    "priority": "HAUTE",
+    "justification": "Dotation obligatoire EPI pour les missions terrain",
+    "deliveryAddress": "Siege OSDRM, Antananarivo",
+    "status": "AWAITING_DOCUMENTS",
+    "currentStep": "DAP",
+    "receivedAt": "2026-03-10",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Kit premiers secours complet",
+        "quantity": 30,
+        "unitPrice": 95000,
+        "amount": 2850000,
+        "unit": "kit"
+      },
+      {
+        "designation": "Trousse individuelle secours",
+        "quantity": 100,
+        "unitPrice": 25000,
+        "amount": 2500000,
+        "unit": "piece"
+      }
+    ],
+    "attachments": [
+      {
+        "type": "PURCHASE_ORDER",
+        "fileName": "BC-2026-016.pdf",
+        "fileUrl": "s3://osdrm-bucket/bc/p16_bc.pdf",
+        "fileSize": 200000,
+        "uploadedByKey": "acheteur"
+      },
+      {
+        "type": "DELIVERY_NOTE",
+        "fileName": "BR-2026-016.pdf",
+        "fileUrl": "s3://osdrm-bucket/br/p16_br.pdf",
+        "fileSize": 180000,
+        "uploadedByKey": "demandeur1"
+      },
+      {
+        "type": "INVOICE",
+        "fileName": "FACTURE-2026-016.pdf",
+        "fileUrl": "s3://osdrm-bucket/invoices/p16_inv.pdf",
+        "fileSize": 220000,
+        "description": "Facture fournisseur recue",
+        "uploadedByKey": "acheteur"
+      }
+    ]
+  },
+  {
+    "reference": "DA-2026-017",
+    "year": 2026,
+    "site": "Antananarivo",
+    "sequentialNumber": "017",
+    "project": "PROJET IT",
+    "region": "Analamanga",
+    "projectCode": "PRJ-2026-005",
+    "grantCode": "GNT-2026-IT01",
+    "activityCode": "ACT-017",
+    "costCenter": "CC-IT-001",
+    "title": "Licences logiciels - DAP etabli, virement en cours",
+    "description": "Licences annuelles logiciels de gestion pour le siege",
+    "marketType": "Gre a gre",
+    "operationType": "OPERATION",
+    "requestedDeliveryDate": "2026-02-28",
+    "priority": "HAUTE",
+    "justification": "Renouvellement licences logiciels de gestion financiere et RH",
+    "deliveryAddress": "Siege OSDRM, Antananarivo",
+    "status": "AWAITING_DOCUMENTS",
+    "currentStep": "PROOF_OF_PAYMENT",
+    "receivedAt": "2026-02-20",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Licence Sage 100 Comptabilite (1 an)",
+        "quantity": 1,
+        "unitPrice": 8500000,
+        "amount": 8500000,
+        "unit": "licence"
+      },
+      {
+        "designation": "Licence Microsoft 365 Business (10 users)",
+        "quantity": 1,
+        "unitPrice": 3200000,
+        "amount": 3200000,
+        "unit": "licence"
+      }
+    ],
+    "attachments": [
+      {
+        "type": "PURCHASE_ORDER",
+        "fileName": "BC-2026-017.pdf",
+        "fileUrl": "s3://osdrm-bucket/bc/p17_bc.pdf",
+        "fileSize": 195000,
+        "uploadedByKey": "acheteur"
+      },
+      {
+        "type": "DELIVERY_NOTE",
+        "fileName": "BR-2026-017.pdf",
+        "fileUrl": "s3://osdrm-bucket/br/p17_br.pdf",
+        "fileSize": 175000,
+        "uploadedByKey": "demandeur1"
+      },
+      {
+        "type": "INVOICE",
+        "fileName": "FACTURE-2026-017.pdf",
+        "fileUrl": "s3://osdrm-bucket/invoices/p17_inv.pdf",
+        "fileSize": 210000,
+        "uploadedByKey": "acheteur"
+      },
+      {
+        "type": "OTHER",
+        "fileName": "DAP-2026-017.pdf",
+        "fileUrl": "s3://osdrm-bucket/dap/p17_dap.pdf",
+        "fileSize": 185000,
+        "description": "Demande de Paiement etablie",
+        "uploadedByKey": "cfo"
+      }
+    ]
+  },
+  {
+    "reference": "DA-2026-018",
+    "year": 2026,
+    "site": "Antananarivo",
+    "sequentialNumber": "018",
+    "project": "PROJET HEALTH",
+    "region": "Analamanga",
+    "projectCode": "PRJ-2026-001",
+    "grantCode": "GNT-2026-H01",
+    "activityCode": "ACT-018",
+    "costCenter": "CC-HEALTH-001",
+    "title": "Equipements de protection individuelle - dossier cloture",
+    "description": "EPI complets pour equipes terrain (casques, gilets, gants)",
+    "marketType": "Consultation",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-02-15",
+    "priority": "HAUTE",
+    "justification": "Dotation EPI reglementaire pour missions terrain",
+    "deliveryAddress": "Siege OSDRM, Antananarivo",
+    "status": "VALIDATED",
+    "currentStep": "DONE",
+    "validatedAt": "2026-03-01",
+    "closedAt": "2026-03-01",
+    "receivedAt": "2026-02-14",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Casque de protection",
+        "quantity": 50,
+        "unitPrice": 45000,
+        "amount": 2250000,
+        "unit": "unite"
+      },
+      {
+        "designation": "Gilet securite haute visibilite",
+        "quantity": 50,
+        "unitPrice": 25000,
+        "amount": 1250000,
+        "unit": "unite"
+      },
+      {
+        "designation": "Gants de protection",
+        "quantity": 100,
+        "unitPrice": 8000,
+        "amount": 800000,
+        "unit": "paire"
+      }
+    ],
+    "attachments": [
+      {
+        "type": "QUOTE",
+        "fileName": "devis_epi_A.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/p18_devis_1.pdf",
+        "fileSize": 120000,
+        "description": "Devis fournisseur A",
+        "uploadedByKey": "acheteur"
+      },
+      {
+        "type": "QUOTE",
+        "fileName": "devis_epi_B.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/p18_devis_2.pdf",
+        "fileSize": 130000,
+        "description": "Devis fournisseur B",
+        "uploadedByKey": "acheteur"
+      },
+      {
+        "type": "QUOTE",
+        "fileName": "devis_epi_C.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/p18_devis_3.pdf",
+        "fileSize": 115000,
+        "description": "Devis fournisseur C",
+        "uploadedByKey": "acheteur"
+      },
+      {
+        "type": "PURCHASE_ORDER",
+        "fileName": "BC-2026-018.pdf",
+        "fileUrl": "s3://osdrm-bucket/bc/p18_bc.pdf",
+        "fileSize": 200000,
+        "uploadedByKey": "acheteur"
+      },
+      {
+        "type": "DELIVERY_NOTE",
+        "fileName": "BR-2026-018.pdf",
+        "fileUrl": "s3://osdrm-bucket/br/p18_br.pdf",
+        "fileSize": 180000,
+        "uploadedByKey": "demandeur1"
+      },
+      {
+        "type": "INVOICE",
+        "fileName": "FACTURE-2026-018.pdf",
+        "fileUrl": "s3://osdrm-bucket/invoices/p18_inv.pdf",
+        "fileSize": 220000,
+        "uploadedByKey": "acheteur"
+      },
+      {
+        "type": "PROOF_OF_PAYMENT",
+        "fileName": "PAIEMENT-2026-018.pdf",
+        "fileUrl": "s3://osdrm-bucket/payments/p18_pay.pdf",
+        "fileSize": 150000,
+        "description": "Preuve de paiement - virement valide",
+        "uploadedByKey": "cfo"
+      }
+    ]
+  }
+]
