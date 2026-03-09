@@ -5,10 +5,6 @@ import { ValidationWorkflowRepository } from '../../repository/purchase/validati
 import { ValidatorRepository } from '../../repository/purchase/validator.repository';
 import { UserRepository } from '../../repository/user/user.repository';
 
-/**
- * Service pour gérer les workflows de validation
- * Utilise les repositories pour l'accès aux données
- */
 @Injectable()
 export class ValidationWorkflowService {
   constructor(
@@ -18,9 +14,6 @@ export class ValidationWorkflowService {
     private workflowConfig: WorkflowConfigService,
   ) {}
 
-  /**
-   * Crée un workflow pour une étape spécifique
-   */
   async createWorkflow(params: {
     purchaseId: string;
     step: PurchaseStep;
@@ -29,14 +22,12 @@ export class ValidationWorkflowService {
   }): Promise<void> {
     const { purchaseId, step, operationType, amount } = params;
 
-    // Utilise la configuration pour déterminer les validateurs
     const requiredRoles = this.workflowConfig.getRequireValidators(
       step,
       operationType,
       amount,
     );
 
-    // Crée le workflow avec step
     const workflow = await this.workflowRepo.create({
       purchase: { connect: { id: purchaseId } },
       step,
@@ -44,7 +35,6 @@ export class ValidationWorkflowService {
       isComplete: false,
     });
 
-    // Crée les validateurs dans l'ordre
     const validatorsData = requiredRoles.map((role, index) => ({
       workflowId: workflow.id,
       role,
@@ -54,13 +44,21 @@ export class ValidationWorkflowService {
 
     await this.validatorRepo.createMany(validatorsData);
   }
+  async getWorkflow(purchaseId: string, step?: PurchaseStep) {
+    if (step) {
+      const workflow = await this.workflowRepo.findByPurchaseIdAndStep(
+        purchaseId,
+        step,
+      );
+      if (!workflow) {
+        throw new NotFoundException(
+          `Workflow de validation non trouvé pour la DA #${purchaseId} à l'étape ${step}`,
+        );
+      }
+      return workflow;
+    }
 
-  /**
-   * Récupère un workflow avec tous ses validateurs
-   */
-  async getWorkflow(purchaseId: string) {
     const workflow = await this.workflowRepo.findByPurchaseId(purchaseId);
-
     if (!workflow) {
       throw new NotFoundException(
         `Workflow de validation non trouvé pour la DA #${purchaseId}`,
@@ -70,9 +68,6 @@ export class ValidationWorkflowService {
     return workflow;
   }
 
-  /**
-   * Met à jour un validateur (validation, rejet, demande de modifications)
-   */
   async updateValidator(params: {
     validatorId: string;
     userId: number;
@@ -80,7 +75,6 @@ export class ValidationWorkflowService {
     comment?: string;
   }) {
     const { validatorId, userId, decision, comment } = params;
-
     const userInfo = await this.userRepo.getUserInfo(userId);
 
     return this.validatorRepo.markAsValidated({
@@ -93,20 +87,13 @@ export class ValidationWorkflowService {
     });
   }
 
-  /**
-   * Avance le workflow à l'étape suivante
-   */
   async advanceWorkflow(workflowId: string): Promise<void> {
     const workflow = await this.workflowRepo.findById(workflowId);
-
-    if (!workflow) {
-      throw new NotFoundException('Workflow non trouvé');
-    }
+    if (!workflow) throw new NotFoundException('Workflow non trouvé');
 
     const isComplete = this.workflowConfig.isWorkflowComplete(
       workflow.validators,
     );
-
     const nextValidator = this.workflowConfig.getNextValidator(
       workflow.validators,
     );
@@ -120,18 +107,12 @@ export class ValidationWorkflowService {
     });
   }
 
-  /**
-   * Vérifie si un utilisateur peut effectuer une action sur le workflow
-   */
   async canUserValidate(
     purchaseId: string,
     userRole: ValidatorRole,
-  ): Promise<{
-    canValidate: boolean;
-    validator?: any;
-    reason?: string;
-  }> {
-    const workflow = await this.getWorkflow(purchaseId);
+    currentStep?: PurchaseStep,
+  ): Promise<{ canValidate: boolean; validator?: any; reason?: string }> {
+    const workflow = await this.getWorkflow(purchaseId, currentStep);
 
     const isAuthorized = this.workflowConfig.isValidatorAuthorized(
       userRole,
@@ -153,47 +134,33 @@ export class ValidationWorkflowService {
       (v) => v.role === userRole && v.order === nextValidator?.order,
     );
 
-    return {
-      canValidate: true,
-      validator,
-    };
+    return { canValidate: !!validator, validator };
   }
 
-  /**
-   * Réinitialise complètement un workflow
-   */
   async resetWorkflow(purchaseId: string): Promise<void> {
     const workflow = await this.workflowRepo.findByPurchaseId(purchaseId);
-
-    if (!workflow) {
-      throw new NotFoundException('Workflow non trouvé');
-    }
+    if (!workflow) throw new NotFoundException('Workflow non trouvé');
 
     await this.validatorRepo.resetByWorkflow(workflow.id);
-
     await this.workflowRepo.reset(workflow.id);
   }
 
-  /**
-   * Supprime et recrée un workflow (si changement de montant ou type)
-   */
   async recreateWorkflow(params: {
     purchaseId: string;
     step: PurchaseStep;
     operationType: OperationType;
     amount: number;
   }): Promise<void> {
-    const { purchaseId } = params;
+    const { purchaseId, step } = params;
 
-    // Supprimer l'ancien workflow s'il existe
-    const existingWorkflow =
-      await this.workflowRepo.findByPurchaseId(purchaseId);
-
+    const existingWorkflow = await this.workflowRepo.findByPurchaseIdAndStep(
+      purchaseId,
+      step,
+    );
     if (existingWorkflow) {
       await this.workflowRepo.delete({ id: existingWorkflow.id });
     }
 
-    // Créer le nouveau workflow
     await this.createWorkflow(params);
   }
 }

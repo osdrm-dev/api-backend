@@ -13,34 +13,21 @@ export interface FilterOptions {
   search?: string;
 }
 
-/**
- * Service pour filtrer et récupérer des demandes d'achat
- * Utilise le PurchaseRepository pour l'accès aux données
- */
 @Injectable()
 export class PurchaseQueryService {
   constructor(private purchaseRepo: PurchaseRepository) {}
 
-  /**
-   * Construit une clause WHERE réutilisable
-   */
   private buildWhereClause(
     filters: FilterOptions,
     additionalCriteria?: any,
   ): any {
     const where: any = { ...additionalCriteria };
 
-    if (filters.status) {
-      where.status = filters.status;
-    }
-
-    if (filters.project) {
+    if (filters.status) where.status = filters.status;
+    if (filters.project)
       where.project = { contains: filters.project, mode: 'insensitive' };
-    }
-
-    if (filters.region) {
+    if (filters.region)
       where.region = { contains: filters.region, mode: 'insensitive' };
-    }
 
     if (filters.search) {
       where.OR = [
@@ -53,10 +40,6 @@ export class PurchaseQueryService {
     return where;
   }
 
-  /**
-   * Récupère les demandes pour un validateur spécifique
-   * Filtre selon l'ordre du workflow (c'est son tour)
-   */
   async findForValidator(userRole: ValidatorRole, filters: FilterOptions) {
     const {
       page = 1,
@@ -64,13 +47,19 @@ export class PurchaseQueryService {
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = filters;
-    const skip = (page - 1) * limit;
 
-    const filtersForQuery: FilterOptions = { ...filters };
-    delete filtersForQuery.status;
+    // On ne transmet pas `status` pour ne pas filtrer : la clause WHERE gère déjà les statuts
+    const filtersWithoutStatus: FilterOptions = { ...filters };
+    delete filtersWithoutStatus.status;
 
-    const where = this.buildWhereClause(filtersForQuery, {
-      status: { in: ['PUBLISHED', 'PENDING_APPROVAL', 'IN_DEROGATION'] },
+    const where = this.buildWhereClause(filtersWithoutStatus, {
+      status: {
+        in: [
+          PurchaseStatus.PUBLISHED,
+          PurchaseStatus.PENDING_APPROVAL,
+          PurchaseStatus.IN_DEROGATION,
+        ],
+      },
       validationWorkflows: {
         some: {
           validators: {
@@ -83,43 +72,47 @@ export class PurchaseQueryService {
       },
     });
 
-    // Récupérer en parallèle : page courante + count total
-    const [purchases, allPurchases] = await Promise.all([
-      this.purchaseRepo.findMany({
-        where,
-        skip,
-        take: limit * 3, // Prendre plus pour compenser le filtrage
-        orderBy: { [sortBy]: sortOrder },
-      }),
-      this.purchaseRepo.findMany({ where }),
-    ]);
+    const allCandidates = await this.purchaseRepo.findMany({
+      where,
+      orderBy: { [sortBy]: sortOrder },
+    });
 
-    // Filtrer pour ne garder que celles où c'est le tour du validateur
-    const filterByTurn = (purchase: any) => {
+    const isMyTurn = (purchase: any): boolean => {
       const currentWorkflow = purchase.validationWorkflows?.find(
-        (w) => w.step === purchase.currentStep,
+        (w: any) => w.step === purchase.currentStep,
       );
+
       if (!currentWorkflow?.validators?.length) return false;
 
       const nextValidator = currentWorkflow.validators
-        .filter((v) => !v.isValidated)
-        .sort((a, b) => a.order - b.order)[0];
+        .filter((v: any) => !v.isValidated)
+        .sort((a: any, b: any) => a.order - b.order)[0];
 
       return nextValidator?.role === userRole;
     };
 
-    const validPurchases = purchases.filter(filterByTurn).slice(0, limit);
-    const total = allPurchases.filter(filterByTurn).length;
+    const validPurchases = allCandidates.filter(isMyTurn);
+    const total = validPurchases.length;
 
-    const sanitizedPurchases = validPurchases.map((purchase) => {
+    const skip = (page - 1) * limit;
+    const paginated = validPurchases.slice(skip, skip + limit);
+
+    const data = paginated.map((purchase: any) => {
       const { validationWorkflows, ...rest } = purchase;
       const amount =
-        purchase.items?.reduce((sum, item) => sum + item.amount, 0) || 0;
-      return { ...rest, amount };
+        purchase.items?.reduce(
+          (sum: number, item: any) => sum + item.amount,
+          0,
+        ) || 0;
+      const activeWorkflow = validationWorkflows?.find(
+        (w: any) => w.step === purchase.currentStep,
+      );
+
+      return { ...rest, amount, activeWorkflow };
     });
 
     return {
-      data: sanitizedPurchases,
+      data,
       pagination: {
         total,
         page,
@@ -129,9 +122,6 @@ export class PurchaseQueryService {
     };
   }
 
-  /**
-   * Récupère les demandes créées par un utilisateur
-   */
   async findByCreator(userId: number, filters: FilterOptions) {
     const {
       page = 1,
@@ -155,25 +145,14 @@ export class PurchaseQueryService {
 
     return {
       data: purchases,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
-  /**
-   * Récupère une demande par ID avec toutes ses relations
-   */
   async findById(id: string) {
     return this.purchaseRepo.findById(id);
   }
 
-  /**
-   * Récupère les DA validées en étape QR pour les acheteurs
-   */
   async findValidatedForQR(filters: FilterOptions) {
     const {
       page = 1,
@@ -200,18 +179,10 @@ export class PurchaseQueryService {
 
     return {
       data: purchases,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
-  /**
-   * Récupère des demandes selon des critères personnalisés
-   */
   async findMany(filters: FilterOptions, additionalWhere?: any) {
     const {
       page = 1,
@@ -235,12 +206,7 @@ export class PurchaseQueryService {
 
     return {
       data: purchases,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 }
