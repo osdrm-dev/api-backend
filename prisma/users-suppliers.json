@@ -55,6 +55,20 @@
       "name": "Marc Rivo",
       "fonction": "Acheteur",
       "role": "ACHETEUR"
+    },
+    {
+      "key": "cpr",
+      "email": "cpr@osdrm.mg",
+      "name": "Andria Miary",
+      "fonction": "Chef de Projet Regional",
+      "role": "CPR"
+    },
+    {
+      "key": "cfr",
+      "email": "cfr@osdrm.mg",
+      "name": "Miara Manana",
+      "fonction": "Chef Financier Regional",
+      "role": "CFR"
     }
   ],
   "suppliers": [
