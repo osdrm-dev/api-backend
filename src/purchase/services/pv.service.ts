@@ -367,4 +367,70 @@ export class PVService {
       message: 'Articles selectionnes avec succes',
     };
   }
+
+  async getSelectedItems(purchaseId: string) {
+    const pv = await this.pvRepository.findByPurchaseId(purchaseId);
+    if (!pv) throw new NotFoundException('Aucun PV trouve pour cette DA');
+
+    const suppliersWithItems = pv.suppliers.map((supplier) => {
+      const allItems = supplier.items.map((item) => ({
+        id: item.id,
+        purchaseItemId: item.purchaseItemId,
+        designation: item.designation,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        amount: item.amount,
+        disponibilite: item.disponibilite,
+        isSelected: item.isSelected,
+      }));
+
+      const selectedItems = allItems.filter((item) => item.isSelected);
+      const totalAmount = selectedItems.reduce(
+        (sum, item) => sum + Number(item.amount),
+        0,
+      );
+
+      return {
+        supplierId: supplier.supplierId,
+        pvSupplierId: supplier.id,
+        supplierName: supplier.name || supplier.supplier?.name,
+        supplierDetails: supplier.supplier
+          ? {
+              nif: supplier.supplier.nif,
+              stat: supplier.supplier.stat,
+              address: supplier.supplier.address,
+              phone: supplier.supplier.phone,
+              email: supplier.supplier.email,
+              region: supplier.supplier.region,
+            }
+          : null,
+        allItems,
+        selectedItems,
+        selectedCount: selectedItems.length,
+        totalAmount,
+      };
+    });
+
+    const totalSelected = suppliersWithItems.reduce(
+      (sum, supplier) => sum + supplier.selectedCount,
+      0,
+    );
+
+    const grandTotal = suppliersWithItems.reduce(
+      (sum, supplier) => sum + supplier.totalAmount,
+      0,
+    );
+
+    return {
+      purchaseId,
+      pvId: pv.id,
+      evaluateur: pv.evaluateur,
+      dateEvaluation: pv.dateEvaluation,
+      decisionFinale: pv.decisionFinale,
+      suppliers: suppliersWithItems,
+      totalSelected,
+      grandTotal,
+      message: `${totalSelected} article(s) selectionne(s) sur ${suppliersWithItems.reduce((sum, s) => sum + s.allItems.length, 0)} article(s) au total`,
+    };
+  }
 }
