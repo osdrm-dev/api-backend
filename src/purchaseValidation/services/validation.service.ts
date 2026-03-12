@@ -84,7 +84,7 @@ export class DAValidationService {
         [PurchaseStep.QR]: PurchaseStep.PV,
         [PurchaseStep.PV]: PurchaseStep.BC,
         [PurchaseStep.BC]: PurchaseStep.BR,
-        [PurchaseStep.BR]: PurchaseStep.INVOICE,
+        // BR n'a pas de validation, passage direct via submit
         [PurchaseStep.INVOICE]: PurchaseStep.DAP,
         [PurchaseStep.DAP]: PurchaseStep.PROOF_OF_PAYMENT,
         [PurchaseStep.PROOF_OF_PAYMENT]: PurchaseStep.DONE,
@@ -124,7 +124,6 @@ export class DAValidationService {
       [PurchaseStep.QR]: `QR validée avec succès, Passage à l'étape de PV.`,
       [PurchaseStep.PV]: `PV validée avec succès, Passage à l'étape de BC.`,
       [PurchaseStep.BC]: `BC validée avec succès, Passage à l'étape de BR.`,
-      [PurchaseStep.BR]: `BR validée avec succès, Passage à l'étape de FACTURE.`,
       [PurchaseStep.INVOICE]: `Facture validée avec succès, Passage à l'étape de DAP.`,
       [PurchaseStep.DAP]: `DAP validée avec succès, Passage à l'étape de PREUVE DE PAIEMENT.`,
       [PurchaseStep.PROOF_OF_PAYMENT]: `Preuve de paiement validée avec succès, Processus terminé.`,
