@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { NotificationService } from './services/nofitication.service';
-import { NOTIFICATION_TYPES } from './constants/notification.constants';
+import { OSDRM_PROCESS_EVENT } from './constants/notification.constants';
 
 @Injectable()
 export class NotificationCron {
@@ -11,23 +11,27 @@ export class NotificationCron {
 
   /**
    * S'exécute toutes les minutes
-   * On boucle sur chaque type pour déclencher le traitement spécifique
+   * Le service gère désormais l'aiguillage interne par type
    */
   @Cron(CronExpression.EVERY_MINUTE)
   async handleAllNotifications() {
-    this.logger.debug('Lancement du cycle de traitement des notifications...');
+    this.logger.debug(
+      '🚀 Lancement du cycle de traitement des notifications OSDRM...',
+    );
 
-    // On récupère les valeurs : ['DA_CREATE', 'UPLOAD_BC', ...]
-    const types = Object.values(NOTIFICATION_TYPES);
+    try {
+      // On appelle une seule fois le service.
+      // C'est lui qui récupère les 50 prochaines notifs PENDING (quel que soit le type)
+      await this.notificationService.processAllPending();
 
-    for (const type of types) {
-      try {
-        await this.notificationService.processAllPending();
-      } catch (error) {
-        this.logger.error(`Erreur fatale lors du traitement du type ${type}`);
-      }
+      this.logger.debug('✅ Cycle de traitement terminé avec succès.');
+    } catch (error) {
+      // Gestion du type 'unknown' pour le logger
+      const errorMessage =
+        error instanceof Error ? error.message : 'Erreur inconnue';
+      this.logger.error(
+        `❌ Erreur fatale lors du cycle de notification : ${errorMessage}`,
+      );
     }
-
-    this.logger.debug('Cycle de traitement terminé.');
   }
 }

@@ -5,7 +5,9 @@ import {
 } from '@prisma/client';
 import { MailService } from 'src/mail/mail.service';
 import { NotificationRepository } from 'src/repository/notification/notification.repository';
-import { NOTIFICATION_TYPES } from '../constants/notification.constants';
+import { OSDRM_PROCESS_EVENT } from '../constants/notification.constants';
+import { AuditService } from 'src/audit/services/audit.service';
+import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
 export class NotificationService {
@@ -14,6 +16,8 @@ export class NotificationService {
   constructor(
     private readonly repository: NotificationRepository,
     private readonly mailService: MailService,
+    private readonly auditService: AuditService,
+    private readonly prisma: PrismaService, // Injecté pour récupérer l'ID de l'utilisateur
   ) {}
 
   async processAllPending() {
@@ -23,84 +27,125 @@ export class NotificationService {
     for (const notif of notifications) {
       try {
         switch (notif.type) {
-          case NOTIFICATION_TYPES.DA_CREATE:
-            await this.sendNotificationForDACreate(notif);
+          case OSDRM_PROCESS_EVENT.DA_CREATED:
+            await this.sendNotificationForDACreated(notif);
             break;
-          case NOTIFICATION_TYPES.UPLOAD_BC:
-            await this.sendNotificationForUploadBC(notif);
+          case OSDRM_PROCESS_EVENT.BC_UPLOADED:
+            await this.sendNotificationForBCUploaded(notif);
             break;
-          case NOTIFICATION_TYPES.UPLOAD_PV:
-            await this.sendNotificationForUploadPV(notif);
+          case OSDRM_PROCESS_EVENT.PV_UPLOADED:
+            await this.sendNotificationForPVUploaded(notif);
             break;
-          case NOTIFICATION_TYPES.UPLOAD_QR:
-            await this.sendNotificationForUploadQR(notif);
+          case OSDRM_PROCESS_EVENT.QR_UPLOADED:
+            await this.sendNotificationForQRUploaded(notif);
             break;
-          case NOTIFICATION_TYPES.FORGOT_PASSWORD:
+          case OSDRM_PROCESS_EVENT.FORGOT_PASSWORD:
             await this.sendNotificationForForgotPassword(notif);
             break;
-          case NOTIFICATION_TYPES.CREATE_DPA:
-            await this.sendNotificationForCreateDPA(notif);
+          case OSDRM_PROCESS_EVENT.DPA_CREATED:
+            await this.sendNotificationForDPACreated(notif);
             break;
           default:
-            this.logger.warn(`Type non géré : ${notif.type}`);
+            this.logger.warn(`Évènement non géré : ${notif.type}`);
+            continue;
         }
 
-        await this.repository.updateStatusAfterSend(notif.id, 'SENT');
+        // 1. Mise à jour du statut après succès d'envoi
+        const updatedNotif = await this.repository.updateStatusAfterSend(
+          notif.id,
+          NotificationStatus.SENT,
+        );
+
+        // 2. Recherche du destinataire pour l'AuditLog
+        const recipientEmail = notif.recipients?.[0];
+        let targetUserId: number = 0; // 0 ou un ID système spécifique de type number
+
+        if (recipientEmail) {
+          const user = await this.prisma.user.findUnique({
+            where: { email: recipientEmail },
+            select: { id: true },
+          });
+
+          if (user) {
+            // Conversion explicite en number au cas où l'ID serait récupéré différemment
+            targetUserId = Number(user.id);
+          }
+        }
+
+        // 3. Création de l'Audit Log lié à l'utilisateur destinataire
+        await this.auditService.log({
+          userId: targetUserId,
+          action: 'NOTIFICATION_SENT',
+          resource: 'Notification',
+          resourceId: notif.id,
+          details: {
+            type: notif.type,
+            recipientEmail: recipientEmail,
+            resourceReference: notif.resourceId,
+            attempts: updatedNotif.attemptCount,
+          },
+          ipAddress: '127.0.0.1',
+        });
+
         this.logger.debug(
-          `Statut mis à jour : SENT pour la notification ${notif.id}`,
+          `Statut mis à jour et AuditLog créé pour la notification ${notif.id}`,
         );
       } catch (error) {
-        await this.repository.updateStatusAfterSend(notif.id, 'PENDING');
+        const err = error as Error;
+        await this.repository.updateStatusAfterSend(
+          notif.id,
+          NotificationStatus.PENDING,
+        );
         this.logger.error(
           `Erreur lors du traitement de la notif ${notif.id}:`,
-          error,
+          err.message,
         );
       }
     }
   }
 
-  private async sendNotificationForDACreate(notif: NotificationEntity) {
+  // --- Méthodes privées d'envoi ---
+
+  private async sendNotificationForDACreated(notif: NotificationEntity) {
     const data = notif.data as any;
     await this.mailService.sendSimpleMail(
       notif.recipients?.[0],
-      `Nouvelle DA : ${data.reference || notif.resourceId}`,
+      `Nouvelle DA créée : ${data.reference || notif.resourceId}`,
       `<p>Une nouvelle demande d'achat a été créée.</p>
        <ul><li>Référence : ${data.reference}</li><li>Auteur : ${data.author}</li></ul>`,
     );
-    this.logger.log(`[DA_CREATE] Mail envoyé pour ${notif.resourceId}`);
+    this.logger.log(`[DA_CREATED] Mail envoyé pour ${notif.resourceId}`);
   }
 
-  private async sendNotificationForUploadBC(notif: NotificationEntity) {
-    const data = notif.data as any;
+  private async sendNotificationForBCUploaded(notif: NotificationEntity) {
     await this.mailService.sendSimpleMail(
       notif.recipients?.[0],
-      `BC disponible : ${notif.resourceId}`,
-      `<p>Le Bon de Commande pour la ressource <strong>${notif.resourceId}</strong> a été déposé.</p>`,
+      `BC déposé : ${notif.resourceId}`,
+      `<p>Le Bon de Commande pour la ressource <strong>${notif.resourceId}</strong> a été téléchargé.</p>`,
     );
-    this.logger.log(`[UPLOAD_BC] Mail envoyé pour ${notif.resourceId}`);
+    this.logger.log(`[BC_UPLOADED] Mail envoyé pour ${notif.resourceId}`);
   }
 
-  private async sendNotificationForUploadPV(notif: NotificationEntity) {
+  private async sendNotificationForPVUploaded(notif: NotificationEntity) {
     await this.mailService.sendSimpleMail(
       notif.recipients?.[0],
-      `PV téléchargé : ${notif.resourceId}`,
-      `<p>Un nouveau Procès Verbal (PV) est disponible pour consultation.</p>`,
+      `PV disponible : ${notif.resourceId}`,
+      `<p>Un nouveau Procès Verbal (PV) a été ajouté pour consultation.</p>`,
     );
-    this.logger.log(`[UPLOAD_PV] Mail envoyé pour ${notif.resourceId}`);
+    this.logger.log(`[PV_UPLOADED] Mail envoyé pour ${notif.resourceId}`);
   }
 
-  private async sendNotificationForUploadQR(notif: NotificationEntity) {
+  private async sendNotificationForQRUploaded(notif: NotificationEntity) {
     await this.mailService.sendSimpleMail(
       notif.recipients?.[0],
-      `Nouvelle Q&R : ${notif.resourceId}`,
+      `Réponse Q&R : ${notif.resourceId}`,
       `<p>Une nouvelle réponse a été apportée à votre question sur la ressource ${notif.resourceId}.</p>`,
     );
-    this.logger.log(`[UPLOAD_QR] Mail envoyé pour ${notif.resourceId}`);
+    this.logger.log(`[QR_UPLOADED] Mail envoyé pour ${notif.resourceId}`);
   }
 
   private async sendNotificationForForgotPassword(notif: NotificationEntity) {
     const data = notif.data as any;
-    // On utilise ta méthode sendConfirmation qui gère déjà le token/link
     await this.mailService.sendConfirmation(
       notif.recipients?.[0],
       data.token || 'reset-token',
@@ -110,13 +155,13 @@ export class NotificationService {
     );
   }
 
-  private async sendNotificationForCreateDPA(notif: NotificationEntity) {
+  private async sendNotificationForDPACreated(notif: NotificationEntity) {
     const data = notif.data as any;
     await this.mailService.sendSimpleMail(
       notif.recipients?.[0],
-      `Nouvelle DPA : ${data.reference || notif.resourceId}`,
-      `<p>Une demande de paiement anticipé a été générée pour la référence <strong>${data.reference}</strong>.</p>`,
+      `DPA générée : ${data.reference || notif.resourceId}`,
+      `<p>Une demande de paiement anticipé a été créée pour la référence <strong>${data.reference}</strong>.</p>`,
     );
-    this.logger.log(`[CREATE_DPA] Mail envoyé pour ${notif.resourceId}`);
+    this.logger.log(`[DPA_CREATED] Mail envoyé pour ${notif.resourceId}`);
   }
 }

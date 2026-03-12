@@ -1,9 +1,8 @@
-// ... tes imports inchangés
 import 'dotenv/config';
-import { PrismaClient, NotificationStatus, Prisma } from '@prisma/client';
+import { PrismaClient, NotificationStatus, Prisma, Role } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
-import { NOTIFICATION_TYPES } from 'src/notification/constants/notification.constants';
+import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -18,48 +17,70 @@ const adapter = new PrismaPg(pool, { schema: 'public' });
 const prisma = new PrismaClient({ adapter });
 
 async function seedNotificationData() {
-  console.log('🌱 Starting notification data seeding...\n');
+  console.log('🌱 Starting OSDRM Full Seeding (Users + Notifications)...\n');
 
   try {
-    const types = Object.values(NOTIFICATION_TYPES);
-    const emails = [
-      'demandeur1@osdrm.mg',
-      'validateur@osdrm.mg',
-      'admin@osdrm.mg',
+    const types = Object.values(OSDRM_PROCESS_EVENT);
+
+    // 1. Création des utilisateurs (Recipients)
+    const userData = [
+      {
+        email: 'demandeur1@osdrm.mg',
+        name: 'Jean Demandeur',
+        role: Role.DEMANDEUR,
+      },
+      { email: 'validateur@osdrm.mg', name: 'Marc Validateur', role: Role.RFR },
+      { email: 'admin@osdrm.mg', name: 'Admin OSDRM', role: Role.ADMIN },
     ];
 
+    console.log('👥 Syncing users...');
+    for (const u of userData) {
+      await prisma.user.upsert({
+        where: { email: u.email },
+        update: {},
+        create: {
+          email: u.email,
+          name: u.name,
+          role: u.role,
+          password: 'hashed_password_here', // À adapter selon ton auth
+          fonction: 'Staff OSDRM',
+        },
+      });
+    }
+
+    const emails = userData.map((u) => u.email);
+
+    // 2. Nettoyage des anciennes notifications
     console.log('🗑️ Cleaning notifications table...');
     await prisma.notification.deleteMany();
 
+    // 3. Génération des notifications
     console.log('🚀 Generating 30 notifications...');
     const notifications: Prisma.NotificationCreateManyInput[] = [];
 
     for (let i = 0; i < 30; i++) {
       const type = types[i % types.length];
-
-      // LOGIQUE MODIFIÉE ICI :
-      // On met PENDING uniquement si le type est DA_CREATE, sinon SENT
       const status =
-        type === NOTIFICATION_TYPES.DA_CREATE
+        type === OSDRM_PROCESS_EVENT.DA_CREATED
           ? NotificationStatus.PENDING
           : NotificationStatus.SENT;
 
       notifications.push({
         type: type,
         resourceId: `RES-LOG-${1000 + i}`,
-        resourceType: type.startsWith('UPLOAD') ? 'DOCUMENT' : 'PURCHASE',
+        resourceType: type.includes('UPLOADED') ? 'DOCUMENT' : 'PURCHASE',
         recipients: [emails[i % emails.length]] as Prisma.JsonArray,
         data: {
           id: i,
           reference: `NOTIF-2026-${i}`,
-          message: `Ceci est un test pour le type ${type}`,
+          message: `Test d'évènement : ${type}`,
           link: `http://localhost:3000/resources/${i}`,
         } as Prisma.JsonObject,
-        status: status, // Utilisation du statut dynamique
+        status: status,
         hasReminder: i % 5 === 0,
-        attemptCount: status === NotificationStatus.SENT ? 1 : 0, // 1 tentative si déjà envoyé
+        attemptCount: status === NotificationStatus.SENT ? 1 : 0,
         reminderCount: 0,
-        lastSentAt: status === NotificationStatus.SENT ? new Date() : null, // Date si envoyé
+        lastSentAt: status === NotificationStatus.SENT ? new Date() : null,
         expiredAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       });
     }
@@ -68,17 +89,12 @@ async function seedNotificationData() {
       data: notifications,
     });
 
-    const pendingCount = notifications.filter(
-      (n) => n.status === 'PENDING',
-    ).length;
-    const sentCount = notifications.filter((n) => n.status === 'SENT').length;
-
-    console.log('\n✅ Seed terminé !');
-    console.log(`📊 Résumé :`);
-    console.log(`   - PENDING (DA_CREATE) : ${pendingCount}`);
-    console.log(`   - SENT (Autres types) : ${sentCount}`);
+    console.log('\n✅ Seed terminé avec succès !');
+    console.log(`📊 Utilisateurs synchronisés : ${emails.length}`);
+    console.log(`📊 Notifications créées : 30`);
   } catch (error) {
-    console.error('❌ Error seeding notifications:', error);
+    const msg = error instanceof Error ? error.message : error;
+    console.error('❌ Error during seeding:', msg);
     throw error;
   } finally {
     await pool.end();
@@ -86,6 +102,6 @@ async function seedNotificationData() {
 }
 
 seedNotificationData().catch((error) => {
-  console.error('Fatal error:', error);
+  console.error('Fatal error during seeding:', error);
   process.exit(1);
 });

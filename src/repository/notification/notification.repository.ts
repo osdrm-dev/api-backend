@@ -9,7 +9,7 @@ export class NotificationRepository {
   /**
    * Récupère les notifications à traiter
    */
-  async findAllPending(limit: number = 50) {
+  async findAllPending(limit: number = 10) {
     return this.prisma.notification.findMany({
       where: { status: 'PENDING' },
       take: limit,

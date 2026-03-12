@@ -38,8 +38,8 @@ import { MailerModule } from '@nestjs-modules/mailer';
       transport: {
         host: process.env.MAIL_HOST || 'localhost',
         port: Number(process.env.MAIL_PORT) || 1025,
-        ignoreTLS: true,
-        secure: false, // Obligatoire pour MailHog
+        ignoreTLS: process.env.NODE_ENV !== 'production',
+        secure: process.env.NODE_ENV === 'production',
       },
       defaults: {
         from: '"No Reply" <noreply@osdrm.mg>',
