@@ -19,6 +19,7 @@ import { PVService } from '../services/pv.service';
 import { CreatePVDto } from '../dto/create-pv.dto';
 import { UpdatePVDto } from '../dto/update-pv.dto';
 import { AddSupplierItemsDto } from '../dto/add-supplier-items.dto';
+import { SelectSupplierItemsDto } from '../dto/select-supplier-items.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import {
   ApiSuccessResponse,
@@ -203,6 +204,49 @@ export class PVController {
       supplierId,
       req.user.id,
       dto,
+    );
+  }
+
+  @Post('suppliers/:supplierId/select-items')
+  @ApiOperation({
+    summary: "Selectionner les articles retenus d'un fournisseur",
+    description: `
+      Marque les articles d'un fournisseur comme selectionnes (retenus).
+      Permet de faire la decision finale article par article.
+      Seul un ACHETEUR peut selectionner des articles.
+    `,
+  })
+  @ApiParam({ name: 'purchaseId', description: 'ID de la DA' })
+  @ApiParam({ name: 'supplierId', description: 'ID du fournisseur dans le PV' })
+  @ApiBody({
+    type: SelectSupplierItemsDto,
+    examples: {
+      "Selection d'articles": {
+        value: {
+          itemIds: ['item-123', 'item-456'],
+        },
+      },
+    },
+  })
+  @ApiSuccessResponse('Articles selectionnes', {
+    supplierId: 'supplier-123',
+    selectedItems: [],
+    message: 'Articles selectionnes avec succes',
+  })
+  @ApiNotFoundResponse('DA, PV ou fournisseur')
+  @ApiBadRequestResponse('PV deja soumis ou articles invalides')
+  @ApiCommonResponses()
+  selectSupplierItems(
+    @Param('purchaseId') purchaseId: string,
+    @Param('supplierId') supplierId: string,
+    @Request() req,
+    @Body() dto: SelectSupplierItemsDto,
+  ) {
+    return this.pvService.selectSupplierItems(
+      purchaseId,
+      supplierId,
+      req.user.id,
+      dto.itemIds,
     );
   }
 }
