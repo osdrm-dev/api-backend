@@ -252,18 +252,28 @@ export class PVController {
 
   @Get('selected-items')
   @ApiOperation({
-    summary: 'Recuperer le recapitulatif des articles selectionnes',
+    summary: 'Recuperer le recapitulatif complet des articles du PV',
     description: `
-      Retourne uniquement les fournisseurs et articles selectionnes (isSelected: true).
-      Utile pour afficher un recap avant l'upload du BC.
+      Retourne TOUS les fournisseurs et TOUS leurs articles.
+      Chaque article a un champ 'isSelected' pour indiquer s'il est retenu.
+      Utile pour afficher un recap complet avant l'upload du BC.
       Inclut les totaux par fournisseur et le total general.
     `,
   })
   @ApiParam({ name: 'purchaseId', description: 'ID de la DA' })
-  @ApiSuccessResponse('Recapitulatif des selections', {
+  @ApiSuccessResponse('Recapitulatif complet', {
     purchaseId: 'purchase-123',
     pvId: 'pv-456',
-    selectedSuppliers: [],
+    suppliers: [
+      {
+        supplierName: 'Fournisseur A',
+        allItems: [],
+        selectedItems: [],
+        selectedCount: 2,
+        totalAmount: 5000000,
+      },
+    ],
+    totalSelected: 5,
     grandTotal: 5300000,
   })
   @ApiNotFoundResponse('PV')
