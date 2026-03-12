@@ -84,12 +84,25 @@ export class DAValidationService {
         [PurchaseStep.QR]: PurchaseStep.PV,
         [PurchaseStep.PV]: PurchaseStep.BC,
         [PurchaseStep.BC]: PurchaseStep.BR,
+        [PurchaseStep.BR]: PurchaseStep.INVOICE,
+        [PurchaseStep.INVOICE]: PurchaseStep.DAP,
+        [PurchaseStep.DAP]: PurchaseStep.PROOF_OF_PAYMENT,
+        [PurchaseStep.PROOF_OF_PAYMENT]: PurchaseStep.DONE,
       };
 
       const nextStep = nextStepMap[currentStep];
       if (nextStep) {
         let newStatus: PurchaseStatus = PurchaseStatus.PUBLISHED;
-        if (nextStep === PurchaseStep.QR || nextStep === PurchaseStep.BC) {
+
+        // QR, BC et toutes les étapes suivantes nécessitent des documents
+        if (
+          nextStep === PurchaseStep.QR ||
+          nextStep === PurchaseStep.BC ||
+          nextStep === PurchaseStep.BR ||
+          nextStep === PurchaseStep.INVOICE ||
+          nextStep === PurchaseStep.DAP ||
+          nextStep === PurchaseStep.PROOF_OF_PAYMENT
+        ) {
           newStatus = PurchaseStatus.AWAITING_DOCUMENTS;
         }
 
@@ -111,6 +124,10 @@ export class DAValidationService {
       [PurchaseStep.QR]: `QR validée avec succès, Passage à l'étape de PV.`,
       [PurchaseStep.PV]: `PV validée avec succès, Passage à l'étape de BC.`,
       [PurchaseStep.BC]: `BC validée avec succès, Passage à l'étape de BR.`,
+      [PurchaseStep.BR]: `BR validée avec succès, Passage à l'étape de FACTURE.`,
+      [PurchaseStep.INVOICE]: `Facture validée avec succès, Passage à l'étape de DAP.`,
+      [PurchaseStep.DAP]: `DAP validée avec succès, Passage à l'étape de PREUVE DE PAIEMENT.`,
+      [PurchaseStep.PROOF_OF_PAYMENT]: `Preuve de paiement validée avec succès, Processus terminé.`,
     };
 
     return {
