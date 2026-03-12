@@ -1,0 +1,10 @@
+export const NOTIFICATION_TYPES = {
+  DA_CREATE: 'DA_CREATE',
+  UPLOAD_BC: 'UPLOAD_BC',
+  UPLOAD_PV: 'UPLOAD_PV',
+  UPLOAD_QR: 'UPLOAD_QR',
+  FORGOT_PASSWORD: 'FORGOT_PASSWORD',
+  CREATE_DPA: 'CREATE_DPA',
+} as const;
+
+export type NotificationType = keyof typeof NOTIFICATION_TYPES;
