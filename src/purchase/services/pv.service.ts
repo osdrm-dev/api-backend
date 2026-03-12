@@ -372,48 +372,51 @@ export class PVService {
     const pv = await this.pvRepository.findByPurchaseId(purchaseId);
     if (!pv) throw new NotFoundException('Aucun PV trouve pour cette DA');
 
-    const selectedSuppliers = pv.suppliers
-      .map((supplier) => {
-        const selectedItems = supplier.items.filter(
-          (item) => item.isSelected === true,
-        );
+    const suppliersWithItems = pv.suppliers.map((supplier) => {
+      const allItems = supplier.items.map((item) => ({
+        id: item.id,
+        purchaseItemId: item.purchaseItemId,
+        designation: item.designation,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        amount: item.amount,
+        disponibilite: item.disponibilite,
+        isSelected: item.isSelected,
+      }));
 
-        if (selectedItems.length === 0) return null;
+      const selectedItems = allItems.filter((item) => item.isSelected);
+      const totalAmount = selectedItems.reduce(
+        (sum, item) => sum + Number(item.amount),
+        0,
+      );
 
-        const totalAmount = selectedItems.reduce(
-          (sum, item) => sum + Number(item.amount),
-          0,
-        );
+      return {
+        supplierId: supplier.supplierId,
+        pvSupplierId: supplier.id,
+        supplierName: supplier.name || supplier.supplier?.name,
+        supplierDetails: supplier.supplier
+          ? {
+              nif: supplier.supplier.nif,
+              stat: supplier.supplier.stat,
+              address: supplier.supplier.address,
+              phone: supplier.supplier.phone,
+              email: supplier.supplier.email,
+              region: supplier.supplier.region,
+            }
+          : null,
+        allItems,
+        selectedItems,
+        selectedCount: selectedItems.length,
+        totalAmount,
+      };
+    });
 
-        return {
-          supplierId: supplier.supplierId,
-          pvSupplierId: supplier.id,
-          supplierName: supplier.name || supplier.supplier?.name,
-          supplierDetails: supplier.supplier
-            ? {
-                nif: supplier.supplier.nif,
-                stat: supplier.supplier.stat,
-                address: supplier.supplier.address,
-                phone: supplier.supplier.phone,
-                email: supplier.supplier.email,
-                region: supplier.supplier.region,
-              }
-            : null,
-          selectedItems: selectedItems.map((item) => ({
-            id: item.id,
-            purchaseItemId: item.purchaseItemId,
-            designation: item.designation,
-            quantity: item.quantity,
-            unitPrice: item.unitPrice,
-            amount: item.amount,
-            disponibilite: item.disponibilite,
-          })),
-          totalAmount,
-        };
-      })
-      .filter((supplier) => supplier !== null);
+    const totalSelected = suppliersWithItems.reduce(
+      (sum, supplier) => sum + supplier.selectedCount,
+      0,
+    );
 
-    const grandTotal = selectedSuppliers.reduce(
+    const grandTotal = suppliersWithItems.reduce(
       (sum, supplier) => sum + supplier.totalAmount,
       0,
     );
@@ -424,12 +427,10 @@ export class PVService {
       evaluateur: pv.evaluateur,
       dateEvaluation: pv.dateEvaluation,
       decisionFinale: pv.decisionFinale,
-      selectedSuppliers,
+      suppliers: suppliersWithItems,
+      totalSelected,
       grandTotal,
-      message:
-        selectedSuppliers.length > 0
-          ? `${selectedSuppliers.length} fournisseur(s) avec articles selectionnes`
-          : 'Aucun article selectionne',
+      message: `${totalSelected} article(s) selectionne(s) sur ${suppliersWithItems.reduce((sum, s) => sum + s.allItems.length, 0)} article(s) au total`,
     };
   }
 }
