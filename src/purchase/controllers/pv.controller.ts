@@ -249,4 +249,26 @@ export class PVController {
       dto.itemIds,
     );
   }
+
+  @Get('selected-items')
+  @ApiOperation({
+    summary: 'Recuperer le recapitulatif des articles selectionnes',
+    description: `
+      Retourne uniquement les fournisseurs et articles selectionnes (isSelected: true).
+      Utile pour afficher un recap avant l'upload du BC.
+      Inclut les totaux par fournisseur et le total general.
+    `,
+  })
+  @ApiParam({ name: 'purchaseId', description: 'ID de la DA' })
+  @ApiSuccessResponse('Recapitulatif des selections', {
+    purchaseId: 'purchase-123',
+    pvId: 'pv-456',
+    selectedSuppliers: [],
+    grandTotal: 5300000,
+  })
+  @ApiNotFoundResponse('PV')
+  @ApiCommonResponses()
+  getSelectedItems(@Param('purchaseId') purchaseId: string) {
+    return this.pvService.getSelectedItems(purchaseId);
+  }
 }

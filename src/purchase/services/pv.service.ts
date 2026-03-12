@@ -367,4 +367,69 @@ export class PVService {
       message: 'Articles selectionnes avec succes',
     };
   }
+
+  async getSelectedItems(purchaseId: string) {
+    const pv = await this.pvRepository.findByPurchaseId(purchaseId);
+    if (!pv) throw new NotFoundException('Aucun PV trouve pour cette DA');
+
+    const selectedSuppliers = pv.suppliers
+      .map((supplier) => {
+        const selectedItems = supplier.items.filter(
+          (item) => item.isSelected === true,
+        );
+
+        if (selectedItems.length === 0) return null;
+
+        const totalAmount = selectedItems.reduce(
+          (sum, item) => sum + Number(item.amount),
+          0,
+        );
+
+        return {
+          supplierId: supplier.supplierId,
+          pvSupplierId: supplier.id,
+          supplierName: supplier.name || supplier.supplier?.name,
+          supplierDetails: supplier.supplier
+            ? {
+                nif: supplier.supplier.nif,
+                stat: supplier.supplier.stat,
+                address: supplier.supplier.address,
+                phone: supplier.supplier.phone,
+                email: supplier.supplier.email,
+                region: supplier.supplier.region,
+              }
+            : null,
+          selectedItems: selectedItems.map((item) => ({
+            id: item.id,
+            purchaseItemId: item.purchaseItemId,
+            designation: item.designation,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            amount: item.amount,
+            disponibilite: item.disponibilite,
+          })),
+          totalAmount,
+        };
+      })
+      .filter((supplier) => supplier !== null);
+
+    const grandTotal = selectedSuppliers.reduce(
+      (sum, supplier) => sum + supplier.totalAmount,
+      0,
+    );
+
+    return {
+      purchaseId,
+      pvId: pv.id,
+      evaluateur: pv.evaluateur,
+      dateEvaluation: pv.dateEvaluation,
+      decisionFinale: pv.decisionFinale,
+      selectedSuppliers,
+      grandTotal,
+      message:
+        selectedSuppliers.length > 0
+          ? `${selectedSuppliers.length} fournisseur(s) avec articles selectionnes`
+          : 'Aucun article selectionne',
+    };
+  }
 }
