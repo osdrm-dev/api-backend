@@ -350,6 +350,10 @@ export class PVService {
       include: { items: true },
     });
 
+    if (!updatedSupplier) {
+      throw new NotFoundException('Fournisseur non trouve');
+    }
+
     this.logger.info('Articles sélectionnés pour le fournisseur', {
       pvId: purchase.pv.id,
       supplierId,
