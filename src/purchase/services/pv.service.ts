@@ -280,4 +280,91 @@ export class PVService {
       message: 'Articles ajoutes au fournisseur avec succes',
     };
   }
+
+  async selectSupplierItems(
+    purchaseId: string,
+    supplierId: string,
+    userId: number,
+    itemIds: string[],
+  ) {
+    const purchase = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+      include: {
+        pv: {
+          include: {
+            suppliers: {
+              include: { items: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase.pv)
+      throw new NotFoundException('Aucun PV trouve pour cette DA');
+
+    if (purchase.status !== PurchaseStatus.PUBLISHED) {
+      throw new BadRequestException(
+        'Ce PV ne peut plus etre modifie car il est deja soumis pour validation',
+      );
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.role !== Role.ACHETEUR) {
+      throw new ForbiddenException(
+        'Seul un acheteur peut selectionner des articles',
+      );
+    }
+
+    const supplier = purchase.pv.suppliers.find((s) => s.id === supplierId);
+    if (!supplier) {
+      throw new NotFoundException('Fournisseur non trouve dans ce PV');
+    }
+
+    const supplierItemIds = supplier.items.map((item) => item.id);
+    const invalidIds = itemIds.filter((id) => !supplierItemIds.includes(id));
+    if (invalidIds.length > 0) {
+      throw new BadRequestException(
+        `Articles non trouves pour ce fournisseur: ${invalidIds.join(', ')}`,
+      );
+    }
+
+    // Déselectionner tous les articles de ce fournisseur
+    await this.prisma.pVSupplierItem.updateMany({
+      where: { supplierId },
+      data: { isSelected: false },
+    });
+
+    // Sélectionner les articles spécifiés
+    await this.prisma.pVSupplierItem.updateMany({
+      where: {
+        id: { in: itemIds },
+        supplierId,
+      },
+      data: { isSelected: true },
+    });
+
+    const updatedSupplier = await this.prisma.pVSupplier.findUnique({
+      where: { id: supplierId },
+      include: { items: true },
+    });
+
+    if (!updatedSupplier) {
+      throw new NotFoundException('Fournisseur non trouve');
+    }
+
+    this.logger.info('Articles sélectionnés pour le fournisseur', {
+      pvId: purchase.pv.id,
+      supplierId,
+      selectedCount: itemIds.length,
+      userId,
+    });
+
+    return {
+      supplierId,
+      selectedItems: updatedSupplier.items.filter((item) => item.isSelected),
+      message: 'Articles selectionnes avec succes',
+    };
+  }
 }
