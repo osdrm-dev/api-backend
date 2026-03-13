@@ -7,6 +7,13 @@ import { QuotationController } from './controllers/quotation.controller';
 import { DerogationController } from './controllers/derogation.controller';
 import { PVController } from './controllers/pv.controller';
 import { AttachmentController } from './controllers/attachment.controller';
+import { BCController } from './controllers/bc.controller';
+import {
+  BRController,
+  InvoiceController,
+  DAPController,
+  ProofOfPaymentController,
+} from './controllers/step.controller';
 
 import { PurchaseService } from './services/purchase.service';
 import { PVService } from './services/pv.service';
@@ -15,6 +22,8 @@ import { DerogationService } from './services/derogation.service';
 import { WorkflowService } from './services/workflow.service';
 import { AttachmentService } from './services/attachment.service';
 import { SubmitService } from './services/submit.service';
+import { BCService } from './services/bc.service';
+import { DocumentStepService } from 'src/purchase/services/step.service';
 import { PVRepository } from '../repository/purchase/pv.repository';
 
 @Module({
@@ -25,6 +34,11 @@ import { PVRepository } from '../repository/purchase/pv.repository';
     DerogationController,
     PVController,
     AttachmentController,
+    BCController,
+    BRController,
+    InvoiceController,
+    DAPController,
+    ProofOfPaymentController,
   ],
   providers: [
     PurchaseService,
@@ -35,6 +49,8 @@ import { PVRepository } from '../repository/purchase/pv.repository';
     PVRepository,
     AttachmentService,
     SubmitService,
+    BCService,
+    DocumentStepService,
   ],
   exports: [
     PurchaseService,
