@@ -23,21 +23,17 @@ export class NotificationService {
   ) {}
 
   /**
-   * Crée une notification avec configuration automatique du rappel en JOURS
+   * Crée une notification
    */
   async createNotification(
     type: string,
     recipients: string[],
     resourceId: string,
     data: any,
+    hasReminder: boolean = false,
+    expiredAt: Date = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+    reminderIntervalInDays?: number,
   ) {
-    const criticalTypes = [
-      OSDRM_PROCESS_EVENT.DA_CREATED,
-      OSDRM_PROCESS_EVENT.DPA_CREATED,
-    ];
-
-    const hasReminder = criticalTypes.includes(type as any);
-
     return await this.prisma.notification.create({
       data: {
         type,
@@ -45,14 +41,13 @@ export class NotificationService {
         recipients: recipients as Prisma.JsonArray,
         data: data as Prisma.JsonObject,
         status: NotificationStatus.PENDING,
-        hasReminder,
-        // Utilisation du nouveau nom de champ
+        hasReminder: hasReminder,
         reminderIntervalInDays: hasReminder
-          ? this.DEFAULT_REMINDER_INTERVAL_IN_DAYS
+          ? (reminderIntervalInDays ?? this.DEFAULT_REMINDER_INTERVAL_IN_DAYS)
           : null,
         reminderCount: 0,
         attemptCount: 0,
-        expiredAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expiredAt: expiredAt,
       },
     });
   }
@@ -85,7 +80,7 @@ export class NotificationService {
   }
 
   /**
-   * Cycle 2 : Gestion des rappels (Incrémente reminderCount)
+   * Cycle 2 : Gestion des rappels
    */
   async processReminders() {
     const now = new Date();
@@ -94,29 +89,31 @@ export class NotificationService {
       where: {
         status: NotificationStatus.SENT,
         hasReminder: true,
-        reminderCount: { lt: 3 },
+        expiredAt: {
+          gt: now,
+        },
+        lastSentAt: {
+          not: null,
+        },
       },
     });
 
     if (notificationsToRemind.length === 0) return;
 
     for (const notif of notificationsToRemind) {
-      const intervalInMs =
-        (notif.reminderIntervalInDays ||
-          this.DEFAULT_REMINDER_INTERVAL_IN_DAYS) *
-        24 *
-        60 *
-        60 *
-        1000;
-      const lastSentTime = notif.lastSentAt
-        ? new Date(notif.lastSentAt).getTime()
-        : 0;
+      if (!notif.lastSentAt) continue;
+
+      const intervalDays =
+        notif.reminderIntervalInDays ?? this.DEFAULT_REMINDER_INTERVAL_IN_DAYS;
+      const intervalInMs = intervalDays * 24 * 60 * 60 * 1000;
+
+      const lastSentTime = notif.lastSentAt.getTime();
 
       if (now.getTime() - lastSentTime >= intervalInMs) {
         try {
           await this.dispatchNotification(notif);
 
-          const updated = await this.prisma.notification.update({
+          await this.prisma.notification.update({
             where: { id: notif.id },
             data: {
               reminderCount: { increment: 1 },
@@ -125,10 +122,7 @@ export class NotificationService {
             },
           });
 
-          await this.logAudit(updated, 'NOTIFICATION_REMINDER_SENT');
-          this.logger.log(
-            `Rappel ${updated.reminderCount} envoyé pour ${notif.id} (Intervalle: ${notif.reminderIntervalInDays}j)`,
-          );
+          this.logger.log(`Rappel envoyé pour ${notif.id}`);
         } catch (error) {
           await this.handleError(notif, error);
         }

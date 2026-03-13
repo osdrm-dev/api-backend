@@ -17,7 +17,7 @@ const adapter = new PrismaPg(pool, { schema: 'public' });
 const prisma = new PrismaClient({ adapter });
 
 async function seedNotificationData() {
-  console.log('🌱 Starting OSDRM Test Scenarios Seeding (Days version)...\n');
+  console.log('Starting OSDRM Test Scenarios Seeding (Days version)...\n');
 
   try {
     // 1. Utilisateurs
@@ -119,7 +119,6 @@ async function seedNotificationData() {
       },
     ];
 
-    // Ajout de volume (SENT aujourd'hui, pas de rappels)
     for (let i = 0; i < 10; i++) {
       notifications.push({
         type: OSDRM_PROCESS_EVENT.PV_UPLOADED,
@@ -134,10 +133,10 @@ async function seedNotificationData() {
 
     await prisma.notification.createMany({ data: notifications });
 
-    console.log(`✅ Seed terminé avec succès !`);
-    console.log(`📊 Scénarios configurés pour reminderIntervalInDays.`);
+    console.log(`Seed terminé avec succès !`);
+    console.log(`Scénarios configurés pour reminderIntervalInDays.`);
   } catch (error) {
-    console.error('❌ Error during seeding:', error);
+    console.error('Error during seeding:', error);
   } finally {
     await pool.end();
   }
