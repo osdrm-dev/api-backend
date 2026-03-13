@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { NotificationService } from './services/nofitication.service';
-import { OSDRM_PROCESS_EVENT } from './constants/notification.constants';
 
 @Injectable()
 export class NotificationCron {
@@ -10,28 +9,37 @@ export class NotificationCron {
   constructor(private readonly notificationService: NotificationService) {}
 
   /**
-   * S'exécute toutes les minutes
-   * Le service gère désormais l'aiguillage interne par type
+   * CYCLE 1 : Envoi initial
+   * S'exécute toutes les minutes pour traiter les nouvelles notifications (PENDING)
    */
   @Cron(CronExpression.EVERY_MINUTE)
-  async handleAllNotifications() {
+  async handlePendingNotifications() {
+    this.logger.debug('[PENDING] Traitement des nouveaux envois...');
+
+    try {
+      await this.notificationService.processAllPending();
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Erreur inconnue';
+      this.logger.error(`Erreur cycle PENDING : ${msg}`);
+    }
+  }
+
+  /**
+   * CYCLE 2 : Rappels (Reminders)
+   * S'exécute toutes les heures (par exemple)
+   * Scanne les notifications SENT qui ont hasReminder=true et qui datent de plus de 24h
+   */
+  @Cron(CronExpression.EVERY_HOUR)
+  async handleReminders() {
     this.logger.debug(
-      '🚀 Lancement du cycle de traitement des notifications OSDRM...',
+      '[REMINDER] Vérification des notifications à relancer...',
     );
 
     try {
-      // On appelle une seule fois le service.
-      // C'est lui qui récupère les 50 prochaines notifs PENDING (quel que soit le type)
-      await this.notificationService.processAllPending();
-
-      this.logger.debug('✅ Cycle de traitement terminé avec succès.');
+      await this.notificationService.processReminders();
     } catch (error) {
-      // Gestion du type 'unknown' pour le logger
-      const errorMessage =
-        error instanceof Error ? error.message : 'Erreur inconnue';
-      this.logger.error(
-        `❌ Erreur fatale lors du cycle de notification : ${errorMessage}`,
-      );
+      const msg = error instanceof Error ? error.message : 'Erreur inconnue';
+      this.logger.error(`Erreur cycle REMINDER : ${msg}`);
     }
   }
 }

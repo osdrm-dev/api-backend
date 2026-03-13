@@ -17,91 +17,130 @@ const adapter = new PrismaPg(pool, { schema: 'public' });
 const prisma = new PrismaClient({ adapter });
 
 async function seedNotificationData() {
-  console.log('🌱 Starting OSDRM Full Seeding (Users + Notifications)...\n');
+  console.log('🌱 Starting OSDRM Test Scenarios Seeding (Days version)...\n');
 
   try {
-    const types = Object.values(OSDRM_PROCESS_EVENT);
-
-    // 1. Création des utilisateurs (Recipients)
+    // 1. Utilisateurs
     const userData = [
       {
-        email: 'demandeur1@osdrm.mg',
+        email: 'demandeur@osdrm.mg',
         name: 'Jean Demandeur',
         role: Role.DEMANDEUR,
       },
       { email: 'validateur@osdrm.mg', name: 'Marc Validateur', role: Role.RFR },
-      { email: 'admin@osdrm.mg', name: 'Admin OSDRM', role: Role.ADMIN },
     ];
 
-    console.log('👥 Syncing users...');
     for (const u of userData) {
       await prisma.user.upsert({
         where: { email: u.email },
         update: {},
-        create: {
-          email: u.email,
-          name: u.name,
-          role: u.role,
-          password: 'hashed_password_here', // À adapter selon ton auth
-          fonction: 'Staff OSDRM',
-        },
+        create: { ...u, password: 'password', fonction: 'Staff' },
       });
     }
 
-    const emails = userData.map((u) => u.email);
-
-    // 2. Nettoyage des anciennes notifications
-    console.log('🗑️ Cleaning notifications table...');
+    // 2. Nettoyage
     await prisma.notification.deleteMany();
 
-    // 3. Génération des notifications
-    console.log('🚀 Generating 30 notifications...');
-    const notifications: Prisma.NotificationCreateManyInput[] = [];
+    const notifications: Prisma.NotificationCreateManyInput[] = [
+      // --- SCÉNARIO 1 : Nouvelles notifications (Cycle 1 Minute) ---
+      {
+        type: OSDRM_PROCESS_EVENT.DA_CREATED,
+        resourceId: 'DA-2026-001',
+        recipients: ['validateur@osdrm.mg'],
+        status: NotificationStatus.PENDING,
+        hasReminder: true,
+        reminderIntervalInDays: 1, // 1 jour
+        attemptCount: 0,
+        data: { reference: 'DA-001', author: 'Jean' } as any,
+      },
 
-    for (let i = 0; i < 30; i++) {
-      const type = types[i % types.length];
-      const status =
-        type === OSDRM_PROCESS_EVENT.DA_CREATED
-          ? NotificationStatus.PENDING
-          : NotificationStatus.SENT;
+      // --- SCÉNARIO 2 : Échecs techniques (Retry Cycle) ---
+      {
+        type: OSDRM_PROCESS_EVENT.BC_UPLOADED,
+        resourceId: 'BC-102',
+        recipients: ['demandeur@osdrm.mg'],
+        status: NotificationStatus.PENDING,
+        attemptCount: 3,
+        data: { reference: 'BC-102' } as any,
+      },
 
-      notifications.push({
-        type: type,
-        resourceId: `RES-LOG-${1000 + i}`,
-        resourceType: type.includes('UPLOADED') ? 'DOCUMENT' : 'PURCHASE',
-        recipients: [emails[i % emails.length]] as Prisma.JsonArray,
-        data: {
-          id: i,
-          reference: `NOTIF-2026-${i}`,
-          message: `Test d'évènement : ${type}`,
-          link: `http://localhost:3000/resources/${i}`,
-        } as Prisma.JsonObject,
-        status: status,
-        hasReminder: i % 5 === 0,
-        attemptCount: status === NotificationStatus.SENT ? 1 : 0,
+      // --- SCÉNARIO 3 : Relance Métier - Éligible (Envoyée il y a 1.2 jour) ---
+      {
+        type: OSDRM_PROCESS_EVENT.DA_CREATED,
+        resourceId: 'DA-OLD-999',
+        recipients: ['validateur@osdrm.mg'],
+        status: NotificationStatus.SENT,
+        hasReminder: true,
+        reminderIntervalInDays: 1,
         reminderCount: 0,
-        lastSentAt: status === NotificationStatus.SENT ? new Date() : null,
-        expiredAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        attemptCount: 1,
+        // Simulation : il y a 28 heures (soit > 1 jour)
+        lastSentAt: new Date(Date.now() - 28 * 60 * 60 * 1000),
+        data: { reference: 'DA-OLD-999', author: 'Jean' } as any,
+      },
+
+      // --- SCÉNARIO 4 : Relance Métier - Non éligible (Envoyée il y a 12h pour un intervalle de 1j) ---
+      {
+        type: OSDRM_PROCESS_EVENT.DPA_CREATED,
+        resourceId: 'DPA-RECENT',
+        recipients: ['validateur@osdrm.mg'],
+        status: NotificationStatus.SENT,
+        hasReminder: true,
+        reminderIntervalInDays: 1,
+        reminderCount: 0,
+        lastSentAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
+        data: { reference: 'DPA-TOO-EARLY' } as any,
+      },
+
+      // --- SCÉNARIO 5 : Déjà relancé (Envoyé il y a 2.1 jours pour un intervalle de 1j) ---
+      {
+        type: OSDRM_PROCESS_EVENT.DPA_CREATED,
+        resourceId: 'DPA-555',
+        recipients: ['validateur@osdrm.mg'],
+        status: NotificationStatus.SENT,
+        hasReminder: true,
+        reminderIntervalInDays: 1,
+        reminderCount: 1,
+        lastSentAt: new Date(Date.now() - 50 * 60 * 60 * 1000),
+        data: { reference: 'DPA-555' } as any,
+      },
+
+      // --- SCÉNARIO 6 : Limite de rappel atteinte (3 rappels) ---
+      {
+        type: OSDRM_PROCESS_EVENT.DA_CREATED,
+        resourceId: 'DA-IGNORED',
+        recipients: ['validateur@osdrm.mg'],
+        status: NotificationStatus.SENT,
+        hasReminder: true,
+        reminderIntervalInDays: 1,
+        reminderCount: 3,
+        lastSentAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+        data: { reference: 'STOP' } as any,
+      },
+    ];
+
+    // Ajout de volume (SENT aujourd'hui, pas de rappels)
+    for (let i = 0; i < 10; i++) {
+      notifications.push({
+        type: OSDRM_PROCESS_EVENT.PV_UPLOADED,
+        resourceId: `VOL-${i}`,
+        recipients: ['demandeur@osdrm.mg'],
+        status: NotificationStatus.SENT,
+        lastSentAt: new Date(),
+        hasReminder: false,
+        data: { info: 'Volume test' } as any,
       });
     }
 
-    await prisma.notification.createMany({
-      data: notifications,
-    });
+    await prisma.notification.createMany({ data: notifications });
 
-    console.log('\n✅ Seed terminé avec succès !');
-    console.log(`📊 Utilisateurs synchronisés : ${emails.length}`);
-    console.log(`📊 Notifications créées : 30`);
+    console.log(`✅ Seed terminé avec succès !`);
+    console.log(`📊 Scénarios configurés pour reminderIntervalInDays.`);
   } catch (error) {
-    const msg = error instanceof Error ? error.message : error;
-    console.error('❌ Error during seeding:', msg);
-    throw error;
+    console.error('❌ Error during seeding:', error);
   } finally {
     await pool.end();
   }
 }
 
-seedNotificationData().catch((error) => {
-  console.error('Fatal error during seeding:', error);
-  process.exit(1);
-});
+seedNotificationData();
