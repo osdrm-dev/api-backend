@@ -17,7 +17,7 @@ const adapter = new PrismaPg(pool, { schema: 'public' });
 const prisma = new PrismaClient({ adapter });
 
 async function seedNotificationData() {
-  console.log('Starting OSDRM Test Scenarios Seeding (Days version)...\n');
+  console.log('🌱 Starting OSDRM Production-Like Test (Integer Days)...\n');
 
   try {
     // 1. Utilisateurs
@@ -41,102 +41,81 @@ async function seedNotificationData() {
     // 2. Nettoyage
     await prisma.notification.deleteMany();
 
+    // On utilise 1 jour (Entier) pour correspondre à ton schéma DB
+    const ONE_DAY = 1;
+
     const notifications: Prisma.NotificationCreateManyInput[] = [
-      // --- SCÉNARIO 1 : Nouvelles notifications (Cycle 1 Minute) ---
+      // --- CYCLE 1 : NOUVELLES NOTIFICATIONS (PENDING) ---
       {
         type: OSDRM_PROCESS_EVENT.DA_CREATED,
-        resourceId: 'DA-2026-001',
+        resourceId: 'DA-NEW-100',
         recipients: ['validateur@osdrm.mg'],
         status: NotificationStatus.PENDING,
         hasReminder: true,
-        reminderIntervalInDays: 1, // 1 jour
-        attemptCount: 0,
-        data: { reference: 'DA-001', author: 'Jean' } as any,
+        reminderIntervalInDays: ONE_DAY,
+        data: { reference: 'NOUVELLE-DA-TEST' } as any,
+        expiredAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
 
-      // --- SCÉNARIO 2 : Échecs techniques (Retry Cycle) ---
+      // --- CYCLE 2 : RELANCES ÉLIGIBLES (Simulées il y a 25 heures) ---
+      // Comme l'intervalle est de 1 jour, elles seront détectées par processReminders()
       {
-        type: OSDRM_PROCESS_EVENT.BC_UPLOADED,
-        resourceId: 'BC-102',
+        type: OSDRM_PROCESS_EVENT.DA_CREATED,
+        resourceId: 'DA-REMIND-001',
+        recipients: ['validateur@osdrm.mg'],
+        status: NotificationStatus.SENT,
+        hasReminder: true,
+        reminderIntervalInDays: ONE_DAY,
+        reminderCount: 0,
+        // Simulation : envoyée il y a 25h (donc > 1 jour)
+        lastSentAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
+        expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        data: { reference: 'RELANCE-DA-1' } as any,
+      },
+      {
+        type: OSDRM_PROCESS_EVENT.DPA_CREATED,
+        resourceId: 'DPA-REMIND-002',
+        recipients: ['validateur@osdrm.mg'],
+        status: NotificationStatus.SENT,
+        hasReminder: true,
+        reminderIntervalInDays: ONE_DAY,
+        reminderCount: 1, // On simule qu'une relance a déjà été faite
+        lastSentAt: new Date(Date.now() - 26 * 60 * 60 * 1000), // Il y a 26h
+        expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        data: { reference: 'RELANCE-DPA-2' } as any,
+      },
+
+      // --- SCÉNARIO "TROP TÔT" (Envoyée il y a 2 heures) ---
+      // L'intervalle est de 1 jour, donc 2h < 24h : Elle ne doit pas bouger.
+      {
+        type: OSDRM_PROCESS_EVENT.PV_UPLOADED,
+        resourceId: 'PV-WAIT-003',
         recipients: ['demandeur@osdrm.mg'],
-        status: NotificationStatus.PENDING,
-        attemptCount: 3,
-        data: { reference: 'BC-102' } as any,
-      },
-
-      // --- SCÉNARIO 3 : Relance Métier - Éligible (Envoyée il y a 1.2 jour) ---
-      {
-        type: OSDRM_PROCESS_EVENT.DA_CREATED,
-        resourceId: 'DA-OLD-999',
-        recipients: ['validateur@osdrm.mg'],
         status: NotificationStatus.SENT,
         hasReminder: true,
-        reminderIntervalInDays: 1,
-        reminderCount: 0,
-        attemptCount: 1,
-        // Simulation : il y a 28 heures (soit > 1 jour)
-        lastSentAt: new Date(Date.now() - 28 * 60 * 60 * 1000),
-        data: { reference: 'DA-OLD-999', author: 'Jean' } as any,
-      },
-
-      // --- SCÉNARIO 4 : Relance Métier - Non éligible (Envoyée il y a 12h pour un intervalle de 1j) ---
-      {
-        type: OSDRM_PROCESS_EVENT.DPA_CREATED,
-        resourceId: 'DPA-RECENT',
-        recipients: ['validateur@osdrm.mg'],
-        status: NotificationStatus.SENT,
-        hasReminder: true,
-        reminderIntervalInDays: 1,
-        reminderCount: 0,
-        lastSentAt: new Date(Date.now() - 12 * 60 * 60 * 1000),
-        data: { reference: 'DPA-TOO-EARLY' } as any,
-      },
-
-      // --- SCÉNARIO 5 : Déjà relancé (Envoyé il y a 2.1 jours pour un intervalle de 1j) ---
-      {
-        type: OSDRM_PROCESS_EVENT.DPA_CREATED,
-        resourceId: 'DPA-555',
-        recipients: ['validateur@osdrm.mg'],
-        status: NotificationStatus.SENT,
-        hasReminder: true,
-        reminderIntervalInDays: 1,
-        reminderCount: 1,
-        lastSentAt: new Date(Date.now() - 50 * 60 * 60 * 1000),
-        data: { reference: 'DPA-555' } as any,
-      },
-
-      // --- SCÉNARIO 6 : Limite de rappel atteinte (3 rappels) ---
-      {
-        type: OSDRM_PROCESS_EVENT.DA_CREATED,
-        resourceId: 'DA-IGNORED',
-        recipients: ['validateur@osdrm.mg'],
-        status: NotificationStatus.SENT,
-        hasReminder: true,
-        reminderIntervalInDays: 1,
-        reminderCount: 3,
-        lastSentAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
-        data: { reference: 'STOP' } as any,
+        reminderIntervalInDays: ONE_DAY,
+        lastSentAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2h ago
+        expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        data: { reference: 'TROP-TOT' } as any,
       },
     ];
 
-    for (let i = 0; i < 10; i++) {
-      notifications.push({
-        type: OSDRM_PROCESS_EVENT.PV_UPLOADED,
-        resourceId: `VOL-${i}`,
-        recipients: ['demandeur@osdrm.mg'],
-        status: NotificationStatus.SENT,
-        lastSentAt: new Date(),
-        hasReminder: false,
-        data: { info: 'Volume test' } as any,
-      });
-    }
-
     await prisma.notification.createMany({ data: notifications });
 
-    console.log(`Seed terminé avec succès !`);
-    console.log(`Scénarios configurés pour reminderIntervalInDays.`);
+    console.log(`✅ Seed terminé avec succès !`);
+    console.log(`📊 Précisions sur l'exécution :`);
+    console.log(
+      `   - DA-NEW-100 sera envoyée par processAllPending (Statut PENDING).`,
+    );
+    console.log(
+      `   - DA-REMIND-001 et DPA-REMIND-002 seront envoyées par processReminders.`,
+    );
+    console.log(`     (Car leur lastSentAt date d'il y a plus de 24h).`);
+    console.log(
+      `   - PV-WAIT-003 restera en base sans rien faire (envoyée il y a seulement 2h).`,
+    );
   } catch (error) {
-    console.error('Error during seeding:', error);
+    console.error('❌ Error during seeding:', error);
   } finally {
     await pool.end();
   }

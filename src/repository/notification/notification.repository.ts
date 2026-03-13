@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { NotificationStatus, Prisma } from '@prisma/client';
+import {
+  Notification as NotificationEntity,
+  NotificationStatus,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 
 @Injectable()
@@ -36,5 +40,27 @@ export class NotificationRepository {
    */
   async create(data: Prisma.NotificationCreateInput) {
     return this.prisma.notification.create({ data });
+  }
+
+  /**
+   * Récupère uniquement les notifications prêtes pour un rappel.
+   * Filtrage 100% Database pour la performance.
+   */
+  async findEligibleForReminder(
+    now: Date,
+    defaultInterval: number,
+  ): Promise<NotificationEntity[]> {
+    // On s'assure que defaultInterval est bien traité comme un nombre
+    const interval = Number(defaultInterval);
+
+    return await this.prisma.$queryRaw<NotificationEntity[]>`
+    SELECT * FROM "notifications"
+    WHERE "status" = 'SENT'
+    AND "hasReminder" = true
+    AND "lastSentAt" IS NOT NULL
+    -- Utilisation de (valeur * interval '1 day') de façon plus robuste
+    AND "lastSentAt" + (CAST(COALESCE("reminderIntervalInDays", ${interval}) AS INTEGER) * INTERVAL '1 day') <= ${now}
+    AND "expiredAt" > ${now}
+  `;
   }
 }
