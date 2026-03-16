@@ -177,7 +177,10 @@ export class PVService {
   async submitPV(purchaseId: string, userId: number) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
-      include: { pv: { include: { suppliers: true } } },
+      include: {
+        pv: { include: { suppliers: true } },
+        items: true,
+      },
     });
 
     if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
@@ -194,9 +197,26 @@ export class PVService {
       );
     }
 
+    const totalAmount = purchase.items.reduce(
+      (sum, item) => sum + Number(item.amount),
+      0,
+    );
+
     await this.prisma.purchase.update({
       where: { id: purchaseId },
       data: { status: PurchaseStatus.PENDING_APPROVAL },
+    });
+
+    const workflow = await this.prisma.validationWorkflow.findFirst({
+      where: {
+        purchaseId,
+        step: PurchaseStep.PV,
+      },
+      include: {
+        validators: {
+          orderBy: { order: 'asc' },
+        },
+      },
     });
 
     this.logger.info('PV soumis pour validation', {
@@ -205,7 +225,12 @@ export class PVService {
       userId,
     });
 
-    return { ...purchase.pv, message: 'PV soumis pour validation' };
+    return {
+      ...purchase.pv,
+      message: 'PV soumis pour validation',
+      validators: workflow?.validators || [],
+      totalAmount,
+    };
   }
 
   async getPV(purchaseId: string) {
