@@ -62,6 +62,13 @@
       "name": "Andria Miary",
       "fonction": "Chef de Projet Regional",
       "role": "CPR"
+    },
+    {
+      "key": "rfr",
+      "email": "rfr@osdrm.mg",
+      "name": "Lucie Ralambanirina",
+      "fonction": "Chef de File",
+      "role": "RFR"
     }
   ],
   "suppliers": [
