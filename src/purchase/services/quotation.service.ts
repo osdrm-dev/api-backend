@@ -34,8 +34,6 @@ export class QuotationService {
   }
 
   async getQuoteLevelInfo(purchaseId: string, userId: number) {
-    await this.assertAcheteur(userId);
-
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
       include: {
@@ -104,7 +102,6 @@ export class QuotationService {
       },
     });
 
-    // Passer en AWAITING_DOCUMENTS pendant l'ajout des devis
     await this.prisma.purchase.update({
       where: { id: purchaseId },
       data: { status: PurchaseStatus.AWAITING_DOCUMENTS },
@@ -150,7 +147,6 @@ export class QuotationService {
       })),
     });
 
-    // Passer en AWAITING_DOCUMENTS pendant l'ajout des devis
     await this.prisma.purchase.update({
       where: { id: purchaseId },
       data: { status: PurchaseStatus.AWAITING_DOCUMENTS },
@@ -163,8 +159,6 @@ export class QuotationService {
   }
 
   async listQuotes(purchaseId: string, userId: number) {
-    await this.assertAcheteur(userId);
-
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
       include: {
@@ -383,7 +377,6 @@ export class QuotationService {
       );
     }
 
-    // Créer une dérogation si nécessaire
     if (useDerogation && !hasEnoughQuotes) {
       await this.prisma.derogation.create({
         data: {
@@ -394,10 +387,6 @@ export class QuotationService {
         },
       });
     }
-
-    // determineurs des validateurs QR en s'appuyant sur la configuration
-    // générale; cela permet de réutiliser les mêmes règles de montant que pour
-    // les autres étapes et de centraliser le comportement.
     const requiredRoles = this.workflowConfig.getRequireValidators(
       PurchaseStep.QR,
       purchase.operationType,
@@ -429,12 +418,11 @@ export class QuotationService {
       },
     });
 
-    // Déterminer le status selon les devis
     let newStatus: PurchaseStatus;
     if (useDerogation && !hasEnoughQuotes) {
       newStatus = PurchaseStatus.IN_DEROGATION;
     } else if (hasEnoughQuotes) {
-      newStatus = PurchaseStatus.PENDING_APPROVAL; // Devis complets, en attente de validation
+      newStatus = PurchaseStatus.PENDING_APPROVAL;
     } else {
       newStatus = PurchaseStatus.PUBLISHED;
     }
