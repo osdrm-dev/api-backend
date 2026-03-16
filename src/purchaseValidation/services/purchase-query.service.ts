@@ -98,17 +98,13 @@ export class PurchaseQueryService {
     const paginated = validPurchases.slice(skip, skip + limit);
 
     const data = paginated.map((purchase: any) => {
-      const { validationWorkflows, ...rest } = purchase;
       const amount =
         purchase.items?.reduce(
           (sum: number, item: any) => sum + item.amount,
           0,
         ) || 0;
-      const activeWorkflow = validationWorkflows?.find(
-        (w: any) => w.step === purchase.currentStep,
-      );
 
-      return { ...rest, amount, activeWorkflow };
+      return { ...purchase, amount };
     });
 
     return {
