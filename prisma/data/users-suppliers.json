@@ -64,11 +64,11 @@
       "role": "CPR"
     },
     {
-      "key": "cfr",
-      "email": "cfr@osdrm.mg",
+      "key": "rfr",
+      "email": "rfr@osdrm.mg",
       "name": "Lucie Ralambanirina",
       "fonction": "Chef de File",
-      "role": "CFR"
+      "role": "RFR"
     }
   ],
   "suppliers": [
