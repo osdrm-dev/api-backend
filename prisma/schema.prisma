@@ -57,6 +57,7 @@ enum Role {
   CPR
   ADMIN
   ACHETEUR
+  CFR
 }
 
 model User {
@@ -451,6 +452,7 @@ model PVSupplierItem {
   unitPrice       Float
   amount          Float
   disponibilite   String?
+  isSelected      Boolean @default(false)
 
   supplier        PVSupplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 

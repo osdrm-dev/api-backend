@@ -132,6 +132,10 @@ export class DAValidationService {
         [PurchaseStep.QR]: PurchaseStep.PV,
         [PurchaseStep.PV]: PurchaseStep.BC,
         [PurchaseStep.BC]: PurchaseStep.BR,
+        // BR n'a pas de validation, passage direct via submit
+        [PurchaseStep.INVOICE]: PurchaseStep.DAP,
+        [PurchaseStep.DAP]: PurchaseStep.PROOF_OF_PAYMENT,
+        [PurchaseStep.PROOF_OF_PAYMENT]: PurchaseStep.DONE,
       };
 
       const nextStep = nextStepMap[currentStep];

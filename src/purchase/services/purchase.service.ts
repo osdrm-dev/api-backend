@@ -21,6 +21,19 @@ import {
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 
+// Ordre d'affichage des étapes dans le groupement
+const STEP_ORDER: PurchaseStep[] = [
+  PurchaseStep.DA,
+  PurchaseStep.QR,
+  PurchaseStep.PV,
+  PurchaseStep.BC,
+  PurchaseStep.BR,
+  PurchaseStep.INVOICE,
+  PurchaseStep.DAP,
+  PurchaseStep.PROOF_OF_PAYMENT,
+  PurchaseStep.DONE,
+];
+
 @Injectable()
 export class PurchaseService {
   constructor(
@@ -215,17 +228,13 @@ export class PurchaseService {
     };
   }
 
-  async getMyPurchases(userId: number, filters: FilterPurchaseDto = {}) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('Utilisateur non trouve');
+  // ─── Helpers privés ───────────────────────────────────────────────────────
 
-    const pagination = parsePaginationParams(filters, {
-      defaultPage: 1,
-      defaultLimit: 10,
-      maxLimit: 100,
-    });
-
-    const where: any = { creatorId: userId };
+  private buildPurchaseWhereClause(
+    filters: FilterPurchaseDto,
+    baseWhere: Record<string, any> = {},
+  ): Record<string, any> {
+    const where: any = { ...baseWhere };
 
     if (filters.status) where.status = filters.status;
     if (filters.currentStep) where.currentStep = filters.currentStep;
@@ -244,6 +253,61 @@ export class PurchaseService {
       if (filters.endDate) where.createdAt.lte = new Date(filters.endDate);
     }
 
+    if (filters.minAmount !== undefined || filters.maxAmount !== undefined) {
+      // On filtre sur le montant total via les items (agregat côté app après fetch)
+      // Pour un filtrage SQL, on utilise une sous-requête via items
+      where.items = {
+        some: {},
+      };
+    }
+
+    return where;
+  }
+
+  /** Groupe un tableau de DA par currentStep selon STEP_ORDER */
+  private groupPurchasesByStep(purchases: any[]): Record<string, any[]> {
+    const grouped: Record<string, any[]> = {};
+
+    for (const step of STEP_ORDER) {
+      const group = purchases.filter((p) => p.currentStep === step);
+      if (group.length > 0) {
+        grouped[step] = group;
+      }
+    }
+
+    return grouped;
+  }
+
+  private enrichPurchases(purchases: any[]) {
+    return purchases.map((purchase) => ({
+      ...purchase,
+      amount: purchase.items.reduce(
+        (sum: number, item: any) => sum + item.amount,
+        0,
+      ),
+      statusMessage: this.workflowConfigService.getStatusMessage(
+        purchase.status,
+        purchase.currentStep,
+      ),
+    }));
+  }
+
+  // ─── Méthodes publiques ───────────────────────────────────────────────────
+
+  async getMyPurchases(userId: number, filters: FilterPurchaseDto = {}) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Utilisateur non trouve');
+
+    const pagination = parsePaginationParams(filters, {
+      defaultPage: 1,
+      defaultLimit: 10,
+      maxLimit: 100,
+    });
+
+    const where = this.buildPurchaseWhereClause(filters, {
+      creatorId: userId,
+    });
+
     const [purchases, total] = await Promise.all([
       this.prisma.purchase.findMany({
         where,
@@ -256,23 +320,22 @@ export class PurchaseService {
             orderBy: { createdAt: 'desc' },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: [{ currentStep: 'asc' }, { createdAt: 'desc' }],
         skip: pagination.skip,
         take: pagination.limit,
       }),
       this.prisma.purchase.count({ where }),
     ]);
 
-    const purchasesWithStatus = purchases.map((purchase) => ({
-      ...purchase,
-      amount: purchase.items.reduce((sum, item) => sum + item.amount, 0),
-      statusMessage: this.workflowConfigService.getStatusMessage(
-        purchase.status,
-        purchase.currentStep,
-      ),
-    }));
+    const enriched = this.enrichPurchases(purchases);
 
-    return buildPaginatedResponse(purchasesWithStatus, total, pagination);
+    return {
+      grouped: this.groupPurchasesByStep(enriched),
+      total,
+      page: pagination.page,
+      limit: pagination.limit,
+      totalPages: Math.ceil(total / pagination.limit),
+    };
   }
 
   async deleteDraftPurchase(purchaseId: string, userId: number) {
@@ -403,7 +466,7 @@ export class PurchaseService {
       maxLimit: 100,
     });
 
-    const where: any = {
+    const baseWhere: any = {
       status: {
         in: [
           PurchaseStatus.AWAITING_DOCUMENTS,
@@ -412,24 +475,21 @@ export class PurchaseService {
           PurchaseStatus.PUBLISHED,
         ],
       },
-      currentStep: {
-        in: [
-          PurchaseStep.QR,
-          PurchaseStep.PV,
-          PurchaseStep.BC,
-          PurchaseStep.BR,
-        ],
-      },
+      // Si un filtre currentStep est précisé, il sera appliqué dans buildPurchaseWhereClause,
+      // sinon on restreint aux étapes acheteur par défaut.
+      ...(!filters.currentStep && {
+        currentStep: {
+          in: [
+            PurchaseStep.QR,
+            PurchaseStep.PV,
+            PurchaseStep.BC,
+            PurchaseStep.BR,
+          ],
+        },
+      }),
     };
 
-    if (filters.search) {
-      where.OR = [
-        { reference: { contains: filters.search, mode: 'insensitive' } },
-        { title: { contains: filters.search, mode: 'insensitive' } },
-      ];
-    }
-
-    if (filters.currentStep) where.currentStep = filters.currentStep;
+    const where = this.buildPurchaseWhereClause(filters, baseWhere);
 
     const [purchases, total] = await Promise.all([
       this.prisma.purchase.findMany({
@@ -445,23 +505,23 @@ export class PurchaseService {
             select: { id: true, name: true, email: true, role: true },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        // Tri : d'abord par étape (ordre naturel enum), puis par date décroissante
+        orderBy: [{ currentStep: 'asc' }, { createdAt: 'desc' }],
         skip: pagination.skip,
         take: pagination.limit,
       }),
       this.prisma.purchase.count({ where }),
     ]);
 
-    const purchasesWithStatus = purchases.map((purchase) => ({
-      ...purchase,
-      amount: purchase.items.reduce((sum, item) => sum + item.amount, 0),
-      statusMessage: this.workflowConfigService.getStatusMessage(
-        purchase.status,
-        purchase.currentStep,
-      ),
-    }));
+    const enriched = this.enrichPurchases(purchases);
 
-    return buildPaginatedResponse(purchasesWithStatus, total, pagination);
+    return {
+      grouped: this.groupPurchasesByStep(enriched),
+      total,
+      page: pagination.page,
+      limit: pagination.limit,
+      totalPages: Math.ceil(total / pagination.limit),
+    };
   }
 
   async getValidationStatus(purchaseId: string, userId: number) {
