@@ -1,5 +1,97 @@
 [
   {
+    "reference": "DA-2026-019",
+    "year": 2026,
+    "site": "Antananarivo",
+    "sequentialNumber": "019",
+    "project": "PROJET HEALTH",
+    "region": "Analamanga",
+    "projectCode": "PRJ-2026-001",
+    "grantCode": "GNT-2026-H01",
+    "activityCode": "ACT-019",
+    "costCenter": "CC-HEALTH-001",
+    "title": "Réactifs diagnostic rapide COVID/Grippe - URGENT rupture de stock",
+    "description": "Réapprovisionnement d'urgence en réactifs de diagnostic rapide suite à rupture de stock critique au niveau des centres de santé de la région Analamanga",
+    "marketType": "Consultation",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-03-20",
+    "priority": "TRES_URGENT",
+    "justification": "RUPTURE DE STOCK CRITIQUE - Les centres de santé de la région Analamanga sont en rupture totale de réactifs depuis le 14/03/2026. Plus de 1200 patients par jour ne peuvent être diagnostiqués. La campagne épidémique en cours rend ce réapprovisionnement vital et immédiat.",
+    "deliveryAddress": "DRSP Analamanga, Antananarivo",
+    "status": "AWAITING_DOCUMENTS",
+    "currentStep": "QR",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Test rapide COVID-19 antigénique",
+        "quantity": 5000,
+        "unitPrice": 8500,
+        "amount": 42500000,
+        "unit": "pièce",
+        "specifications": "Sensibilité ≥97%, spécificité ≥99%, certifié OMS, résultat en 15 min"
+      },
+      {
+        "designation": "Test rapide Grippe A/B combo",
+        "quantity": 3000,
+        "unitPrice": 9200,
+        "amount": 27600000,
+        "unit": "pièce",
+        "specifications": "Combo A+B, sensibilité ≥95%, résultat en 10 min"
+      },
+      {
+        "designation": "Réactif PCR multiplex respiratory panel",
+        "quantity": 200,
+        "unitPrice": 85000,
+        "amount": 17000000,
+        "unit": "kit",
+        "specifications": "Panel 12 pathogènes, compatible thermocycleur standard"
+      }
+    ],
+    "daWorkflow": {
+      "currentStep": 4,
+      "isComplete": true,
+      "validators": [
+        {
+          "role": "DEMANDEUR",
+          "order": 0,
+          "userKey": "demandeur1",
+          "isValidated": true,
+          "validatedAt": "2026-03-14",
+          "decision": "APPROVED",
+          "comment": "Demande urgente initiée suite à constat de rupture de stock au niveau terrain"
+        },
+        {
+          "role": "OM",
+          "order": 1,
+          "userKey": "om",
+          "isValidated": true,
+          "validatedAt": "2026-03-14",
+          "decision": "APPROVED",
+          "comment": "URGENT - Validé en urgence, budget programme disponible"
+        },
+        {
+          "role": "CFO",
+          "order": 2,
+          "userKey": "cfo",
+          "isValidated": true,
+          "validatedAt": "2026-03-15",
+          "decision": "APPROVED",
+          "comment": "Budget approuvé en procédure d'urgence - 87 100 000 Ar disponibles sur GNT-2026-H01"
+        },
+        {
+          "role": "CEO",
+          "order": 3,
+          "userKey": "ceo",
+          "isValidated": true,
+          "validatedAt": "2026-03-15",
+          "decision": "APPROVED",
+          "comment": "Approuvé - Priorité absolue. Procéder immédiatement à la consultation des fournisseurs."
+        }
+      ]
+    },
+    "attachments": []
+  },
+  {
     "reference": "DA-2026-001",
     "year": 2026,
     "site": "Antananarivo",
@@ -15,7 +107,7 @@
     "marketType": "Consultation",
     "operationType": "PROGRAMME",
     "requestedDeliveryDate": "2026-04-01",
-    "priority": "BASSE",
+    "priority": "NORMAL",
     "justification": "Renouvellement annuel des fournitures de bureau",
     "deliveryAddress": "Siege OSDRM, Antananarivo",
     "status": "DRAFT",
@@ -61,7 +153,7 @@
     "marketType": "Consultation",
     "operationType": "PROGRAMME",
     "requestedDeliveryDate": "2026-04-15",
-    "priority": "HAUTE",
+    "priority": "URGENT",
     "justification": "Campagne de vaccination imminente, materiel necessaire",
     "deliveryAddress": "Centre de Sante, Antananarivo",
     "status": "PUBLISHED",
@@ -106,9 +198,24 @@
           "decision": "APPROVED",
           "comment": "Publication de la demande"
         },
-        { "role": "OM", "order": 1, "userKey": "om", "isValidated": false },
-        { "role": "CFO", "order": 2, "userKey": "cfo", "isValidated": false },
-        { "role": "CEO", "order": 3, "userKey": "ceo", "isValidated": false }
+        {
+          "role": "OM",
+          "order": 1,
+          "userKey": "om",
+          "isValidated": false
+        },
+        {
+          "role": "CFO",
+          "order": 2,
+          "userKey": "cfo",
+          "isValidated": false
+        },
+        {
+          "role": "CEO",
+          "order": 3,
+          "userKey": "ceo",
+          "isValidated": false
+        }
       ]
     }
   },
@@ -128,7 +235,7 @@
     "marketType": "Consultation",
     "operationType": "PROGRAMME",
     "requestedDeliveryDate": "2026-03-30",
-    "priority": "HAUTE",
+    "priority": "URGENT",
     "justification": "Distribution avant la saison des pluies",
     "deliveryAddress": "Direction Regionale Agriculture, Mahajanga",
     "status": "PUBLISHED",
@@ -172,9 +279,24 @@
           "decision": "APPROVED",
           "comment": "Budget disponible"
         },
-        { "role": "DP", "order": 2, "userKey": "dp", "isValidated": false },
-        { "role": "CFO", "order": 3, "userKey": "cfo", "isValidated": false },
-        { "role": "CEO", "order": 4, "userKey": "ceo", "isValidated": false }
+        {
+          "role": "DP",
+          "order": 2,
+          "userKey": "dp",
+          "isValidated": false
+        },
+        {
+          "role": "CFO",
+          "order": 3,
+          "userKey": "cfo",
+          "isValidated": false
+        },
+        {
+          "role": "CEO",
+          "order": 4,
+          "userKey": "ceo",
+          "isValidated": false
+        }
       ]
     }
   },
@@ -194,7 +316,7 @@
     "marketType": "Appel d'offres",
     "operationType": "OPERATION",
     "requestedDeliveryDate": "2026-05-01",
-    "priority": "MOYENNE",
+    "priority": "NORMAL",
     "justification": "Modernisation de l'infrastructure informatique scolaire",
     "deliveryAddress": "EPP Toamasina Centre",
     "status": "PENDING_APPROVAL",
@@ -248,7 +370,12 @@
           "decision": "APPROVED",
           "comment": "Budget valide"
         },
-        { "role": "CEO", "order": 3, "userKey": "ceo", "isValidated": false }
+        {
+          "role": "CEO",
+          "order": 3,
+          "userKey": "ceo",
+          "isValidated": false
+        }
       ]
     }
   },
@@ -268,7 +395,7 @@
     "marketType": "Appel d'offres",
     "operationType": "PROGRAMME",
     "requestedDeliveryDate": "2026-06-01",
-    "priority": "HAUTE",
+    "priority": "URGENT",
     "justification": "Renforcement du reseau d'urgences medicales",
     "deliveryAddress": "DRSP Antananarivo",
     "status": "CHANGE_REQUESTED",
@@ -302,7 +429,7 @@
     "marketType": "Gre a gre",
     "operationType": "OPERATION",
     "requestedDeliveryDate": "2026-05-01",
-    "priority": "BASSE",
+    "priority": "NORMAL",
     "justification": "Amelioration de la couverture terrain dans les zones isolees",
     "deliveryAddress": "Bureau OSDRM Taolagnaro",
     "status": "REJECTED",
@@ -348,7 +475,12 @@
           "decision": "REJECTED",
           "comment": "Hors budget 2026, non prioritaire"
         },
-        { "role": "CEO", "order": 3, "userKey": "ceo", "isValidated": false }
+        {
+          "role": "CEO",
+          "order": 3,
+          "userKey": "ceo",
+          "isValidated": false
+        }
       ]
     }
   },
@@ -368,7 +500,7 @@
     "marketType": "Consultation",
     "operationType": "OPERATION",
     "requestedDeliveryDate": "2026-05-15",
-    "priority": "MOYENNE",
+    "priority": "NORMAL",
     "justification": "Equipement des nouvelles salles de formation regionale",
     "deliveryAddress": "Centre de Formation, Toamasina",
     "status": "AWAITING_DOCUMENTS",
@@ -425,7 +557,7 @@
     "marketType": "Appel d'offres",
     "operationType": "PROGRAMME",
     "requestedDeliveryDate": "2026-05-20",
-    "priority": "HAUTE",
+    "priority": "URGENT",
     "justification": "Renouvellement stock medicaments essentiels district Mahajanga",
     "deliveryAddress": "District Sanitaire Mahajanga",
     "status": "PENDING_APPROVAL",
@@ -474,7 +606,12 @@
           "decision": "APPROVED",
           "comment": "3 devis uploades et conformes"
         },
-        { "role": "CFO", "order": 1, "userKey": "cfo", "isValidated": false }
+        {
+          "role": "CFO",
+          "order": 1,
+          "userKey": "cfo",
+          "isValidated": false
+        }
       ]
     },
     "attachments": [
@@ -523,7 +660,7 @@
     "marketType": "Gre a gre",
     "operationType": "PROGRAMME",
     "requestedDeliveryDate": "2026-04-01",
-    "priority": "HAUTE",
+    "priority": "URGENT",
     "justification": "Saison de plantation imminente, fournisseur certifie unique dans la region",
     "deliveryAddress": "Cooperative FANOME, Fianarantsoa",
     "status": "IN_DEROGATION",
@@ -585,7 +722,7 @@
     "marketType": "Consultation",
     "operationType": "PROGRAMME",
     "requestedDeliveryDate": "2026-06-01",
-    "priority": "MOYENNE",
+    "priority": "NORMAL",
     "justification": "Remplacement du mobilier vetuste dans les ecoles du projet",
     "deliveryAddress": "EPP Analamanga Centre",
     "status": "PUBLISHED",
@@ -668,7 +805,7 @@
     "marketType": "Appel d'offres",
     "operationType": "OPERATION",
     "requestedDeliveryDate": "2026-06-15",
-    "priority": "HAUTE",
+    "priority": "URGENT",
     "justification": "Equipement du nouveau bloc operatoire CHD Antsirabe",
     "deliveryAddress": "CHD Antsirabe",
     "status": "PENDING_APPROVAL",
@@ -826,7 +963,7 @@
     "marketType": "Appel d'offres",
     "operationType": "OPERATION",
     "requestedDeliveryDate": "2026-07-01",
-    "priority": "HAUTE",
+    "priority": "URGENT",
     "justification": "Remplacement serveurs obsoletes, risque de panne critique",
     "deliveryAddress": "Siege OSDRM, Antananarivo",
     "status": "AWAITING_DOCUMENTS",
@@ -936,7 +1073,7 @@
     "marketType": "Appel d'offres",
     "operationType": "OPERATION",
     "requestedDeliveryDate": "2026-07-15",
-    "priority": "HAUTE",
+    "priority": "URGENT",
     "justification": "Vehicule de mission indispensable pour les zones rurales enclavees",
     "deliveryAddress": "Bureau OSDRM Mahajanga",
     "status": "PENDING_APPROVAL",
@@ -986,7 +1123,7 @@
     "marketType": "Consultation",
     "operationType": "PROGRAMME",
     "requestedDeliveryDate": "2026-04-15",
-    "priority": "HAUTE",
+    "priority": "URGENT",
     "justification": "Distribution aux agriculteurs avant la saison des pluies",
     "deliveryAddress": "Direction Regionale Agriculture, Fianarantsoa",
     "status": "AWAITING_DOCUMENTS",
@@ -1043,7 +1180,7 @@
     "marketType": "Consultation",
     "operationType": "OPERATION",
     "requestedDeliveryDate": "2026-05-01",
-    "priority": "MOYENNE",
+    "priority": "NORMAL",
     "justification": "Renouvellement consommables laboratoire",
     "deliveryAddress": "Laboratoire CHD Toamasina",
     "status": "AWAITING_DOCUMENTS",
@@ -1101,7 +1238,7 @@
     "marketType": "Consultation",
     "operationType": "PROGRAMME",
     "requestedDeliveryDate": "2026-03-15",
-    "priority": "HAUTE",
+    "priority": "URGENT",
     "justification": "Dotation obligatoire EPI pour les missions terrain",
     "deliveryAddress": "Siege OSDRM, Antananarivo",
     "status": "AWAITING_DOCUMENTS",
@@ -1165,7 +1302,7 @@
     "marketType": "Gre a gre",
     "operationType": "OPERATION",
     "requestedDeliveryDate": "2026-02-28",
-    "priority": "HAUTE",
+    "priority": "URGENT",
     "justification": "Renouvellement licences logiciels de gestion financiere et RH",
     "deliveryAddress": "Siege OSDRM, Antananarivo",
     "status": "AWAITING_DOCUMENTS",
@@ -1236,7 +1373,7 @@
     "marketType": "Consultation",
     "operationType": "PROGRAMME",
     "requestedDeliveryDate": "2026-02-15",
-    "priority": "HAUTE",
+    "priority": "URGENT",
     "justification": "Dotation EPI reglementaire pour missions terrain",
     "deliveryAddress": "Siege OSDRM, Antananarivo",
     "status": "VALIDATED",

@@ -1,36 +1,15 @@
-import {
-  Controller,
-  Post,
-  Get,
-  Param,
-  Body,
-  UseGuards,
-  Request,
-} from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, UseGuards } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiBearerAuth,
   ApiParam,
   ApiBody,
-  ApiProperty,
 } from '@nestjs/swagger';
 import { BCService } from 'src/purchase/services/bc.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-
-class UploadBCDto {
-  @ApiProperty({ example: 'bon-de-commande.pdf' })
-  fileName: string;
-
-  @ApiProperty({ example: 'https://storage.example.com/files/bc-001.pdf' })
-  fileUrl: string;
-
-  @ApiProperty({ example: 1024000 })
-  fileSize: number;
-
-  @ApiProperty({ example: 'application/pdf' })
-  mimeType: string;
-}
+import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { UploadBCDto } from '../dto/bc.dto';
 
 @ApiTags('BC Management')
 @ApiBearerAuth('JWT-auth')
@@ -47,10 +26,10 @@ export class BCController {
   @ApiBody({ type: UploadBCDto })
   upload(
     @Param('purchaseId') purchaseId: string,
-    @Request() req,
+    @CurrentUser('id') userId: number,
     @Body() dto: UploadBCDto,
   ) {
-    return this.bcService.uploadBC(purchaseId, req.user.id, dto);
+    return this.bcService.uploadBC(purchaseId, userId, dto);
   }
 
   @Get()

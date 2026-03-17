@@ -109,9 +109,6 @@ function daApprovedValidators(
   return validators;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// CLEANUP
-// ─────────────────────────────────────────────────────────────────────────────
 async function cleanup() {
   await prisma.auditLog.deleteMany();
   await prisma.pVSupplierItem.deleteMany();
@@ -129,15 +126,11 @@ async function cleanup() {
   await prisma.user.deleteMany();
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// MAIN
-// ─────────────────────────────────────────────────────────────────────────────
 async function main() {
   await cleanup();
 
   const pwd = await bcrypt.hash('Password123!', 10);
 
-  // ── Users & Suppliers ──────────────────────────────────────────────────────
   const { users: usersData, suppliers: suppliersData } = loadJson<any>(
     'users-suppliers.json',
   );
@@ -175,7 +168,6 @@ async function main() {
     supplierMap[s.key] = created;
   }
 
-  // ── Purchases ──────────────────────────────────────────────────────────────
   const purchasesData = loadJson<any[]>('purchases.json');
   const purchaseMap: Record<string, any> = {};
 
@@ -221,7 +213,6 @@ async function main() {
     });
     purchaseMap[pd.reference] = purchase;
 
-    // DA workflow (explicit)
     if (pd.daWorkflow) {
       await prisma.validationWorkflow.create({
         data: {
@@ -246,14 +237,13 @@ async function main() {
       });
     }
 
-    // DA workflow (pre-approved shorthand)
-    if (pd.daWorkflowApproved) {
+    if (!pd.daWorkflow && pd.daWorkflowApproved) {
       const a = pd.daWorkflowApproved;
       await prisma.validationWorkflow.create({
         data: {
           purchaseId: purchase.id,
           step: PurchaseStep.DA,
-          currentStep: a.dpKey ? 4 : 4,
+          currentStep: 4,
           isComplete: true,
           validators: {
             create: daApprovedValidators(
@@ -271,7 +261,6 @@ async function main() {
       });
     }
 
-    // QR workflow (explicit)
     if (pd.qrWorkflow) {
       await prisma.validationWorkflow.create({
         data: {
@@ -296,8 +285,7 @@ async function main() {
       });
     }
 
-    // QR workflow (pre-approved shorthand)
-    if (pd.qrWorkflowApproved) {
+    if (!pd.qrWorkflow && pd.qrWorkflowApproved) {
       await prisma.validationWorkflow.create({
         data: {
           purchaseId: purchase.id,
@@ -334,7 +322,6 @@ async function main() {
       });
     }
 
-    // Attachments
     if (pd.attachments?.length) {
       await prisma.attachment.createMany({
         data: pd.attachments.map((a: any) => ({
@@ -351,7 +338,6 @@ async function main() {
       });
     }
 
-    // Derogation
     if (pd.derogation) {
       await prisma.derogation.create({
         data: {
@@ -428,7 +414,7 @@ async function main() {
     })),
   });
 
-  console.log('Seeding termine: 8 users | 4 fournisseurs | 18 dossiers achat');
+  console.log('Seeding termine: 8 users | 4 fournisseurs | 19 dossiers achat');
 }
 
 main()

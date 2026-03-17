@@ -71,6 +71,8 @@ export class WorkflowConfigService {
         ],
       },
     },
+
+    // ─── QR ────────────────────────────────────────────────────────────────────
     {
       step: PurchaseStep.QR,
       rules: {
@@ -97,6 +99,7 @@ export class WorkflowConfigService {
         ],
       },
     },
+
     {
       step: PurchaseStep.PV,
       rules: {
@@ -141,6 +144,7 @@ export class WorkflowConfigService {
         ],
       },
     },
+
     {
       step: PurchaseStep.BC,
       rules: {
@@ -156,6 +160,140 @@ export class WorkflowConfigService {
         ],
       },
     },
+
+    {
+      step: PurchaseStep.INVOICE,
+      rules: {
+        [OperationType.OPERATION]: [
+          {
+            maxAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.OM,
+              ValidatorRole.RFR,
+              ValidatorRole.CPR,
+            ],
+          },
+          {
+            minAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.OM,
+              ValidatorRole.CFO,
+              ValidatorRole.CEO,
+            ],
+          },
+        ],
+        [OperationType.PROGRAMME]: [
+          {
+            maxAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.RFR,
+              ValidatorRole.CPR,
+            ],
+          },
+          {
+            minAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.DP,
+              ValidatorRole.CFO,
+              ValidatorRole.CEO,
+            ],
+          },
+        ],
+      },
+    },
+    {
+      step: PurchaseStep.DAP,
+      rules: {
+        [OperationType.OPERATION]: [
+          {
+            maxAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.OM,
+              ValidatorRole.RFR,
+              ValidatorRole.CPR,
+            ],
+          },
+          {
+            minAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.OM,
+              ValidatorRole.CFO,
+              ValidatorRole.CEO,
+            ],
+          },
+        ],
+        [OperationType.PROGRAMME]: [
+          {
+            maxAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.RFR,
+              ValidatorRole.CPR,
+            ],
+          },
+          {
+            minAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.DP,
+              ValidatorRole.CFO,
+              ValidatorRole.CEO,
+            ],
+          },
+        ],
+      },
+    },
+
+    {
+      step: PurchaseStep.PROOF_OF_PAYMENT,
+      rules: {
+        [OperationType.OPERATION]: [
+          {
+            maxAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.OM,
+              ValidatorRole.RFR,
+              ValidatorRole.CPR,
+            ],
+          },
+          {
+            minAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.OM,
+              ValidatorRole.CFO,
+              ValidatorRole.CEO,
+            ],
+          },
+        ],
+        [OperationType.PROGRAMME]: [
+          {
+            maxAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.RFR,
+              ValidatorRole.CPR,
+            ],
+          },
+          {
+            minAmount: 5_000_000,
+            roles: [
+              ValidatorRole.DEMANDEUR,
+              ValidatorRole.DP,
+              ValidatorRole.CFO,
+              ValidatorRole.CEO,
+            ],
+          },
+        ],
+      },
+    },
   ];
 
   getRequireValidators(
@@ -166,7 +304,7 @@ export class WorkflowConfigService {
     const stepConfig = this.stepconfigs.find((config) => config.step === step);
 
     if (!stepConfig) {
-      throw new Error(`Aucune configuration trouvé pout l'étape ${step}`);
+      throw new Error(`Aucune configuration trouvee pour l'etape ${step}`);
     }
 
     const rules = stepConfig.rules[operationType];
@@ -250,20 +388,50 @@ export class WorkflowConfigService {
     if (status === 'DRAFT') return 'Brouillon';
     if (status === 'REJECTED') return 'Rejetée';
     if (status === 'CHANGE_REQUESTED') return 'Modifications demandées';
-
+    if (status === 'AWAITING_DOCUMENTS') {
+      const stepMessages: Record<string, string> = {
+        QR: 'En attente de devis',
+        BC: 'En attente du bon de commande',
+        BR: 'En attente du bon de réception',
+        INVOICE: 'En attente de la facture',
+        DAP: 'En attente de la DAP',
+        PROOF_OF_PAYMENT: 'En attente de la preuve de paiement',
+      };
+      return (
+        stepMessages[currentStep] ?? `En attente de document (${currentStep})`
+      );
+    }
+    if (status === 'PENDING_APPROVAL') {
+      const stepMessages: Record<string, string> = {
+        DA: 'DA en cours de validation',
+        QR: 'Devis en cours de validation',
+        PV: 'PV en cours de validation',
+        BC: 'BC en cours de validation',
+        INVOICE: 'Facture en cours de validation',
+        DAP: 'DAP en cours de validation',
+        PROOF_OF_PAYMENT: 'Preuve de paiement en cours de validation',
+      };
+      return (
+        stepMessages[currentStep] ?? `${currentStep} en cours de validation`
+      );
+    }
     if (status === 'PUBLISHED') {
       return `${currentStep} en cours de validation`;
     }
-
     if (status === 'VALIDATED') {
-      const stepMessages = {
+      const stepMessages: Record<string, string> = {
         QR: 'DA validée - En attente de devis',
         PV: 'Devis validés - En attente de PV',
         BC: 'PV validé - En attente de BC',
         BR: 'BC validé - En attente de livraison',
+        INVOICE: 'BR validé - En attente de facture',
+        DAP: 'Facture validée - En attente de DAP',
+        PROOF_OF_PAYMENT: 'DAP validée - En attente de preuve de paiement',
+        DONE: 'Processus terminé',
       };
-      return stepMessages[currentStep] || `${currentStep} validé`;
+      return stepMessages[currentStep] ?? `${currentStep} validé`;
     }
+    if (status === 'IN_DEROGATION') return 'En dérogation';
 
     return status;
   }
