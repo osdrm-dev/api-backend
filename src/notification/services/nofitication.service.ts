@@ -129,24 +129,47 @@ export class NotificationService {
    * Aiguilleur central pour l'envoi de mail
    */
   private async dispatchNotification(notif: NotificationEntity) {
+    const recipients = notif.recipients as string[];
+    const targetEmail = recipients[0];
+
+    if (!targetEmail) return;
+
+    const isReminder = notif.status === NotificationStatus.SENT;
+
     switch (notif.type) {
       case OSDRM_PROCESS_EVENT.DA_CREATED:
-        await this.sendNotificationForDACreated(notif);
+        await this.sendNotificationForDACreated(notif, targetEmail, isReminder);
         break;
       case OSDRM_PROCESS_EVENT.BC_UPLOADED:
-        await this.sendNotificationForBCUploaded(notif);
+        await this.sendNotificationForBCUploaded(
+          notif,
+          targetEmail,
+          isReminder,
+        );
         break;
       case OSDRM_PROCESS_EVENT.PV_UPLOADED:
-        await this.sendNotificationForPVUploaded(notif);
+        await this.sendNotificationForPVUploaded(
+          notif,
+          targetEmail,
+          isReminder,
+        );
         break;
       case OSDRM_PROCESS_EVENT.QR_UPLOADED:
-        await this.sendNotificationForQRUploaded(notif);
+        await this.sendNotificationForQRUploaded(
+          notif,
+          targetEmail,
+          isReminder,
+        );
         break;
       case OSDRM_PROCESS_EVENT.FORGOT_PASSWORD:
-        await this.sendNotificationForForgotPassword(notif);
+        await this.sendNotificationForForgotPassword(notif, targetEmail);
         break;
       case OSDRM_PROCESS_EVENT.DPA_CREATED:
-        await this.sendNotificationForDPACreated(notif);
+        await this.sendNotificationForDPACreated(
+          notif,
+          targetEmail,
+          isReminder,
+        );
         break;
       default:
         throw new Error(`Type d'évènement non supporté : ${notif.type}`);
@@ -188,59 +211,96 @@ export class NotificationService {
   }
 
   // --- Templates d'envoi ---
-  private async sendNotificationForDACreated(notif: NotificationEntity) {
+  private async sendNotificationForDACreated(
+    notif: NotificationEntity,
+    email: string,
+    isReminder: boolean,
+  ) {
     const data = notif.data as any;
-    const recipients = notif.recipients as string[];
+    const subject = isReminder
+      ? `[RAPPEL] Validation requise : ${data.reference}`
+      : `Nouvelle DA à valider : ${data.reference}`;
+
     await this.mailService.sendSimpleMail(
-      recipients[0],
-      `Nouvelle DA créée : ${data.reference || notif.resourceId}`,
-      `<p>Une nouvelle demande d'achat a été créée.</p><ul><li>Référence : ${data.reference}</li></ul>`,
+      email,
+      subject,
+      `<p>${isReminder ? 'Rappel : ' : ''}Une demande d'achat attend votre validation.</p>`,
     );
   }
 
-  private async sendNotificationForBCUploaded(notif: NotificationEntity) {
-    const recipients = notif.recipients as string[];
-    await this.mailService.sendSimpleMail(
-      recipients[0],
-      `BC déposé : ${notif.resourceId}`,
-      `<p>Le Bon de Commande pour <strong>${notif.resourceId}</strong> est disponible.</p>`,
-    );
-  }
-
-  private async sendNotificationForPVUploaded(notif: NotificationEntity) {
-    const recipients = notif.recipients as string[];
-    await this.mailService.sendSimpleMail(
-      recipients[0],
-      `PV disponible : ${notif.resourceId}`,
-      `<p>Un nouveau Procès Verbal (PV) a été ajouté.</p>`,
-    );
-  }
-
-  private async sendNotificationForQRUploaded(notif: NotificationEntity) {
-    const recipients = notif.recipients as string[];
-    await this.mailService.sendSimpleMail(
-      recipients[0],
-      `Réponse Q&R : ${notif.resourceId}`,
-      `<p>Une nouvelle réponse Q&R pour ${notif.resourceId}.</p>`,
-    );
-  }
-
-  private async sendNotificationForForgotPassword(notif: NotificationEntity) {
+  private async sendNotificationForBCUploaded(
+    notif: NotificationEntity,
+    email: string,
+    isReminder: boolean,
+  ) {
     const data = notif.data as any;
-    const recipients = notif.recipients as string[];
-    await this.mailService.sendConfirmation(
-      recipients[0],
-      data.token || 'reset-token',
+    const subject = isReminder
+      ? `[RAPPEL] Validation BC requise : ${data.reference || notif.resourceId}`
+      : `Bon de Commande (BC) déposé : ${data.reference || notif.resourceId}`;
+
+    await this.mailService.sendSimpleMail(
+      email,
+      subject,
+      `<p>Bonjour,</p><p>${isReminder ? 'Ceci est un rappel : ' : ''}Le Bon de Commande pour la référence <strong>${data.reference || notif.resourceId}</strong> est disponible et attend votre validation.</p>`,
     );
   }
 
-  private async sendNotificationForDPACreated(notif: NotificationEntity) {
+  private async sendNotificationForPVUploaded(
+    notif: NotificationEntity,
+    email: string,
+    isReminder: boolean,
+  ) {
     const data = notif.data as any;
-    const recipients = notif.recipients as string[];
+    const subject = isReminder
+      ? `[RAPPEL] Validation PV requise : ${data.reference || notif.resourceId}`
+      : `Procès Verbal (PV) disponible : ${data.reference || notif.resourceId}`;
+
     await this.mailService.sendSimpleMail(
-      recipients[0],
-      `DPA générée : ${data.reference || notif.resourceId}`,
-      `<p>Une demande de paiement anticipé a été créée (${data.reference}).</p>`,
+      email,
+      subject,
+      `<p>Bonjour,</p><p>${isReminder ? 'Ceci est un rappel : ' : ''}Un nouveau Procès Verbal (PV) a été ajouté pour la demande <strong>${data.reference || notif.resourceId}</strong>.</p>`,
     );
+  }
+
+  private async sendNotificationForQRUploaded(
+    notif: NotificationEntity,
+    email: string,
+    isReminder: boolean,
+  ) {
+    const data = notif.data as any;
+    const subject = isReminder
+      ? `[RAPPEL] Réponse Q&R en attente : ${data.reference || notif.resourceId}`
+      : `Nouvelle réponse Q&R : ${data.reference || notif.resourceId}`;
+
+    await this.mailService.sendSimpleMail(
+      email,
+      subject,
+      `<p>Bonjour,</p><p>${isReminder ? 'Ceci est un rappel : ' : ''}Une mise à jour concernant les Questions/Réponses de la demande <strong>${data.reference || notif.resourceId}</strong> est disponible.</p>`,
+    );
+  }
+
+  private async sendNotificationForDPACreated(
+    notif: NotificationEntity,
+    email: string,
+    isReminder: boolean,
+  ) {
+    const data = notif.data as any;
+    const subject = isReminder
+      ? `[RAPPEL] Validation DPA requise : ${data.reference || notif.resourceId}`
+      : `Demande de Paiement Anticipé (DPA) générée : ${data.reference || notif.resourceId}`;
+
+    await this.mailService.sendSimpleMail(
+      email,
+      subject,
+      `<p>Bonjour,</p><p>${isReminder ? 'Ceci est un rappel : ' : ''}Une demande de paiement anticipé a été créée pour la référence <strong>${data.reference || notif.resourceId}</strong>.</p>`,
+    );
+  }
+
+  private async sendNotificationForForgotPassword(
+    notif: NotificationEntity,
+    email: string,
+  ) {
+    const data = notif.data as any;
+    await this.mailService.sendConfirmation(email, data.token || 'reset-token');
   }
 }

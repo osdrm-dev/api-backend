@@ -9,6 +9,9 @@ import { ValidationActionService } from './validation-action.service';
 import { AuthorizationService } from './authorization.service';
 import { PurchaseRepository } from 'src/repository/purchase/purchase.repository';
 import { ValidatorRepository } from 'src/repository/purchase';
+import { PrismaService } from 'prisma/prisma.service';
+import { NotificationService } from 'src/notification/services/nofitication.service';
+import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
 
 @Injectable()
 export class DAValidationService {
@@ -18,6 +21,8 @@ export class DAValidationService {
     private validatorRepo: ValidatorRepository,
     private queryService: PurchaseQueryService,
     private validationAction: ValidationActionService,
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
   ) {}
 
   async getPendingDAForValidator(userId: number, filters: FilterPurchaseDto) {
@@ -58,7 +63,14 @@ export class DAValidationService {
     userId: number,
     validateDto: ValidatePurchaseDto,
   ) {
-    const [{ userRole }, purchase] = await Promise.all([
+    // Récupération de l'email imbriqué dans l'objet user
+    const [
+      {
+        userRole,
+        user: { email: userEmail },
+      },
+      purchase,
+    ] = await Promise.all([
       this.authService.getUserAndCheckAuthorization(purchaseId, userId),
       this.purchaseRepo.findById(purchaseId),
     ]);
@@ -69,7 +81,7 @@ export class DAValidationService {
 
     const currentStep = purchase.currentStep;
 
-    // Exécuter la validation et mise à jour en parallèle
+    // Validation métier
     const result = await this.validationAction.validate({
       purchaseId,
       userId,
@@ -77,8 +89,44 @@ export class DAValidationService {
       comment: validateDto.comment,
     });
 
-    // Si workflow complet, mettre à jour l'étape suivante
-    if (result.wasCompleted) {
+    // --- LOGIQUE DE NOTIFICATION ---
+
+    // 1. Stopper la notification de relance pour celui qui vient de valider
+    await this.prisma.notification.updateMany({
+      where: {
+        resourceId: purchaseId,
+        status: 'SENT',
+        recipients: {
+          array_contains: userEmail, // Utilisation de array_contains pour le type Json
+        },
+      },
+      data: {
+        status: 'VALIDATED',
+        expiredAt: new Date(),
+      },
+    });
+
+    // 2. Créer la notification pour le validateur SUIVANT
+    if (!result.wasCompleted) {
+      const nextValidator = await this.prisma.validator.findFirst({
+        where: {
+          workflow: { purchaseId },
+          isValidated: false,
+        },
+        orderBy: { order: 'asc' },
+      });
+
+      if (nextValidator?.email) {
+        await this.notificationService.createNotification(
+          this.getEventByStep(currentStep),
+          [nextValidator.email],
+          purchaseId,
+          { reference: purchase.reference },
+          true, // Active les relances
+        );
+      }
+    } else {
+      // Si l'étape est complète (ex: DA terminée), on prépare l'étape suivante
       const nextStepMap = {
         [PurchaseStep.DA]: PurchaseStep.QR,
         [PurchaseStep.QR]: PurchaseStep.PV,
@@ -87,38 +135,47 @@ export class DAValidationService {
       };
 
       const nextStep = nextStepMap[currentStep];
-      if (nextStep) {
-        let newStatus: PurchaseStatus = PurchaseStatus.PUBLISHED;
-        if (nextStep === PurchaseStep.QR || nextStep === PurchaseStep.BC) {
-          newStatus = PurchaseStatus.AWAITING_DOCUMENTS;
-        }
 
-        // Exécuter sans attendre pour répondre plus vite
-        this.purchaseRepo.update({
+      if (nextStep) {
+        // Logique de mise à jour de l'étape...
+        await this.purchaseRepo.update({
           where: { id: purchaseId },
-          data: { currentStep: nextStep, status: newStatus },
+          data: {
+            currentStep: nextStep,
+            status:
+              nextStep === PurchaseStep.QR || nextStep === PurchaseStep.BC
+                ? PurchaseStatus.AWAITING_DOCUMENTS
+                : PurchaseStatus.PUBLISHED,
+          },
         });
-      } else {
-        this.purchaseRepo.update({
-          where: { id: purchaseId },
-          data: { status: PurchaseStatus.VALIDATED, validatedAt: new Date() },
+
+        // Notification pour le tout premier validateur de la NOUVELLE étape
+        const firstNextStepValidator = await this.prisma.validator.findFirst({
+          where: {
+            workflow: { purchaseId, step: nextStep },
+            isValidated: false,
+          },
+          orderBy: { order: 'asc' },
         });
+
+        if (firstNextStepValidator?.email) {
+          await this.notificationService.createNotification(
+            this.getEventByStep(nextStep),
+            [firstNextStepValidator.email],
+            purchaseId,
+            { reference: purchase.reference },
+            true,
+          );
+        }
       }
     }
-
-    const stepMessages = {
-      [PurchaseStep.DA]: `DA validée avec succès, Passage à l'étape de QR.`,
-      [PurchaseStep.QR]: `QR validée avec succès, Passage à l'étape de PV.`,
-      [PurchaseStep.PV]: `PV validée avec succès, Passage à l'étape de BC.`,
-      [PurchaseStep.BC]: `BC validée avec succès, Passage à l'étape de BR.`,
-    };
 
     return {
       id: purchaseId,
       status: result.nextStatus,
       message: result.wasCompleted
-        ? stepMessages[currentStep] || `Validation complète.`
-        : `Validation enregistrée. En attente des autres validateurs.`,
+        ? `Étape validée avec succès.`
+        : `Validation enregistrée. En attente du validateur suivant.`,
     };
   }
 
@@ -227,5 +284,21 @@ export class DAValidationService {
       changesRequested,
       total: validated + rejected + changesRequested,
     };
+  }
+
+  private getEventByStep(step: PurchaseStep): string {
+    const mapping: Record<PurchaseStep, string> = {
+      [PurchaseStep.DA]: OSDRM_PROCESS_EVENT.DA_CREATED,
+      [PurchaseStep.QR]: OSDRM_PROCESS_EVENT.QR_UPLOADED,
+      [PurchaseStep.PV]: OSDRM_PROCESS_EVENT.PV_UPLOADED,
+      [PurchaseStep.BC]: OSDRM_PROCESS_EVENT.BC_UPLOADED,
+      [PurchaseStep.BR]: OSDRM_PROCESS_EVENT.BC_UPLOADED,
+      [PurchaseStep.INVOICE]: OSDRM_PROCESS_EVENT.BC_UPLOADED,
+      [PurchaseStep.DAP]: OSDRM_PROCESS_EVENT.DPA_CREATED,
+      [PurchaseStep.PROOF_OF_PAYMENT]: OSDRM_PROCESS_EVENT.BC_UPLOADED,
+      [PurchaseStep.DONE]: OSDRM_PROCESS_EVENT.BC_UPLOADED,
+    };
+
+    return mapping[step] || OSDRM_PROCESS_EVENT.DA_CREATED;
   }
 }
