@@ -1,121 +1,190 @@
 import 'dotenv/config';
-import { PrismaClient, NotificationStatus, Prisma, Role } from '@prisma/client';
+import {
+  PrismaClient,
+  NotificationStatus,
+  PurchaseStatus,
+  PurchaseStep,
+  Role,
+  OperationType,
+  ValidatorRole,
+} from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
+import * as bcrypt from 'bcrypt';
 
 const connectionString = process.env.DATABASE_URL;
-
-if (!connectionString) {
-  throw new Error(
-    "DATABASE_URL est manquant dans les variables d'environnement",
-  );
-}
-
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool, { schema: 'public' });
 const prisma = new PrismaClient({ adapter });
 
 async function seedNotificationData() {
-  console.log('🌱 Starting OSDRM Production-Like Test (Integer Days)...\n');
+  console.log('🚀 Génération des données de test (Validation & Relance)...\n');
 
   try {
-    // 1. Utilisateurs
-    const userData = [
-      {
-        email: 'demandeur@osdrm.mg',
-        name: 'Jean Demandeur',
-        role: Role.DEMANDEUR,
-      },
-      { email: 'validateur@osdrm.mg', name: 'Marc Validateur', role: Role.RFR },
-    ];
+    // 1. Reset
+    await prisma.notification.deleteMany();
+    await prisma.validator.deleteMany();
+    await prisma.validationWorkflow.deleteMany();
+    await prisma.purchaseItem.deleteMany();
+    await prisma.purchase.deleteMany();
+    await prisma.user.deleteMany();
 
-    for (const u of userData) {
-      await prisma.user.upsert({
-        where: { email: u.email },
-        update: {},
-        create: { ...u, password: 'password', fonction: 'Staff' },
+    // 2. Création des Utilisateurs (Mot de passe: password)
+    const hashedPwd = await bcrypt.hash('password', 10);
+    const usersMap: Record<string, number> = {};
+    for (const role of Object.values(ValidatorRole)) {
+      const user = await prisma.user.create({
+        data: {
+          email: `${role.toLowerCase()}@osdrm.mg`,
+          name: `User ${role}`,
+          password: hashedPwd,
+          fonction: role,
+          role: role as unknown as Role,
+        },
       });
+      usersMap[role] = user.id;
     }
 
-    // 2. Nettoyage
-    await prisma.notification.deleteMany();
+    const now = new Date();
+    const ilYa2Jours = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+    const dans1An = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
 
-    // On utilise 1 jour (Entier) pour correspondre à ton schéma DB
-    const ONE_DAY = 1;
+    // 3. Helper Universel avec gestion de la progression
+    const createFolder = async (params: {
+      ref: string;
+      step: PurchaseStep;
+      amount: number;
+      roles: ValidatorRole[];
+      validatedUntilIndex?: number; // Index (0..N) jusqu'où c'est déjà validé
+      relanceEmail?: string;
+    }) => {
+      const purchase = await prisma.purchase.create({
+        data: {
+          reference: params.ref,
+          title: `Dossier ${params.ref}`,
+          status: PurchaseStatus.PENDING_APPROVAL,
+          currentStep: params.step,
+          operationType:
+            params.amount > 5000000
+              ? OperationType.PROGRAMME
+              : OperationType.OPERATION,
+          justification: `Test de validation pour ${params.ref}`,
+          creatorId: usersMap[ValidatorRole.DEMANDEUR],
+          items: {
+            create: [
+              {
+                designation: 'Matériel standard',
+                quantity: 1,
+                unitPrice: params.amount,
+                amount: params.amount,
+              },
+            ],
+          },
+          validationWorkflows: {
+            create: {
+              step: params.step,
+              validators: {
+                create: params.roles.map((role, index) => ({
+                  role,
+                  order: index + 1,
+                  email: `${role.toLowerCase()}@osdrm.mg`,
+                  userId: usersMap[role],
+                  // Si l'index est <= validatedUntilIndex, le validateur a déjà signé
+                  isValidated:
+                    params.validatedUntilIndex !== undefined &&
+                    index <= params.validatedUntilIndex,
+                })),
+              },
+            },
+          },
+        },
+      });
 
-    const notifications: Prisma.NotificationCreateManyInput[] = [
-      // --- CYCLE 1 : NOUVELLES NOTIFICATIONS (PENDING) ---
-      {
-        type: OSDRM_PROCESS_EVENT.DA_CREATED,
-        resourceId: 'DA-NEW-100',
-        recipients: ['validateur@osdrm.mg'],
-        status: NotificationStatus.PENDING,
-        hasReminder: true,
-        reminderIntervalInDays: ONE_DAY,
-        data: { reference: 'NOUVELLE-DA-TEST' } as any,
-        expiredAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
+      // Création de la notification de relance pour le validateur ACTUEL (le premier non validé)
+      if (params.relanceEmail) {
+        let eventType: string = OSDRM_PROCESS_EVENT.DA_CREATED;
+        if (params.step === PurchaseStep.PV)
+          eventType = OSDRM_PROCESS_EVENT.PV_UPLOADED;
+        if (params.step === PurchaseStep.QR)
+          eventType = OSDRM_PROCESS_EVENT.QR_UPLOADED;
 
-      // --- CYCLE 2 : RELANCES ÉLIGIBLES (Simulées il y a 25 heures) ---
-      // Comme l'intervalle est de 1 jour, elles seront détectées par processReminders()
-      {
-        type: OSDRM_PROCESS_EVENT.DA_CREATED,
-        resourceId: 'DA-REMIND-001',
-        recipients: ['validateur@osdrm.mg'],
-        status: NotificationStatus.SENT,
-        hasReminder: true,
-        reminderIntervalInDays: ONE_DAY,
-        reminderCount: 0,
-        // Simulation : envoyée il y a 25h (donc > 1 jour)
-        lastSentAt: new Date(Date.now() - 25 * 60 * 60 * 1000),
-        expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        data: { reference: 'RELANCE-DA-1' } as any,
-      },
-      {
-        type: OSDRM_PROCESS_EVENT.DPA_CREATED,
-        resourceId: 'DPA-REMIND-002',
-        recipients: ['validateur@osdrm.mg'],
-        status: NotificationStatus.SENT,
-        hasReminder: true,
-        reminderIntervalInDays: ONE_DAY,
-        reminderCount: 1, // On simule qu'une relance a déjà été faite
-        lastSentAt: new Date(Date.now() - 26 * 60 * 60 * 1000), // Il y a 26h
-        expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        data: { reference: 'RELANCE-DPA-2' } as any,
-      },
+        await prisma.notification.create({
+          data: {
+            type: eventType,
+            resourceId: purchase.id,
+            recipients: [params.relanceEmail],
+            status: NotificationStatus.SENT,
+            hasReminder: true,
+            reminderIntervalInDays: 1,
+            lastSentAt: ilYa2Jours, // Prêt pour le Cron
+            expiredAt: dans1An,
+            data: { reference: params.ref, step: params.step } as any,
+          },
+        });
+      }
+      return purchase;
+    };
 
-      // --- SCÉNARIO "TROP TÔT" (Envoyée il y a 2 heures) ---
-      // L'intervalle est de 1 jour, donc 2h < 24h : Elle ne doit pas bouger.
-      {
-        type: OSDRM_PROCESS_EVENT.PV_UPLOADED,
-        resourceId: 'PV-WAIT-003',
-        recipients: ['demandeur@osdrm.mg'],
-        status: NotificationStatus.SENT,
-        hasReminder: true,
-        reminderIntervalInDays: ONE_DAY,
-        lastSentAt: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2h ago
-        expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        data: { reference: 'TROP-TOT' } as any,
-      },
-    ];
+    // --- SCÉNARIOS DE VALIDATION ---
 
-    await prisma.notification.createMany({ data: notifications });
+    console.log("📑 Dossiers DA (Demande d'Achat)...");
+    // DA-001: Personne n'a validé. OM doit valider.
+    await createFolder({
+      ref: 'DA-001',
+      step: PurchaseStep.DA,
+      amount: 1000000,
+      roles: [ValidatorRole.OM, ValidatorRole.RFR],
+      relanceEmail: 'om@osdrm.mg',
+    });
 
-    console.log(`✅ Seed terminé avec succès !`);
-    console.log(`📊 Précisions sur l'exécution :`);
-    console.log(
-      `   - DA-NEW-100 sera envoyée par processAllPending (Statut PENDING).`,
-    );
-    console.log(
-      `   - DA-REMIND-001 et DPA-REMIND-002 seront envoyées par processReminders.`,
-    );
-    console.log(`     (Car leur lastSentAt date d'il y a plus de 24h).`);
-    console.log(
-      `   - PV-WAIT-003 restera en base sans rien faire (envoyée il y a seulement 2h).`,
-    );
+    // DA-002: OM a déjà validé. C'est au tour du CFO.
+    await createFolder({
+      ref: 'DA-002',
+      step: PurchaseStep.DA,
+      amount: 7000000,
+      roles: [ValidatorRole.OM, ValidatorRole.CFO, ValidatorRole.CEO],
+      validatedUntilIndex: 0,
+      relanceEmail: 'cfo@osdrm.mg',
+    });
+
+    console.log('⚖️ Dossiers PV (Procès-Verbal)...');
+    // PV-001: En attente CFO.
+    await createFolder({
+      ref: 'PV-001',
+      step: PurchaseStep.PV,
+      amount: 12000000,
+      roles: [ValidatorRole.CFO, ValidatorRole.CEO],
+      relanceEmail: 'cfo@osdrm.mg',
+    });
+
+    // PV-002: CFO a validé. En attente CEO.
+    await createFolder({
+      ref: 'PV-002',
+      step: PurchaseStep.PV,
+      amount: 15000000,
+      roles: [ValidatorRole.CFO, ValidatorRole.CEO],
+      validatedUntilIndex: 0,
+      relanceEmail: 'ceo@osdrm.mg',
+    });
+
+    console.log('📦 Dossiers QR (Quittance)...');
+    // QR-001: En attente OM.
+    await createFolder({
+      ref: 'QR-001',
+      step: PurchaseStep.QR,
+      amount: 500000,
+      roles: [ValidatorRole.OM, ValidatorRole.RFR],
+      relanceEmail: 'om@osdrm.mg',
+    });
+
+    console.log('\n✅ Seed terminé !');
+    console.log('Utilise "password" pour tester les comptes suivants :');
+    console.log('- om@osdrm.mg (DA-001, QR-001)');
+    console.log('- cfo@osdrm.mg (DA-002, PV-001)');
+    console.log('- ceo@osdrm.mg (PV-002)');
   } catch (error) {
-    console.error('❌ Error during seeding:', error);
+    console.error('❌ Erreur :', error);
   } finally {
     await pool.end();
   }

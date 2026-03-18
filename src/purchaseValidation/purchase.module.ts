@@ -12,9 +12,11 @@ import { PurchaseQueryService } from './services/purchase-query.service';
 import { AuthorizationService } from './services/authorization.service';
 import { DAValidationService } from './services/validation.service';
 import { DAValidationController } from './controllers/validation.controller';
+import { NotificationModule } from 'src/notification/notification.module';
 
 @Module({
   controllers: [DAValidationController],
+  imports: [NotificationModule],
   providers: [
     PrismaService,
     PurchaseRepository,

@@ -29,7 +29,7 @@ export class NotificationCron {
    * S'exécute toutes les heures (par exemple)
    * Scanne les notifications SENT qui ont hasReminder=true et qui datent de plus de 24h
    */
-  @Cron(CronExpression.EVERY_HOUR)
+  @Cron(CronExpression.EVERY_MINUTE)
   async handleReminders() {
     this.logger.debug(
       '[REMINDER] Vérification des notifications à relancer...',

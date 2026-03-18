@@ -10,9 +10,6 @@ import { OSDRM_PROCESS_EVENT } from '../constants/notification.constants';
 import { AuditService } from 'src/audit/services/audit.service';
 import { PrismaService } from 'prisma/prisma.service';
 
-/**
- * Helper
- */
 const daysToMs = (days: number): number => days * 24 * 60 * 60 * 1000;
 
 @Injectable()
@@ -28,7 +25,7 @@ export class NotificationService {
   ) {}
 
   /**
-   * Crée une notification
+   * Crée une notification initiale
    */
   async createNotification(
     type: string,
@@ -60,7 +57,29 @@ export class NotificationService {
   }
 
   /**
-   * Cycle 1 : Traitement des nouvelles notifications (PENDING)
+   * CONSIGNE LEAD : Arrête les relances actives pour un utilisateur sur une ressource.
+   * On joue uniquement sur expiredAt pour sortir la notification du flux du Cron.
+   */
+  async stopActiveReminders(resourceId: string, email: string): Promise<void> {
+    await this.prisma.notification.updateMany({
+      where: {
+        resourceId: resourceId,
+        status: NotificationStatus.SENT,
+        recipients: {
+          array_contains: email,
+        },
+      },
+      data: {
+        expiredAt: new Date(),
+      },
+    });
+    this.logger.log(
+      `Relances stoppées (expiration) pour ${email} sur ${resourceId}`,
+    );
+  }
+
+  /**
+   * Cycle 1 : Envoi initial
    */
   async processAllPending() {
     const notifications = await this.repository.findAllPending(10);
@@ -87,19 +106,13 @@ export class NotificationService {
   }
 
   /**
-   * Cycle 2 : Gestion des rappels
+   * Cycle 2 : Envoi des rappels (Cron)
    */
   async processReminders() {
     const now = new Date();
-
     const notificationsToRemind = await this.repository.findEligibleForReminder(
       now,
       this.DEFAULT_REMINDER_INTERVAL_IN_DAYS,
-    );
-
-    this.logger.debug(`Recherche de rappels à : ${now.toISOString()}`);
-    this.logger.debug(
-      `Nombre de rappels trouvés : ${notificationsToRemind.length}`,
     );
 
     if (notificationsToRemind.length === 0) return;
@@ -118,7 +131,6 @@ export class NotificationService {
         });
 
         await this.logAudit(updated, 'NOTIFICATION_REMINDER_SENT');
-        this.logger.log(`Rappel envoyé pour ${notif.id}`);
       } catch (error) {
         await this.handleError(notif, error);
       }
@@ -126,32 +138,142 @@ export class NotificationService {
   }
 
   /**
-   * Aiguilleur central pour l'envoi de mail
+   * Aiguilleur central : Détermine si c'est un rappel et oriente vers le bon template
    */
   private async dispatchNotification(notif: NotificationEntity) {
+    const recipients = notif.recipients as string[];
+    const targetEmail = recipients[0];
+    if (!targetEmail) return;
+
+    // Si status est déjà SENT, c'est que le processReminder l'a récupéré -> c'est un rappel
+    const isReminder = notif.status === NotificationStatus.SENT;
+
     switch (notif.type) {
       case OSDRM_PROCESS_EVENT.DA_CREATED:
-        await this.sendNotificationForDACreated(notif);
+        await this.sendNotificationForDACreated(notif, targetEmail, isReminder);
         break;
       case OSDRM_PROCESS_EVENT.BC_UPLOADED:
-        await this.sendNotificationForBCUploaded(notif);
+        await this.sendNotificationForBCUploaded(
+          notif,
+          targetEmail,
+          isReminder,
+        );
         break;
       case OSDRM_PROCESS_EVENT.PV_UPLOADED:
-        await this.sendNotificationForPVUploaded(notif);
+        await this.sendNotificationForPVUploaded(
+          notif,
+          targetEmail,
+          isReminder,
+        );
         break;
       case OSDRM_PROCESS_EVENT.QR_UPLOADED:
-        await this.sendNotificationForQRUploaded(notif);
-        break;
-      case OSDRM_PROCESS_EVENT.FORGOT_PASSWORD:
-        await this.sendNotificationForForgotPassword(notif);
+        await this.sendNotificationForQRUploaded(
+          notif,
+          targetEmail,
+          isReminder,
+        );
         break;
       case OSDRM_PROCESS_EVENT.DPA_CREATED:
-        await this.sendNotificationForDPACreated(notif);
+        await this.sendNotificationForDPACreated(
+          notif,
+          targetEmail,
+          isReminder,
+        );
+        break;
+      case OSDRM_PROCESS_EVENT.FORGOT_PASSWORD:
+        await this.sendNotificationForForgotPassword(notif, targetEmail);
         break;
       default:
         throw new Error(`Type d'évènement non supporté : ${notif.type}`);
     }
   }
+
+  // --- Templates d'envoi ---
+
+  private async sendNotificationForDACreated(
+    notif: NotificationEntity,
+    email: string,
+    isReminder: boolean,
+  ) {
+    const data = notif.data as any;
+    const subject = `${isReminder ? '[RAPPEL] ' : ''}Validation requise : DA ${data.reference || ''}`;
+
+    await this.mailService.sendSimpleMail(
+      email,
+      subject,
+      `<p>${isReminder ? 'Rappel : ' : ''}Une demande d'achat attend votre validation.</p><ul><li>Référence : ${data.reference}</li></ul>`,
+    );
+  }
+
+  private async sendNotificationForBCUploaded(
+    notif: NotificationEntity,
+    email: string,
+    isReminder: boolean,
+  ) {
+    const data = notif.data as any;
+    const subject = `${isReminder ? '[RAPPEL] ' : ''}Validation BC requise : ${data.reference || notif.resourceId}`;
+
+    await this.mailService.sendSimpleMail(
+      email,
+      subject,
+      `<p>${isReminder ? 'Ceci est un rappel : ' : ''}Le Bon de Commande pour la référence <strong>${data.reference || notif.resourceId}</strong> est disponible.</p>`,
+    );
+  }
+
+  private async sendNotificationForPVUploaded(
+    notif: NotificationEntity,
+    email: string,
+    isReminder: boolean,
+  ) {
+    const data = notif.data as any;
+    const subject = `${isReminder ? '[RAPPEL] ' : ''}Signature PV requise : ${data.reference || notif.resourceId}`;
+
+    await this.mailService.sendSimpleMail(
+      email,
+      subject,
+      `<p>${isReminder ? 'Ceci est un rappel : ' : ''}Un nouveau Procès Verbal (PV) attend votre signature pour la demande <strong>${data.reference || notif.resourceId}</strong>.</p>`,
+    );
+  }
+
+  private async sendNotificationForQRUploaded(
+    notif: NotificationEntity,
+    email: string,
+    isReminder: boolean,
+  ) {
+    const data = notif.data as any;
+    const subject = `${isReminder ? '[RAPPEL] ' : ''}Réponse Q&R en attente : ${data.reference || notif.resourceId}`;
+
+    await this.mailService.sendSimpleMail(
+      email,
+      subject,
+      `<p>${isReminder ? 'Ceci est un rappel : ' : ''}Une mise à jour Q&R pour la demande <strong>${data.reference || notif.resourceId}</strong> nécessite votre attention.</p>`,
+    );
+  }
+
+  private async sendNotificationForDPACreated(
+    notif: NotificationEntity,
+    email: string,
+    isReminder: boolean,
+  ) {
+    const data = notif.data as any;
+    const subject = `${isReminder ? '[RAPPEL] ' : ''}Validation DPA requise : ${data.reference || notif.resourceId}`;
+
+    await this.mailService.sendSimpleMail(
+      email,
+      subject,
+      `<p>${isReminder ? 'Ceci est un rappel : ' : ''}Une demande de paiement anticipé (${data.reference}) attend votre validation.</p>`,
+    );
+  }
+
+  private async sendNotificationForForgotPassword(
+    notif: NotificationEntity,
+    email: string,
+  ) {
+    const data = notif.data as any;
+    await this.mailService.sendConfirmation(email, data.token || 'reset-token');
+  }
+
+  // --- Outils internes ---
 
   private async logAudit(notif: NotificationEntity, action: string) {
     const recipientEmail = (notif.recipients as string[])?.[0];
@@ -170,12 +292,7 @@ export class NotificationService {
       action,
       resource: 'Notification',
       resourceId: notif.id,
-      details: {
-        type: notif.type,
-        reminderCount: notif.reminderCount,
-        attempts: notif.attemptCount,
-        intervalInDays: notif.reminderIntervalInDays,
-      },
+      details: { type: notif.type, attempts: notif.attemptCount },
     });
   }
 
@@ -185,62 +302,5 @@ export class NotificationService {
       where: { id: notif.id },
       data: { attemptCount: { increment: 1 } },
     });
-  }
-
-  // --- Templates d'envoi ---
-  private async sendNotificationForDACreated(notif: NotificationEntity) {
-    const data = notif.data as any;
-    const recipients = notif.recipients as string[];
-    await this.mailService.sendSimpleMail(
-      recipients[0],
-      `Nouvelle DA créée : ${data.reference || notif.resourceId}`,
-      `<p>Une nouvelle demande d'achat a été créée.</p><ul><li>Référence : ${data.reference}</li></ul>`,
-    );
-  }
-
-  private async sendNotificationForBCUploaded(notif: NotificationEntity) {
-    const recipients = notif.recipients as string[];
-    await this.mailService.sendSimpleMail(
-      recipients[0],
-      `BC déposé : ${notif.resourceId}`,
-      `<p>Le Bon de Commande pour <strong>${notif.resourceId}</strong> est disponible.</p>`,
-    );
-  }
-
-  private async sendNotificationForPVUploaded(notif: NotificationEntity) {
-    const recipients = notif.recipients as string[];
-    await this.mailService.sendSimpleMail(
-      recipients[0],
-      `PV disponible : ${notif.resourceId}`,
-      `<p>Un nouveau Procès Verbal (PV) a été ajouté.</p>`,
-    );
-  }
-
-  private async sendNotificationForQRUploaded(notif: NotificationEntity) {
-    const recipients = notif.recipients as string[];
-    await this.mailService.sendSimpleMail(
-      recipients[0],
-      `Réponse Q&R : ${notif.resourceId}`,
-      `<p>Une nouvelle réponse Q&R pour ${notif.resourceId}.</p>`,
-    );
-  }
-
-  private async sendNotificationForForgotPassword(notif: NotificationEntity) {
-    const data = notif.data as any;
-    const recipients = notif.recipients as string[];
-    await this.mailService.sendConfirmation(
-      recipients[0],
-      data.token || 'reset-token',
-    );
-  }
-
-  private async sendNotificationForDPACreated(notif: NotificationEntity) {
-    const data = notif.data as any;
-    const recipients = notif.recipients as string[];
-    await this.mailService.sendSimpleMail(
-      recipients[0],
-      `DPA générée : ${data.reference || notif.resourceId}`,
-      `<p>Une demande de paiement anticipé a été créée (${data.reference}).</p>`,
-    );
   }
 }
