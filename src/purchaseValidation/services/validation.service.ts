@@ -92,19 +92,7 @@ export class DAValidationService {
     // --- LOGIQUE DE NOTIFICATION ---
 
     // 1. Stopper la notification de relance pour celui qui vient de valider
-    await this.prisma.notification.updateMany({
-      where: {
-        resourceId: purchaseId,
-        status: 'SENT',
-        recipients: {
-          array_contains: userEmail, // Utilisation de array_contains pour le type Json
-        },
-      },
-      data: {
-        status: 'VALIDATED',
-        expiredAt: new Date(),
-      },
-    });
+    await this.notificationService.stopActiveReminders(purchaseId, userEmail);
 
     // 2. Créer la notification pour le validateur SUIVANT
     if (!result.wasCompleted) {

@@ -126,6 +126,27 @@ export class NotificationService {
   }
 
   /**
+   * Arrête les relances pour un utilisateur spécifique sur une ressource.
+   * On ne change pas le statut 'SENT' pour garder l'historique,
+   * on joue uniquement sur la date d'expiration.
+   */
+  async stopActiveReminders(resourceId: string, email: string): Promise<void> {
+    await this.prisma.notification.updateMany({
+      where: {
+        resourceId: resourceId,
+        status: 'SENT',
+        recipients: {
+          array_contains: email,
+        },
+      },
+      data: {
+        // Le "bouton OFF" : expiredAt devient maintenant
+        expiredAt: new Date(),
+      },
+    });
+  }
+
+  /**
    * Aiguilleur central pour l'envoi de mail
    */
   private async dispatchNotification(notif: NotificationEntity) {

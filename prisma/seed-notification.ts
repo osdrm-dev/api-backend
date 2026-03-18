@@ -19,10 +19,10 @@ const adapter = new PrismaPg(pool, { schema: 'public' });
 const prisma = new PrismaClient({ adapter });
 
 async function seedNotificationData() {
-  console.log('🌱 Seed Complet : DA, PV, QR avec Relance et Audit...\n');
+  console.log('🚀 Génération des données de test (Validation & Relance)...\n');
 
   try {
-    // 1. Nettoyage
+    // 1. Reset
     await prisma.notification.deleteMany();
     await prisma.validator.deleteMany();
     await prisma.validationWorkflow.deleteMany();
@@ -30,16 +30,15 @@ async function seedNotificationData() {
     await prisma.purchase.deleteMany();
     await prisma.user.deleteMany();
 
-    // 2. Utilisateurs
-    const hashedDefaultPassword = await bcrypt.hash('password', 10);
+    // 2. Création des Utilisateurs (Mot de passe: password)
+    const hashedPwd = await bcrypt.hash('password', 10);
     const usersMap: Record<string, number> = {};
-
     for (const role of Object.values(ValidatorRole)) {
       const user = await prisma.user.create({
         data: {
           email: `${role.toLowerCase()}@osdrm.mg`,
           name: `User ${role}`,
-          password: hashedDefaultPassword,
+          password: hashedPwd,
           fonction: role,
           role: role as unknown as Role,
         },
@@ -48,48 +47,53 @@ async function seedNotificationData() {
     }
 
     const now = new Date();
-    const dateIlYa48h = new Date(now.getTime() - 48 * 60 * 60 * 1000);
-    const dateExpirationLoin = new Date(
-      now.getTime() + 365 * 24 * 60 * 60 * 1000,
-    );
+    const ilYa2Jours = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+    const dans1An = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
 
-    // 3. Helper Universel pour toutes les étapes
-    const createPurchaseFullCycle = async (
-      ref: string,
-      step: PurchaseStep,
-      amount: number,
-      roles: ValidatorRole[],
-      relanceEmail?: string,
-    ) => {
+    // 3. Helper Universel avec gestion de la progression
+    const createFolder = async (params: {
+      ref: string;
+      step: PurchaseStep;
+      amount: number;
+      roles: ValidatorRole[];
+      validatedUntilIndex?: number; // Index (0..N) jusqu'où c'est déjà validé
+      relanceEmail?: string;
+    }) => {
       const purchase = await prisma.purchase.create({
         data: {
-          reference: ref,
-          title: `Dossier ${ref} (${step})`,
+          reference: params.ref,
+          title: `Dossier ${params.ref}`,
           status: PurchaseStatus.PENDING_APPROVAL,
-          currentStep: step,
-          operationType: OperationType.OPERATION,
-          justification: `Test pour l'étape ${step}`,
+          currentStep: params.step,
+          operationType:
+            params.amount > 5000000
+              ? OperationType.PROGRAMME
+              : OperationType.OPERATION,
+          justification: `Test de validation pour ${params.ref}`,
           creatorId: usersMap[ValidatorRole.DEMANDEUR],
           items: {
             create: [
               {
-                designation: 'Item Test',
+                designation: 'Matériel standard',
                 quantity: 1,
-                unitPrice: amount,
-                amount: amount,
+                unitPrice: params.amount,
+                amount: params.amount,
               },
             ],
           },
           validationWorkflows: {
             create: {
-              step: step,
+              step: params.step,
               validators: {
-                create: roles.map((role, index) => ({
+                create: params.roles.map((role, index) => ({
                   role,
                   order: index + 1,
                   email: `${role.toLowerCase()}@osdrm.mg`,
                   userId: usersMap[role],
-                  isValidated: false,
+                  // Si l'index est <= validatedUntilIndex, le validateur a déjà signé
+                  isValidated:
+                    params.validatedUntilIndex !== undefined &&
+                    index <= params.validatedUntilIndex,
                 })),
               },
             },
@@ -97,89 +101,88 @@ async function seedNotificationData() {
         },
       });
 
-      if (relanceEmail) {
-        // 1. Typer explicitement la variable pour accepter toutes les clés de l'enum
+      // Création de la notification de relance pour le validateur ACTUEL (le premier non validé)
+      if (params.relanceEmail) {
         let eventType: string = OSDRM_PROCESS_EVENT.DA_CREATED;
-
-        // 2. Assigner les bonnes valeurs selon le step
-        if (step === PurchaseStep.PV) {
+        if (params.step === PurchaseStep.PV)
           eventType = OSDRM_PROCESS_EVENT.PV_UPLOADED;
-        } else if (step === PurchaseStep.QR) {
+        if (params.step === PurchaseStep.QR)
           eventType = OSDRM_PROCESS_EVENT.QR_UPLOADED;
-        }
 
         await prisma.notification.create({
           data: {
             type: eventType,
             resourceId: purchase.id,
-            recipients: [relanceEmail],
+            recipients: [params.relanceEmail],
             status: NotificationStatus.SENT,
             hasReminder: true,
             reminderIntervalInDays: 1,
-            lastSentAt: dateIlYa48h,
-            expiredAt: dateExpirationLoin,
-            data: { reference: ref, step: step } as any,
+            lastSentAt: ilYa2Jours, // Prêt pour le Cron
+            expiredAt: dans1An,
+            data: { reference: params.ref, step: params.step } as any,
           },
         });
       }
       return purchase;
     };
 
-    // --- SCÉNARIOS ---
+    // --- SCÉNARIOS DE VALIDATION ---
 
-    // Étape DA : Relance pour le RFR
-    console.log('📑 Création étape DA (Relance RFR)...');
-    await createPurchaseFullCycle(
-      'DA-2026-001',
-      PurchaseStep.DA,
-      2500000,
-      [ValidatorRole.DEMANDEUR, ValidatorRole.OM, ValidatorRole.RFR],
-      'rfr@osdrm.mg',
-    );
-
-    // Étape PV : Relance pour le CFO
-    console.log('⚖️ Création étape PV (Relance CFO)...');
-    await createPurchaseFullCycle(
-      'PV-2026-005',
-      PurchaseStep.PV,
-      12000000,
-      [ValidatorRole.DEMANDEUR, ValidatorRole.CFO, ValidatorRole.CEO],
-      'cfo@osdrm.mg',
-    );
-
-    // Étape QR : Relance pour le Logistique (ou OM selon ton flux)
-    console.log('📦 Création étape QR (Relance OM)...');
-    await createPurchaseFullCycle(
-      'QR-2026-010',
-      PurchaseStep.QR,
-      500000,
-      [ValidatorRole.DEMANDEUR, ValidatorRole.OM],
-      'om@osdrm.mg',
-    );
-
-    // Étape PV : Nouveau dossier en attente (Sans relance immédiate)
-    console.log('🆕 Création PV en attente simple...');
-    const pvNew = await createPurchaseFullCycle(
-      'PV-2026-NEW',
-      PurchaseStep.PV,
-      3000000,
-      [ValidatorRole.DEMANDEUR, ValidatorRole.OM, ValidatorRole.RFR],
-    );
-    await prisma.notification.create({
-      data: {
-        type: OSDRM_PROCESS_EVENT.PV_UPLOADED,
-        resourceId: pvNew.id,
-        recipients: ['om@osdrm.mg'],
-        status: NotificationStatus.PENDING,
-        hasReminder: true,
-        reminderIntervalInDays: 1,
-        expiredAt: dateExpirationLoin,
-        data: { reference: 'PV-2026-NEW' } as any,
-      },
+    console.log("📑 Dossiers DA (Demande d'Achat)...");
+    // DA-001: Personne n'a validé. OM doit valider.
+    await createFolder({
+      ref: 'DA-001',
+      step: PurchaseStep.DA,
+      amount: 1000000,
+      roles: [ValidatorRole.OM, ValidatorRole.RFR],
+      relanceEmail: 'om@osdrm.mg',
     });
 
-    console.log('\n🚀 Seed enrichi terminé !');
-    console.log('Dossiers créés pour : DA (1), PV (2), QR (1)');
+    // DA-002: OM a déjà validé. C'est au tour du CFO.
+    await createFolder({
+      ref: 'DA-002',
+      step: PurchaseStep.DA,
+      amount: 7000000,
+      roles: [ValidatorRole.OM, ValidatorRole.CFO, ValidatorRole.CEO],
+      validatedUntilIndex: 0,
+      relanceEmail: 'cfo@osdrm.mg',
+    });
+
+    console.log('⚖️ Dossiers PV (Procès-Verbal)...');
+    // PV-001: En attente CFO.
+    await createFolder({
+      ref: 'PV-001',
+      step: PurchaseStep.PV,
+      amount: 12000000,
+      roles: [ValidatorRole.CFO, ValidatorRole.CEO],
+      relanceEmail: 'cfo@osdrm.mg',
+    });
+
+    // PV-002: CFO a validé. En attente CEO.
+    await createFolder({
+      ref: 'PV-002',
+      step: PurchaseStep.PV,
+      amount: 15000000,
+      roles: [ValidatorRole.CFO, ValidatorRole.CEO],
+      validatedUntilIndex: 0,
+      relanceEmail: 'ceo@osdrm.mg',
+    });
+
+    console.log('📦 Dossiers QR (Quittance)...');
+    // QR-001: En attente OM.
+    await createFolder({
+      ref: 'QR-001',
+      step: PurchaseStep.QR,
+      amount: 500000,
+      roles: [ValidatorRole.OM, ValidatorRole.RFR],
+      relanceEmail: 'om@osdrm.mg',
+    });
+
+    console.log('\n✅ Seed terminé !');
+    console.log('Utilise "password" pour tester les comptes suivants :');
+    console.log('- om@osdrm.mg (DA-001, QR-001)');
+    console.log('- cfo@osdrm.mg (DA-002, PV-001)');
+    console.log('- ceo@osdrm.mg (PV-002)');
   } catch (error) {
     console.error('❌ Erreur :', error);
   } finally {

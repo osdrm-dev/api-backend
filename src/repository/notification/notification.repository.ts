@@ -56,8 +56,10 @@ export class NotificationRepository {
     WHERE "status" = 'SENT'
     AND "hasReminder" = true
     AND "lastSentAt" IS NOT NULL
+    -- Filtre critique : On ne prend que ce qui n'est pas encore expiré
+    -- (Une fois validé, expiredAt <= now, donc la ligne sort du flux)
+    AND ("expiredAt" > ${now} OR "expiredAt" IS NULL)
     AND "lastSentAt" + (CAST(COALESCE("reminderIntervalInDays", ${interval}) AS INTEGER) * INTERVAL '1 day') <= ${now}
-    AND "expiredAt" > ${now}
   `;
   }
 }
