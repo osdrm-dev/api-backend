@@ -18,6 +18,10 @@ import { PurchaseValidationModule } from './purchaseValidation/purchase.module';
 import { PurchaseModule } from './purchase/purchase.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { FileStorageModule } from 'src/storage/file.module';
+import { SupplierModule } from './supplier/supplier.module';
+import { ScheduleModule } from '@nestjs/schedule';
+import { NotificationModule } from './notification/notification.module';
+import { MailerModule } from '@nestjs-modules/mailer';
 
 @Module({
   imports: [
@@ -30,6 +34,17 @@ import { FileStorageModule } from 'src/storage/file.module';
         '.env.prod',
       ],
     }),
+    MailerModule.forRoot({
+      transport: {
+        host: process.env.MAIL_HOST || 'localhost',
+        port: Number(process.env.MAIL_PORT) || 1025,
+        ignoreTLS: process.env.NODE_ENV !== 'production',
+        secure: process.env.NODE_ENV === 'production',
+      },
+      defaults: {
+        from: '"No Reply" <noreply@osdrm.mg>',
+      },
+    }),
     WinstonModule.forRoot(winstonConfig),
     PrismaModule,
     LoggerModule,
@@ -38,7 +53,10 @@ import { FileStorageModule } from 'src/storage/file.module';
     PurchaseValidationModule,
     PurchaseModule,
     StatisticsModule,
+    SupplierModule,
+    NotificationModule,
     FileStorageModule,
+    ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
   providers: [

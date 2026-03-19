@@ -1,4 +1,4 @@
-import 'dotenv/config'; // ← Très important : charge les .env
+import 'dotenv/config';
 
 import {
   Role,
@@ -7,726 +7,419 @@ import {
   PurchaseStep,
   AttachmentType,
   ValidatorRole,
+  PVStatus,
+  DerogationStatus,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
-
 import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const connectionString = process.env.DATABASE_URL;
-
 if (!connectionString) {
   throw new Error(
-    "DATABASE_URL_DEV (ou DATABASE_URL_PROD) est manquant dans les variables d'environnement",
+    "DATABASE_URL est manquant dans les variables d'environnement",
   );
 }
 
 const pool = new Pool({ connectionString });
 const adapter = new PrismaPg(pool, { schema: 'public' });
-
 const prisma = new PrismaClient({ adapter });
 
+function loadJson<T>(filename: string): T {
+  return JSON.parse(
+    fs.readFileSync(path.join(__dirname, 'data', filename), 'utf-8'),
+  );
+}
+
+function daApprovedValidators(
+  users: {
+    demandeur: { id: number; name: string; email: string };
+    om?: { id: number; name: string; email: string };
+    dp?: { id: number; name: string; email: string };
+    cfo: { id: number; name: string; email: string };
+    ceo: { id: number; name: string; email: string };
+  },
+  baseDate: Date,
+) {
+  const validators: any[] = [];
+  let order = 0;
+  const d = (offsetDays: number) =>
+    new Date(baseDate.getTime() + offsetDays * 86400000);
+
+  validators.push({
+    role: ValidatorRole.DEMANDEUR,
+    order: order++,
+    userId: users.demandeur.id,
+    name: users.demandeur.name,
+    email: users.demandeur.email,
+    isValidated: true,
+    validatedAt: d(0),
+    decision: 'APPROVED',
+    comment: 'Publication de la demande',
+  });
+  if (users.om)
+    validators.push({
+      role: ValidatorRole.OM,
+      order: order++,
+      userId: users.om.id,
+      name: users.om.name,
+      email: users.om.email,
+      isValidated: true,
+      validatedAt: d(1),
+      decision: 'APPROVED',
+      comment: 'Valide OM',
+    });
+  if (users.dp)
+    validators.push({
+      role: ValidatorRole.DP,
+      order: order++,
+      userId: users.dp.id,
+      name: users.dp.name,
+      email: users.dp.email,
+      isValidated: true,
+      validatedAt: d(2),
+      decision: 'APPROVED',
+      comment: 'Alignement programme OK',
+    });
+  validators.push({
+    role: ValidatorRole.CFO,
+    order: order++,
+    userId: users.cfo.id,
+    name: users.cfo.name,
+    email: users.cfo.email,
+    isValidated: true,
+    validatedAt: d(3),
+    decision: 'APPROVED',
+    comment: 'Budget disponible et valide',
+  });
+  validators.push({
+    role: ValidatorRole.CEO,
+    order: order++,
+    userId: users.ceo.id,
+    name: users.ceo.name,
+    email: users.ceo.email,
+    isValidated: true,
+    validatedAt: d(4),
+    decision: 'APPROVED',
+    comment: 'Approbation finale',
+  });
+  return validators;
+}
+
+async function cleanup() {
+  await prisma.auditLog.deleteMany();
+  await prisma.pVSupplierItem.deleteMany();
+  await prisma.pVSupplier.deleteMany();
+  await prisma.pV.deleteMany();
+  await prisma.validator.deleteMany();
+  await prisma.validationWorkflow.deleteMany();
+  await prisma.derogation.deleteMany();
+  await prisma.attachment.deleteMany();
+  await prisma.purchaseItem.deleteMany();
+  await prisma.purchase.deleteMany();
+  await prisma.supplier.deleteMany();
+  await prisma.refreshToken.deleteMany();
+  await prisma.file.deleteMany();
+  await prisma.user.deleteMany();
+}
+
 async function main() {
-  console.log(' Starting database seeding...');
+  await cleanup();
 
-  // ==================== USERS ====================
-  console.log(' Creating users...');
+  const pwd = await bcrypt.hash('Password123!', 10);
 
-  const hashedPassword = await bcrypt.hash('Password123!', 10);
+  const { users: usersData, suppliers: suppliersData } = loadJson<any>(
+    'users-suppliers.json',
+  );
 
-  const admin = await prisma.user.create({
-    data: {
-      email: 'admin@osdrm.mg',
-      password: hashedPassword,
-      name: 'Admin Principal',
-      fonction: 'Administrateur Système',
-      role: Role.ADMIN,
-      isActive: true,
-    },
-  });
-
-  const ceo = await prisma.user.create({
-    data: {
-      email: 'ceo@osdrm.mg',
-      password: hashedPassword,
-      name: 'Jean Rakoto',
-      fonction: 'Directeur Général',
-      role: Role.CEO,
-      isActive: true,
-    },
-  });
-
-  const cfo = await prisma.user.create({
-    data: {
-      email: 'cfo@osdrm.mg',
-      password: hashedPassword,
-      name: 'Marie Rasoa',
-      fonction: 'Directeur Financier',
-      role: Role.CFO,
-      isActive: true,
-    },
-  });
-
-  const dp = await prisma.user.create({
-    data: {
-      email: 'dp@osdrm.mg',
-      password: hashedPassword,
-      name: 'Paul Ravelo',
-      fonction: 'Directeur de Programme',
-      role: Role.DP,
-      isActive: true,
-    },
-  });
-
-  const om = await prisma.user.create({
-    data: {
-      email: 'om@osdrm.mg',
-      password: hashedPassword,
-      name: 'Sophie Rabe',
-      fonction: 'Operations Manager',
-      role: Role.OM,
-      isActive: true,
-    },
-  });
-
-  const demandeur1 = await prisma.user.create({
-    data: {
-      email: 'demandeur1@osdrm.mg',
-      password: hashedPassword,
-      name: 'Pierre Andry',
-      fonction: 'Chef de Projet',
-      role: Role.DEMANDEUR,
-      isActive: true,
-    },
-  });
-
-  const demandeur2 = await prisma.user.create({
-    data: {
-      email: 'demandeur2@osdrm.mg',
-      password: hashedPassword,
-      name: 'Julie Fara',
-      fonction: 'Responsable Logistique',
-      role: Role.DEMANDEUR,
-      isActive: true,
-    },
-  });
-
-  const acheteur = await prisma.user.create({
-    data: {
-      email: 'acheteur@osdrm.mg',
-      password: hashedPassword,
-      name: 'Marc Rivo',
-      fonction: 'Acheteur',
-      role: Role.ACHETEUR,
-      isActive: true,
-    },
-  });
-
-  console.log(' Created 8 users');
-
-  // ==================== PURCHASES ====================
-  console.log(' Creating purchases...');
-
-  const purchase1 = await prisma.purchase.create({
-    data: {
-      reference: 'DA-2026-001',
-      year: 2026,
-      site: 'Antananarivo',
-      sequentialNumber: '001',
-      project: 'PROJET HEALTH',
-      region: 'Analamanga',
-      projectCode: 'PRJ-2026-001',
-      grantCode: 'GNT-2026-H01',
-      activityCode: 'ACT-001',
-      costCenter: 'CC-HEALTH-001',
-      title: 'Fournitures médicales urgentes',
-      description: 'Achat de matériel médical pour le centre de santé de base',
-      marketType: 'Consultation',
-      operationType: OperationType.PROGRAMME,
-      requestedDeliveryDate: new Date('2026-03-15'),
-      priority: 'HAUTE',
-      justification: 'Besoin urgent pour la campagne de vaccination',
-      deliveryAddress: 'Centre de Santé de Base, Antananarivo',
-      status: PurchaseStatus.PUBLISHED,
-      currentStep: PurchaseStep.DA,
-      creatorId: demandeur1.id,
-      items: {
-        create: [
-          {
-            designation: 'Seringues jetables 5ml',
-            quantity: 1000,
-            unitPrice: 500,
-            amount: 500000,
-            unit: 'pièce',
-            specifications: 'Conformes aux normes ISO',
-          },
-          {
-            designation: 'Gants médicaux taille M',
-            quantity: 500,
-            unitPrice: 1000,
-            amount: 500000,
-            unit: 'boîte',
-            specifications: 'Boîtes de 100 pièces, latex',
-          },
-          {
-            designation: 'Masques chirurgicaux',
-            quantity: 2000,
-            unitPrice: 300,
-            amount: 600000,
-            unit: 'pièce',
-            specifications: 'Type IIR, 3 plis',
-          },
-        ],
+  const userMap: Record<string, any> = {};
+  for (const u of usersData) {
+    const created = await prisma.user.create({
+      data: {
+        email: u.email,
+        password: pwd,
+        name: u.name,
+        fonction: u.fonction,
+        role: u.role as Role,
       },
-    },
-  });
+    });
+    userMap[u.key] = created;
+  }
 
-  const purchase2 = await prisma.purchase.create({
-    data: {
-      reference: 'DA-2026-002',
-      year: 2026,
-      site: 'Toamasina',
-      sequentialNumber: '002',
-      project: 'PROJET EDUCATION',
-      region: 'Atsinanana',
-      projectCode: 'PRJ-2026-002',
-      grantCode: 'GNT-2026-E01',
-      activityCode: 'ACT-002',
-      costCenter: 'CC-EDU-001',
-      title: 'Matériel informatique pour école',
-      description: 'Ordinateurs et équipements pour la salle informatique',
-      marketType: "Appel d'offres",
-      operationType: OperationType.OPERATION,
-      requestedDeliveryDate: new Date('2026-04-01'),
-      priority: 'MOYENNE',
-      justification: "Modernisation de l'infrastructure informatique",
-      deliveryAddress: 'EPP Toamasina Centre',
-      status: PurchaseStatus.PUBLISHED,
-      currentStep: PurchaseStep.QR,
-      creatorId: demandeur2.id,
-      items: {
-        create: [
-          {
-            designation: 'Ordinateur portable Dell',
-            quantity: 20,
-            unitPrice: 2000000,
-            amount: 40000000,
-            unit: 'unité',
-            specifications: 'RAM 8GB, SSD 256GB, écran 15.6"',
-          },
-          {
-            designation: 'Projecteur multimédia',
-            quantity: 2,
-            unitPrice: 2500000,
-            amount: 5000000,
-            unit: 'unité',
-            specifications: 'Full HD, 3000 lumens',
-          },
-        ],
+  const supplierMap: Record<string, any> = {};
+  for (const s of suppliersData) {
+    const created = await prisma.supplier.create({
+      data: {
+        name: s.name,
+        status: s.status,
+        nif: s.nif,
+        stat: s.stat,
+        rcs: s.rcs,
+        region: s.region,
+        address: s.address,
+        phone: s.phone,
+        email: s.email,
+        label: s.label,
       },
-    },
-  });
+    });
+    supplierMap[s.key] = created;
+  }
 
-  const purchase3 = await prisma.purchase.create({
-    data: {
-      reference: 'DA-2026-003',
-      year: 2026,
-      site: 'Fianarantsoa',
-      sequentialNumber: '003',
-      project: 'PROJET AGRICULTURE',
-      region: 'Haute Matsiatra',
-      projectCode: 'PRJ-2026-003',
-      grantCode: 'GNT-2026-A01',
-      activityCode: 'ACT-003',
-      costCenter: 'CC-AGRI-001',
-      title: 'Équipements agricoles pour coopérative',
-      description: 'Matériel pour améliorer la productivité agricole',
-      marketType: 'Gré à gré',
-      operationType: OperationType.PROGRAMME,
-      requestedDeliveryDate: new Date('2026-03-20'),
-      priority: 'HAUTE',
-      justification: 'Saison de plantation imminente',
-      deliveryAddress: 'Coopérative FANOME, Fianarantsoa',
-      status: PurchaseStatus.DRAFT,
-      currentStep: PurchaseStep.DA,
-      creatorId: demandeur1.id,
-      items: {
-        create: [
-          {
-            designation: 'Motoculteur',
-            quantity: 3,
-            unitPrice: 5000000,
-            amount: 15000000,
-            unit: 'unité',
-            specifications: 'Diesel, 8CV',
-          },
-          {
-            designation: 'Semences de riz amélioré',
-            quantity: 500,
-            unitPrice: 10000,
-            amount: 5000000,
-            unit: 'kg',
-            specifications: 'Variété résistante à la sécheresse',
-          },
-          {
-            designation: 'Engrais NPK',
-            quantity: 1000,
-            unitPrice: 5000,
-            amount: 5000000,
-            unit: 'kg',
-            specifications: 'NPK 15-15-15',
-          },
-        ],
+  const purchasesData = loadJson<any[]>('purchases.json');
+  const purchaseMap: Record<string, any> = {};
+
+  for (const pd of purchasesData) {
+    const purchase = await prisma.purchase.create({
+      data: {
+        reference: pd.reference,
+        year: pd.year,
+        site: pd.site,
+        sequentialNumber: pd.sequentialNumber,
+        project: pd.project,
+        region: pd.region,
+        projectCode: pd.projectCode,
+        grantCode: pd.grantCode,
+        activityCode: pd.activityCode,
+        costCenter: pd.costCenter,
+        title: pd.title,
+        description: pd.description,
+        marketType: pd.marketType,
+        operationType: pd.operationType as OperationType,
+        requestedDeliveryDate: new Date(pd.requestedDeliveryDate),
+        priority: pd.priority,
+        justification: pd.justification,
+        deliveryAddress: pd.deliveryAddress,
+        status: pd.status as PurchaseStatus,
+        currentStep: pd.currentStep as PurchaseStep,
+        ...(pd.observations && { observations: pd.observations }),
+        ...(pd.closedAt && { closedAt: new Date(pd.closedAt) }),
+        ...(pd.validatedAt && { validatedAt: new Date(pd.validatedAt) }),
+        ...(pd.receivedAt && { receivedAt: new Date(pd.receivedAt) }),
+        creatorId: userMap[pd.creatorKey].id,
+        items: {
+          create: pd.items.map((item: any) => ({
+            designation: item.designation,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            amount: item.amount,
+            ...(item.unit && { unit: item.unit }),
+            ...(item.specifications && { specifications: item.specifications }),
+          })),
+        },
       },
-    },
-  });
+    });
+    purchaseMap[pd.reference] = purchase;
 
-  // ==================== TEST WORKFLOWS - Pour tester chaque rôle ====================
-  // Achat 4: DEMANDEUR validé → tester OM
-  const purchase4 = await prisma.purchase.create({
-    data: {
-      reference: 'DA-2026-004',
-      year: 2026,
-      site: 'Antsirabe',
-      sequentialNumber: '004',
-      project: 'PROJET TEST - WORKFLOW OM',
-      region: 'Vakinankaratra',
-      projectCode: 'PRJ-2026-004',
-      grantCode: 'GNT-2026-T01',
-      activityCode: 'ACT-004',
-      costCenter: 'CC-TEST-001',
-      title: 'Achat test - Validation demandeur OK',
-      description: 'Achat déjà validé par demandeur pour tester validation OM',
-      marketType: 'Consultation',
-      operationType: OperationType.PROGRAMME,
-      requestedDeliveryDate: new Date('2026-03-30'),
-      priority: 'HAUTE',
-      justification: 'Test workflow - OM en attente',
-      deliveryAddress: 'Antsirabe Centre',
-      status: PurchaseStatus.PUBLISHED,
-      currentStep: PurchaseStep.DA,
-      creatorId: demandeur1.id,
-      items: {
-        create: [
-          {
-            designation: 'Article test 1',
-            quantity: 100,
-            unitPrice: 50000,
-            amount: 5000000,
-            unit: 'unité',
+    if (pd.daWorkflow) {
+      await prisma.validationWorkflow.create({
+        data: {
+          purchaseId: purchase.id,
+          step: PurchaseStep.DA,
+          currentStep: pd.daWorkflow.currentStep,
+          isComplete: pd.daWorkflow.isComplete,
+          validators: {
+            create: pd.daWorkflow.validators.map((v: any) => ({
+              role: v.role as ValidatorRole,
+              order: v.order,
+              userId: userMap[v.userKey].id,
+              name: userMap[v.userKey].name,
+              email: userMap[v.userKey].email,
+              isValidated: v.isValidated,
+              ...(v.validatedAt && { validatedAt: new Date(v.validatedAt) }),
+              ...(v.decision && { decision: v.decision }),
+              ...(v.comment && { comment: v.comment }),
+            })),
           },
-        ],
-      },
-    },
-  });
+        },
+      });
+    }
 
-  // Achat 5: DEMANDEUR + OM validés → tester DP
-  const purchase5 = await prisma.purchase.create({
-    data: {
-      reference: 'DA-2026-005',
-      year: 2026,
-      site: 'Mahajanga',
-      sequentialNumber: '005',
-      project: 'PROJET TEST - WORKFLOW DP',
-      region: 'Boeny',
-      projectCode: 'PRJ-2026-005',
-      grantCode: 'GNT-2026-T02',
-      activityCode: 'ACT-005',
-      costCenter: 'CC-TEST-002',
-      title: 'Achat test - Validation demandeur + OM OK',
-      description: 'Achat validé par demandeur et OM pour tester validation DP',
-      marketType: "Appel d'offres",
-      operationType: OperationType.OPERATION,
-      requestedDeliveryDate: new Date('2026-04-10'),
-      priority: 'MOYENNE',
-      justification: 'Test workflow - DP en attente',
-      deliveryAddress: 'Mahajanga Port',
-      status: PurchaseStatus.PUBLISHED,
-      currentStep: PurchaseStep.DA,
-      creatorId: demandeur2.id,
-      items: {
-        create: [
-          {
-            designation: 'Article test 2',
-            quantity: 200,
-            unitPrice: 75000,
-            amount: 15000000,
-            unit: 'unité',
+    if (!pd.daWorkflow && pd.daWorkflowApproved) {
+      const a = pd.daWorkflowApproved;
+      await prisma.validationWorkflow.create({
+        data: {
+          purchaseId: purchase.id,
+          step: PurchaseStep.DA,
+          currentStep: 4,
+          isComplete: true,
+          validators: {
+            create: daApprovedValidators(
+              {
+                demandeur: userMap[a.demandeurKey],
+                ...(a.omKey && { om: userMap[a.omKey] }),
+                ...(a.dpKey && { dp: userMap[a.dpKey] }),
+                cfo: userMap[a.cfoKey],
+                ceo: userMap[a.ceoKey],
+              },
+              new Date(a.baseDate),
+            ),
           },
-        ],
-      },
-    },
-  });
+        },
+      });
+    }
 
-  // Achat 6: DEMANDEUR + OM + DP validés → tester CFO
-  const purchase6 = await prisma.purchase.create({
-    data: {
-      reference: 'DA-2026-006',
-      year: 2026,
-      site: 'Antalaha',
-      sequentialNumber: '006',
-      project: 'PROJET TEST - WORKFLOW CFO',
-      region: 'Sambava',
-      projectCode: 'PRJ-2026-006',
-      grantCode: 'GNT-2026-T03',
-      activityCode: 'ACT-006',
-      costCenter: 'CC-TEST-003',
-      title: 'Achat test - Validation demandeur + OM + DP OK',
-      description:
-        'Achat validé par demandeur, OM et DP pour tester validation CFO',
-      marketType: 'Gré à gré',
-      operationType: OperationType.PROGRAMME,
-      requestedDeliveryDate: new Date('2026-04-20'),
-      priority: 'HAUTE',
-      justification: 'Test workflow - CFO en attente',
-      deliveryAddress: 'Antalaha NORD',
-      status: PurchaseStatus.PUBLISHED,
-      currentStep: PurchaseStep.DA,
-      creatorId: demandeur1.id,
-      items: {
-        create: [
-          {
-            designation: 'Article test 3',
-            quantity: 300,
-            unitPrice: 60000,
-            amount: 18000000,
-            unit: 'unité',
+    if (pd.qrWorkflow) {
+      await prisma.validationWorkflow.create({
+        data: {
+          purchaseId: purchase.id,
+          step: PurchaseStep.QR,
+          currentStep: pd.qrWorkflow.currentStep,
+          isComplete: pd.qrWorkflow.isComplete,
+          validators: {
+            create: pd.qrWorkflow.validators.map((v: any) => ({
+              role: v.role as ValidatorRole,
+              order: v.order,
+              userId: userMap[v.userKey].id,
+              name: userMap[v.userKey].name,
+              email: userMap[v.userKey].email,
+              isValidated: v.isValidated,
+              ...(v.validatedAt && { validatedAt: new Date(v.validatedAt) }),
+              ...(v.decision && { decision: v.decision }),
+              ...(v.comment && { comment: v.comment }),
+            })),
           },
-        ],
-      },
-    },
-  });
+        },
+      });
+    }
 
-  console.log(` Created 6 purchases total (3 standards + 3 tests de workflow)`);
+    if (!pd.qrWorkflow && pd.qrWorkflowApproved) {
+      await prisma.validationWorkflow.create({
+        data: {
+          purchaseId: purchase.id,
+          step: PurchaseStep.QR,
+          currentStep: 2,
+          isComplete: true,
+          validators: {
+            create: [
+              {
+                role: ValidatorRole.DEMANDEUR,
+                order: 0,
+                userId: userMap['acheteur'].id,
+                name: userMap['acheteur'].name,
+                email: userMap['acheteur'].email,
+                isValidated: true,
+                validatedAt: new Date(),
+                decision: 'APPROVED',
+                comment: '3 devis conformes uploades',
+              },
+              {
+                role: ValidatorRole.CFO,
+                order: 1,
+                userId: userMap['cfo'].id,
+                name: userMap['cfo'].name,
+                email: userMap['cfo'].email,
+                isValidated: true,
+                validatedAt: new Date(),
+                decision: 'APPROVED',
+                comment: 'Validation QR accordee',
+              },
+            ],
+          },
+        },
+      });
+    }
 
-  // ==================== WORKFLOW + ATTACHMENTS + AUDIT LOGS ====================
-  console.log(' Creating validation workflows...');
+    if (pd.attachments?.length) {
+      await prisma.attachment.createMany({
+        data: pd.attachments.map((a: any) => ({
+          purchaseId: purchase.id,
+          type: a.type as AttachmentType,
+          fileName: a.fileName,
+          fileUrl: a.fileUrl,
+          fileSize: a.fileSize,
+          mimeType: 'application/pdf',
+          uploadedBy: userMap[a.uploadedByKey].name,
+          ...(a.description && { description: a.description }),
+          ...(a.receivedAt && { receivedAt: new Date(a.receivedAt) }),
+        })),
+      });
+    }
 
-  // Workflow pour purchase2: DA validé complètement → passage à QR
-  await prisma.validationWorkflow.create({
-    data: {
-      purchaseId: purchase2.id,
-      step: PurchaseStep.DA,
-      currentStep: 4,
-      isComplete: true,
-      validators: {
-        create: [
-          {
-            role: ValidatorRole.DEMANDEUR,
-            order: 0,
-            userId: demandeur2.id,
-            name: demandeur2.name,
-            email: demandeur2.email,
-            isValidated: true,
-            validatedAt: new Date('2026-02-05'),
-            decision: 'VALIDATED',
-            comment: 'Auto-validé lors de la publication',
-          },
-          {
-            role: ValidatorRole.OM,
-            order: 1,
-            userId: om.id,
-            name: om.name,
-            email: om.email,
-            isValidated: true,
-            validatedAt: new Date('2026-02-06'),
-            decision: 'VALIDATED',
-            comment: 'Budget disponible, validation accordée',
-          },
-          {
-            role: ValidatorRole.CFO,
-            order: 2,
-            userId: cfo.id,
-            name: cfo.name,
-            email: cfo.email,
-            isValidated: true,
-            validatedAt: new Date('2026-02-07'),
-            decision: 'VALIDATED',
-            comment: 'Validation financière OK',
-          },
-          {
-            role: ValidatorRole.CEO,
-            order: 3,
-            userId: ceo.id,
-            name: ceo.name,
-            email: ceo.email,
-            isValidated: true,
-            validatedAt: new Date('2026-02-08'),
-            decision: 'VALIDATED',
-            comment: 'Validation finale accordée',
-          },
-        ],
-      },
-    },
-  });
+    if (pd.derogation) {
+      await prisma.derogation.create({
+        data: {
+          purchaseId: purchase.id,
+          reason: pd.derogation.reason,
+          justification: pd.derogation.justification,
+          status: pd.derogation.status as DerogationStatus,
+        },
+      });
+    }
 
-  // Workflow pour purchase4: DEMANDEUR validé → DP en attente (PROGRAMME 12M: pas d'OM)
-  await prisma.validationWorkflow.create({
-    data: {
-      purchaseId: purchase4.id,
-      step: PurchaseStep.DA,
-      currentStep: 1,
-      isComplete: false,
-      validators: {
-        create: [
-          {
-            role: ValidatorRole.DEMANDEUR,
-            order: 1,
-            userId: demandeur1.id,
-            name: demandeur1.name,
-            email: demandeur1.email,
-            isValidated: true,
-            validatedAt: new Date('2026-02-07'),
-            decision: 'APPROVED',
-            comment: 'Fourniture conforme aux spécifications',
+    if (pd.pv) {
+      const pv = pd.pv;
+      await prisma.pV.create({
+        data: {
+          purchaseId: purchase.id,
+          evaluateur: userMap[pv.evaluateurKey].name,
+          dateEvaluation: new Date(pv.dateEvaluation),
+          natureObjet: pv.natureObjet,
+          decisionFinale: pv.decisionFinale,
+          status: pv.status as PVStatus,
+          suppliers: {
+            create: pv.suppliers.map((s: any) => ({
+              ...(s.supplierKey && {
+                supplierId: supplierMap[s.supplierKey].id,
+              }),
+              ...(s.name && { name: s.name }),
+              ...(!s.name &&
+                s.supplierKey && { name: supplierMap[s.supplierKey].name }),
+              order: s.order,
+              rang: s.rang,
+              reponseDansDelai: s.reponseDansDelai,
+              annexe1: s.annexe1,
+              devisSpecifications: s.devisSpecifications,
+              regulariteFiscale: s.regulariteFiscale,
+              copiecin: s.copiecin,
+              conformiteSpecs: s.conformiteSpecs,
+              distanceBureaux: s.distanceBureaux,
+              delaiLivraison: s.delaiLivraison,
+              sav: s.sav,
+              disponibiliteArticles: s.disponibiliteArticles,
+              qualiteArticles: s.qualiteArticles,
+              experienceAnterieure: s.experienceAnterieure,
+              producteurOuSousTraitant: s.producteurOuSousTraitant,
+              echantillonBat: s.echantillonBat,
+              validiteOffre: s.validiteOffre,
+              modePaiement: s.modePaiement,
+              delaiPaiement: s.delaiPaiement,
+              offreFinanciere: s.offreFinanciere,
+              items: {
+                create: s.items.map((i: any) => ({
+                  designation: i.designation,
+                  quantity: i.quantity,
+                  unitPrice: i.unitPrice,
+                  amount: i.amount,
+                  disponibilite: i.disponibilite,
+                })),
+              },
+            })),
           },
-          {
-            role: ValidatorRole.DP,
-            order: 2,
-            userId: dp.id,
-            name: dp.name,
-            email: dp.email,
-            isValidated: false,
-            decision: 'PENDING',
-          },
-          {
-            role: ValidatorRole.CFO,
-            order: 3,
-            userId: cfo.id,
-            name: cfo.name,
-            email: cfo.email,
-            isValidated: false,
-          },
-          {
-            role: ValidatorRole.CEO,
-            order: 4,
-            userId: ceo.id,
-            name: ceo.name,
-            email: ceo.email,
-            isValidated: false,
-          },
-        ],
-      },
-    },
-  });
+        },
+      });
+    }
+  }
 
-  // Workflow pour purchase5: DEMANDEUR validé → OM en attente (OPERATION 18M: pas de DP)
-  await prisma.validationWorkflow.create({
-    data: {
-      purchaseId: purchase5.id,
-      step: PurchaseStep.DA,
-      currentStep: 1,
-      isComplete: false,
-      validators: {
-        create: [
-          {
-            role: ValidatorRole.DEMANDEUR,
-            order: 1,
-            userId: demandeur2.id,
-            name: demandeur2.name,
-            email: demandeur2.email,
-            isValidated: true,
-            validatedAt: new Date('2026-02-07'),
-            decision: 'APPROVED',
-            comment: 'Demande validée',
-          },
-          {
-            role: ValidatorRole.OM,
-            order: 2,
-            userId: om.id,
-            name: om.name,
-            email: om.email,
-            isValidated: false,
-            decision: 'PENDING',
-          },
-          {
-            role: ValidatorRole.CFO,
-            order: 3,
-            userId: cfo.id,
-            name: cfo.name,
-            email: cfo.email,
-            isValidated: false,
-          },
-          {
-            role: ValidatorRole.CEO,
-            order: 4,
-            userId: ceo.id,
-            name: ceo.name,
-            email: ceo.email,
-            isValidated: false,
-          },
-        ],
-      },
-    },
-  });
-
-  // Workflow pour purchase6: DEMANDEUR + DP validés → CFO en attente (PROGRAMME 22M: pas d'OM)
-  await prisma.validationWorkflow.create({
-    data: {
-      purchaseId: purchase6.id,
-      step: PurchaseStep.DA,
-      currentStep: 2,
-      isComplete: false,
-      validators: {
-        create: [
-          {
-            role: ValidatorRole.DEMANDEUR,
-            order: 1,
-            userId: demandeur1.id,
-            name: demandeur1.name,
-            email: demandeur1.email,
-            isValidated: true,
-            validatedAt: new Date('2026-02-07'),
-            decision: 'APPROVED',
-            comment: 'Demande initiale validée',
-          },
-          {
-            role: ValidatorRole.DP,
-            order: 2,
-            userId: dp.id,
-            name: dp.name,
-            email: dp.email,
-            isValidated: true,
-            validatedAt: new Date('2026-02-08'),
-            decision: 'APPROVED',
-            comment: 'Alignement avec les priorités du programme vérifié',
-          },
-          {
-            role: ValidatorRole.CFO,
-            order: 3,
-            userId: cfo.id,
-            name: cfo.name,
-            email: cfo.email,
-            isValidated: false,
-            decision: 'PENDING',
-          },
-          {
-            role: ValidatorRole.CEO,
-            order: 4,
-            userId: ceo.id,
-            name: ceo.name,
-            email: ceo.email,
-            isValidated: false,
-          },
-        ],
-      },
-    },
-  });
-
-  console.log(' Creating attachments...');
-  await prisma.attachment.createMany({
-    data: [
-      {
-        purchaseId: purchase1.id,
-        type: AttachmentType.QUOTE,
-        fileName: 'devis_materiel_medical.pdf',
-        fileUrl: 's3://osdrm-bucket/attachments/devis_medical_001.pdf',
-        fileSize: 250000,
-        mimeType: 'application/pdf',
-        description: 'Devis fournisseur pour matériel médical',
-        uploadedBy: demandeur1.email,
-        receivedAt: new Date('2026-02-03'),
-      },
-      {
-        purchaseId: purchase2.id,
-        type: AttachmentType.QUOTE,
-        fileName: 'devis_ordinateurs.pdf',
-        fileUrl: 's3://osdrm-bucket/attachments/devis_it_002.pdf',
-        fileSize: 180000,
-        mimeType: 'application/pdf',
-        description: 'Devis Dell pour équipements informatiques',
-        uploadedBy: demandeur2.email,
-        receivedAt: new Date('2026-02-04'),
-      },
-    ],
-  });
-
-  console.log(' Creating audit logs...');
+  const auditLogsData = loadJson<any[]>('audit-logs.json');
   await prisma.auditLog.createMany({
-    data: [
-      {
-        userId: demandeur1.id,
-        action: 'PURCHASE_CREATED',
-        resource: 'Purchase',
-        resourceId: purchase1.id,
-        details: {
-          reference: 'DA-2026-001',
-          title: 'Fournitures médicales urgentes',
-        },
-      },
-      {
-        userId: demandeur2.id,
-        action: 'PURCHASE_CREATED',
-        resource: 'Purchase',
-        resourceId: purchase2.id,
-        details: {
-          reference: 'DA-2026-002',
-          title: 'Matériel informatique pour école',
-        },
-      },
-      {
-        userId: demandeur2.id,
-        action: 'VALIDATION_SUBMITTED',
-        resource: 'Purchase',
-        resourceId: purchase2.id,
-        details: {
-          reference: 'DA-2026-002',
-          validator: demandeur2.name,
-          decision: 'APPROVED',
-        },
-      },
-      {
-        userId: om.id,
-        action: 'VALIDATION_SUBMITTED',
-        resource: 'Purchase',
-        resourceId: purchase2.id,
-        details: {
-          reference: 'DA-2026-002',
-          validator: om.name,
-          decision: 'APPROVED',
-        },
-      },
-    ],
+    data: auditLogsData.map((log) => ({
+      userId: userMap[log.userKey].id,
+      action: log.action,
+      resource: log.resource,
+      resourceId: purchaseMap[log.purchaseRef].id,
+      details: log.details,
+    })),
   });
 
-  // ==================== RÉSUMÉ FINAL ====================
-  console.log('\n════════════════════════════════════════════════════════');
-  console.log(' ✓ Seeding completed successfully!\n');
-  console.log(' 📊 DATA SUMMARY:');
-  console.log(`   • ${8} Users créés`);
-  console.log(`   • ${6} Purchases créés (3 standards + 3 workflows tests)`);
-  console.log(`   • ${4} Validation Workflows créés`);
-  console.log(`   • ${2} Attachments créés`);
-  console.log(`   • ${4} Audit Logs créés\n`);
-  console.log(' 🧪 TEST WORKFLOWS:');
-  console.log(
-    `   • purchase2 (DA-2026-002): DA validé complètement → QR (OPERATION 45M) - Prêt pour upload devis`,
-  );
-  console.log(
-    `   • purchase4 (DA-2026-004): DEMANDEUR validé → DP en attente (PROGRAMME 5M)`,
-  );
-  console.log(
-    `   • purchase5 (DA-2026-005): DEMANDEUR validé → OM en attente (OPERATION 15M)`,
-  );
-  console.log(
-    `   • purchase6 (DA-2026-006): DEMANDEUR + DP validés → CFO en attente (PROGRAMME 18M)\n`,
-  );
-  console.log(' 👤 USER CREDENTIALS (mot de passe pour tous: Password123!)');
-  console.log(`   • admin@osdrm.mg (ADMIN)`);
-  console.log(`   • ceo@osdrm.mg (CEO)`);
-  console.log(`   • cfo@osdrm.mg (CFO)`);
-  console.log(`   • dp@osdrm.mg (DP)`);
-  console.log(`   • om@osdrm.mg (OM)`);
-  console.log(`   • acheteur@osdrm.mg (ACHETEUR) ← Peut uploader les devis`);
-  console.log(`   • demandeur1@osdrm.mg (DEMANDEUR)`);
-  console.log(`   • demandeur2@osdrm.mg (DEMANDEUR)\n`);
-  console.log('════════════════════════════════════════════════════════\n');
+  console.log('Seeding termine: 8 users | 4 fournisseurs | 19 dossiers achat');
 }
 
 main()
   .catch((e) => {
-    console.error(' Error seeding database:', e);
+    console.error('Erreur seeding:', e);
     process.exit(1);
   })
   .finally(async () => {

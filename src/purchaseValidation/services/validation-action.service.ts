@@ -23,10 +23,6 @@ export interface ValidationResult {
   nextStatus: PurchaseStatus;
 }
 
-/**
- * Service pour gérer les actions de validation
- * Utilise les repositories pour l'accès aux données
- */
 @Injectable()
 export class ValidationActionService {
   constructor(
@@ -36,21 +32,18 @@ export class ValidationActionService {
     private workflowConfig: WorkflowConfigService,
   ) {}
 
-  /**
-   * Valide une demande (réutilisable pour toutes les étapes)
-   */
   async validate(context: ValidationContext): Promise<ValidationResult> {
     const { purchaseId, userId, userRole, comment } = context;
 
-    // Récupérer la demande
     const purchase = await this.getPurchaseWithWorkflow(purchaseId);
-
-    // Vérifications communes
     this.validatePurchaseState(purchase);
 
-    // Vérifier l'autorisation
     const { canValidate, validator } =
-      await this.workflowService.canUserValidate(purchaseId, userRole);
+      await this.workflowService.canUserValidate(
+        purchaseId,
+        userRole,
+        purchase.currentStep,
+      );
 
     if (!canValidate || !validator) {
       throw new ForbiddenException(
@@ -58,72 +51,62 @@ export class ValidationActionService {
       );
     }
 
-    // Mettre à jour le validateur
-    await this.workflowService.updateValidator({
-      validatorId: validator.id,
-      userId,
-      decision: 'VALIDATED',
-      comment,
-    });
-
-    // Avancer le workflow
     const currentWorkflow = purchase.validationWorkflows?.find(
       (w) => w.step === purchase.currentStep,
     );
 
     if (!currentWorkflow) {
       throw new BadRequestException(
-        `Cette demande n'a pas de workflow pour l'étape actuelle`,
+        `Cette demande n'a pas de workflow pour l'étape ${purchase.currentStep}`,
       );
     }
 
-    await this.workflowService.advanceWorkflow(currentWorkflow.id);
-
-    // Vérifier si le workflow est complet
-    const updatedWorkflow = await this.workflowService.getWorkflow(purchaseId);
-    const isComplete = this.workflowConfig.isWorkflowComplete(
-      updatedWorkflow.validators,
-    );
-
-    // Déterminer le nouveau statut
-    // VALIDATED uniquement si TOUS les steps sont complétés
-    const newStatus = isComplete
-      ? PurchaseStatus.PUBLISHED // Reste PUBLISHED, pas VALIDATED
-      : PurchaseStatus.PUBLISHED;
-
-    // Mettre à jour la demande
-    const updatedPurchase = await this.purchaseRepo.update({
-      where: { id: purchaseId },
-      data: {
-        status: newStatus,
-      },
-    });
-
-    // Audit log
-    await this.auditLogRepo.createValidationLog({
-      userId,
-      action: 'VALIDATE',
-      purchaseId,
-      details: {
+    const [,] = await Promise.all([
+      this.workflowService.updateValidator({
+        validatorId: validator.id,
+        userId,
         decision: 'VALIDATED',
         comment,
-        validatorRole: userRole,
-        previousStatus: purchase.status,
-        newStatus,
-        isComplete,
-      },
+      }),
+      this.workflowService.advanceWorkflow(currentWorkflow.id),
+    ]);
+    const updatedValidators = currentWorkflow.validators.map((v) =>
+      v.id === validator.id ? { ...v, isValidated: true } : v,
+    );
+    const isComplete =
+      this.workflowConfig.isWorkflowComplete(updatedValidators);
+
+    const newStatus = isComplete ? PurchaseStatus.PUBLISHED : purchase.status;
+
+    await this.purchaseRepo.update({
+      where: { id: purchaseId },
+      data: { status: newStatus },
     });
 
+    this.auditLogRepo
+      .createValidationLog({
+        userId,
+        action: 'VALIDATE',
+        purchaseId,
+        details: {
+          decision: 'VALIDATED',
+          comment,
+          validatorRole: userRole,
+          step: purchase.currentStep,
+          previousStatus: purchase.status,
+          newStatus,
+          isComplete,
+        },
+      })
+      .catch((err) => console.error('Audit log failed:', err));
+
     return {
-      purchase: updatedPurchase,
+      purchase: { id: purchaseId, status: newStatus },
       wasCompleted: isComplete,
       nextStatus: newStatus,
     };
   }
 
-  /**
-   * Rejette une demande (réutilisable pour toutes les étapes)
-   */
   async reject(context: ValidationContext & { reason: string }): Promise<any> {
     const { purchaseId, userId, userRole, reason } = context;
 
@@ -131,7 +114,11 @@ export class ValidationActionService {
     this.validatePurchaseState(purchase);
 
     const { canValidate, validator } =
-      await this.workflowService.canUserValidate(purchaseId, userRole);
+      await this.workflowService.canUserValidate(
+        purchaseId,
+        userRole,
+        purchase.currentStep,
+      );
 
     if (!canValidate || !validator) {
       throw new ForbiddenException(
@@ -163,6 +150,7 @@ export class ValidationActionService {
         decision: 'REJECTED',
         reason,
         validatorRole: userRole,
+        step: purchase.currentStep,
         previousStatus: purchase.status,
         newStatus: PurchaseStatus.REJECTED,
       },
@@ -171,9 +159,6 @@ export class ValidationActionService {
     return updatedPurchase;
   }
 
-  /**
-   * Demande des modifications (réutilisable pour toutes les étapes)
-   */
   async requestChanges(
     context: ValidationContext & { reason: string },
   ): Promise<any> {
@@ -183,7 +168,11 @@ export class ValidationActionService {
     this.validatePurchaseState(purchase);
 
     const { canValidate, validator } =
-      await this.workflowService.canUserValidate(purchaseId, userRole);
+      await this.workflowService.canUserValidate(
+        purchaseId,
+        userRole,
+        purchase.currentStep,
+      );
 
     if (!canValidate || !validator) {
       throw new ForbiddenException(
@@ -215,6 +204,7 @@ export class ValidationActionService {
         decision: 'CHANGE_REQUESTED',
         reason,
         validatorRole: userRole,
+        step: purchase.currentStep,
         previousStatus: purchase.status,
         newStatus: PurchaseStatus.CHANGE_REQUESTED,
       },
@@ -223,24 +213,16 @@ export class ValidationActionService {
     return updatedPurchase;
   }
 
-  /**
-   * Récupère une demande avec son workflow
-   */
   private async getPurchaseWithWorkflow(purchaseId: string) {
     const purchase = await this.purchaseRepo.findById(purchaseId);
-
     if (!purchase) {
       throw new NotFoundException(
         `Demande d'achat #${purchaseId} non trouvée.`,
       );
     }
-
     return purchase;
   }
 
-  /**
-   * Valide l'état de la demande
-   */
   private validatePurchaseState(purchase: any): void {
     const validStatuses = [
       PurchaseStatus.PUBLISHED,
@@ -254,13 +236,14 @@ export class ValidationActionService {
       );
     }
 
+    // Vérifier que le workflow de l'étape COURANTE existe
     const currentWorkflow = purchase.validationWorkflows?.find(
-      (w) => w.step === purchase.currentStep,
+      (w: any) => w.step === purchase.currentStep,
     );
 
     if (!currentWorkflow) {
       throw new BadRequestException(
-        `Cette demande n'a pas de workflow de validation pour l'étape actuelle`,
+        `Cette demande n'a pas de workflow de validation pour l'étape ${purchase.currentStep}`,
       );
     }
   }

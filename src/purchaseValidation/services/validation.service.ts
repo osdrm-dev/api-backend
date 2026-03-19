@@ -9,6 +9,9 @@ import { ValidationActionService } from './validation-action.service';
 import { AuthorizationService } from './authorization.service';
 import { PurchaseRepository } from 'src/repository/purchase/purchase.repository';
 import { ValidatorRepository } from 'src/repository/purchase';
+import { NotificationService } from 'src/notification/services/nofitication.service';
+import { PrismaService } from 'prisma/prisma.service';
+import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
 
 @Injectable()
 export class DAValidationService {
@@ -18,6 +21,8 @@ export class DAValidationService {
     private validatorRepo: ValidatorRepository,
     private queryService: PurchaseQueryService,
     private validationAction: ValidationActionService,
+    private prisma: PrismaService,
+    private notificationService: NotificationService,
   ) {}
 
   async getPendingDAForValidator(userId: number, filters: FilterPurchaseDto) {
@@ -58,73 +63,132 @@ export class DAValidationService {
     userId: number,
     validateDto: ValidatePurchaseDto,
   ) {
-    const { userRole } = await this.authService.getUserAndCheckAuthorization(
-      purchaseId,
-      userId,
-    );
+    // 1. Récupération des données et de l'email (imbriqué dans l'objet user)
+    const [auth, purchase] = await Promise.all([
+      this.authService.getUserAndCheckAuthorization(purchaseId, userId),
+      this.purchaseRepo.findById(purchaseId),
+    ]);
 
-    const purchase = await this.purchaseRepo.findById(purchaseId);
     if (!purchase) {
-      throw new NotFoundException(`Demande d'achat non trouvé.`);
+      throw new NotFoundException(`Demande d'achat non trouvée.`);
     }
 
+    const userEmail = auth.user.email;
     const currentStep = purchase.currentStep;
 
+    // 2. Exécution de la validation métier
     const result = await this.validationAction.validate({
       purchaseId,
       userId,
-      userRole,
+      userRole: auth.userRole,
       comment: validateDto.comment,
     });
 
-    if (result.wasCompleted) {
+    // --- LOGIQUE DE NOTIFICATION (CONSIGNES LEAD) ---
+
+    // A. Stopper immédiatement la relance pour celui qui vient de valider
+    await this.notificationService.stopActiveReminders(purchaseId, userEmail);
+
+    // B. Gérer la suite du flux (Validateur suivant ou Étape suivante)
+    if (!result.wasCompleted) {
+      // Le workflow de l'étape actuelle n'est pas fini (ex: il reste un autre validateur)
+      const nextValidator = await this.prisma.validator.findFirst({
+        where: {
+          workflow: { purchaseId, step: currentStep },
+          isValidated: false,
+        },
+        orderBy: { order: 'asc' },
+      });
+
+      if (nextValidator?.email) {
+        await this.notificationService.createNotification(
+          this.getEventByStep(currentStep),
+          [nextValidator.email],
+          purchaseId,
+          { reference: purchase.reference },
+          true, // Active les relances pour le suivant
+        );
+      }
+    } else {
+      // L'étape est complète, on passe à la suivante
       const nextStepMap = {
         [PurchaseStep.DA]: PurchaseStep.QR,
         [PurchaseStep.QR]: PurchaseStep.PV,
         [PurchaseStep.PV]: PurchaseStep.BC,
         [PurchaseStep.BC]: PurchaseStep.BR,
+        [PurchaseStep.INVOICE]: PurchaseStep.DAP,
+        [PurchaseStep.DAP]: PurchaseStep.PROOF_OF_PAYMENT,
+        [PurchaseStep.PROOF_OF_PAYMENT]: PurchaseStep.DONE,
       };
 
       const nextStep = nextStepMap[currentStep];
+
       if (nextStep) {
-        // déterminer le nouveau status selon l'étape suivante
         let newStatus: PurchaseStatus = PurchaseStatus.PUBLISHED;
-        if (nextStep === PurchaseStep.QR) {
-          // passer au statut AWAITING_DOCUMENTS quand on entre en étape QR
+
+        const stepsAwaitingDocs = [
+          PurchaseStep.QR,
+          PurchaseStep.BC,
+          PurchaseStep.BR,
+          PurchaseStep.INVOICE,
+          PurchaseStep.DAP,
+          PurchaseStep.PROOF_OF_PAYMENT,
+        ];
+
+        if (stepsAwaitingDocs.includes(nextStep as any)) {
           newStatus = PurchaseStatus.AWAITING_DOCUMENTS;
         }
 
+        // Mise à jour du dossier
         await this.purchaseRepo.update({
           where: { id: purchaseId },
-          data: {
-            currentStep: nextStep,
-            status: newStatus,
-          },
+          data: { currentStep: nextStep, status: newStatus },
         });
+
+        // Notifier le PREMIER validateur de la nouvelle étape (si elle nécessite une validation)
+        const firstNextStepValidator = await this.prisma.validator.findFirst({
+          where: {
+            workflow: { purchaseId, step: nextStep },
+            isValidated: false,
+          },
+          orderBy: { order: 'asc' },
+        });
+
+        if (firstNextStepValidator?.email) {
+          await this.notificationService.createNotification(
+            this.getEventByStep(nextStep),
+            [firstNextStepValidator.email],
+            purchaseId,
+            { reference: purchase.reference },
+            true,
+          );
+        }
       } else {
-        // Dernier step validé -> status VALIDATED
+        // Fin du processus global
         await this.purchaseRepo.update({
           where: { id: purchaseId },
-          data: {
-            status: PurchaseStatus.VALIDATED,
-            validatedAt: new Date(),
-          },
+          data: { status: PurchaseStatus.VALIDATED, validatedAt: new Date() },
         });
       }
     }
 
+    // 3. Messages de retour
     const stepMessages = {
-      [PurchaseStep.DA]: `DA validée avec succès, Passage à l'étape de QR.`,
-      [PurchaseStep.QR]: `QR validée avec succès, Passage à l'étape de PV.`,
-      [PurchaseStep.PV]: `PV validée avec succès, Passage à l'étape de BC.`,
-      [PurchaseStep.BC]: `BC validée avec succès, Passage à l'étape de BR.`,
+      [PurchaseStep.DA]: `DA validée avec succès, passage à l'étape de QR.`,
+      [PurchaseStep.QR]: `QR validée avec succès, passage à l'étape de PV.`,
+      [PurchaseStep.PV]: `PV validée avec succès, passage à l'étape de BC.`,
+      [PurchaseStep.BC]: `BC validée avec succès, passage à l'étape de BR.`,
+      [PurchaseStep.INVOICE]: `Facture validée avec succès, passage à l'étape de DAP.`,
+      [PurchaseStep.DAP]: `DAP validée avec succès, passage à l'étape de PREUVE DE PAIEMENT.`,
+      [PurchaseStep.PROOF_OF_PAYMENT]: `Preuve de paiement validée avec succès, processus terminé.`,
     };
 
     return {
-      ...result.purchase,
+      id: purchaseId,
+      status: result.nextStatus,
       message: result.wasCompleted
-        ? stepMessages[currentStep] || `Validation complète.`
-        : `Validation enregistrée. En attente des autres validateurs.`,
+        ? stepMessages[currentStep] || `Étape validée avec succès.`
+        : `Validation enregistrée. En attente du validateur suivant.`,
     };
   }
 
@@ -233,5 +297,26 @@ export class DAValidationService {
       changesRequested,
       total: validated + rejected + changesRequested,
     };
+  }
+
+  /**
+   * Mappe l'étape actuelle du processus d'achat vers l'événement de notification correspondant.
+   * Utilisé pour déterminer quel template de mail envoyer au validateur suivant.
+   */
+  private getEventByStep(step: PurchaseStep): string {
+    const mapping: Record<string, string> = {
+      [PurchaseStep.DA]: OSDRM_PROCESS_EVENT.DA_CREATED,
+      [PurchaseStep.QR]: OSDRM_PROCESS_EVENT.QR_UPLOADED,
+      [PurchaseStep.PV]: OSDRM_PROCESS_EVENT.PV_UPLOADED,
+      [PurchaseStep.BC]: OSDRM_PROCESS_EVENT.BC_UPLOADED,
+      [PurchaseStep.BR]: OSDRM_PROCESS_EVENT.BC_UPLOADED, // Réutilise le template BC ou un dédié si existant
+      [PurchaseStep.INVOICE]: OSDRM_PROCESS_EVENT.BC_UPLOADED,
+      [PurchaseStep.DAP]: OSDRM_PROCESS_EVENT.DPA_CREATED,
+      [PurchaseStep.PROOF_OF_PAYMENT]: OSDRM_PROCESS_EVENT.BC_UPLOADED,
+      [PurchaseStep.DONE]: OSDRM_PROCESS_EVENT.BC_UPLOADED,
+    };
+
+    // Retourne l'événement mappé ou DA_CREATED par défaut pour éviter les erreurs d'envoi
+    return mapping[step] || OSDRM_PROCESS_EVENT.DA_CREATED;
   }
 }

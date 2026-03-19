@@ -53,8 +53,11 @@ enum Role {
   CFO
   CEO
   DP
+  RFR
+  CPR
   ADMIN
   ACHETEUR
+  CFR
 }
 
 model User {
@@ -216,6 +219,7 @@ model Purchase {
   validationWorkflows   ValidationWorkflow[]
 
   updatedAt             DateTime            @updatedAt
+  pv                    PV?
 
   @@index([reference])
   @@index([status])
@@ -345,3 +349,154 @@ model Validator {
   @@map("validators")
 }
 
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  status      String
+  nif         String
+  stat        String
+  rcs         String
+  region      String
+  address     String
+  phone       String
+  email       String?
+  label       String?
+  pvSuppliers PVSupplier[]
+
+  active      Boolean  @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([status])
+  @@index([region])
+  @@map("suppliers")
+}
+
+
+enum PVStatus {
+  DRAFT
+  SUBMITTED
+  VALIDATED
+  REJECTED
+}
+
+model PV {
+  id              String    @id @default(cuid())
+  purchaseId      String    @unique
+
+  evaluateur      String?
+  dateEvaluation  DateTime?
+  natureObjet     String?
+  decisionFinale  String?   @db.Text
+  status          PVStatus  @default(DRAFT)
+
+  purchase        Purchase     @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  suppliers       PVSupplier[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([purchaseId])
+  @@map("pvs")
+}
+
+model PVSupplier {
+  id          String   @id @default(cuid())
+  pvId        String
+  supplierId  String?
+
+  order   Int
+  name    String?
+  rang    Int?
+
+  reponseDansDelai          String?
+  annexe1                   String?
+  devisSpecifications       String?
+  regulariteFiscale         String?
+  copiecin                  String?
+  conformiteSpecs           String?
+  distanceBureaux           String?
+  delaiLivraison            String?
+  sav                       String?
+  disponibiliteArticles     String?
+  qualiteArticles           String?
+  experienceAnterieure      String?
+  producteurOuSousTraitant  String?
+  echantillonBat            String?
+  validiteOffre             String?
+  modePaiement              String?
+  delaiPaiement             String?
+  offreFinanciere           Decimal? @db.Decimal(15, 2)
+
+  pv        PV        @relation(fields: [pvId], references: [id], onDelete: Cascade)
+  supplier  Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull) // ← ajout
+  items     PVSupplierItem[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([pvId])
+  @@index([supplierId])
+  @@map("pv_suppliers")
+}
+
+model PVSupplierItem {
+  id              String  @id @default(cuid())
+  supplierId      String
+
+  purchaseItemId  String?
+  designation     String
+  quantity        Float
+  unitPrice       Float
+  amount          Float
+  disponibilite   String?
+  isSelected      Boolean @default(false)
+
+  supplier        PVSupplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([supplierId])
+  @@map("pv_supplier_items")
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  VALIDATED
+  EXPIRED
+}
+
+model Notification {
+  id            String             @id @default(cuid())
+  type          String             
+  
+  
+  resourceId    String?
+  resourceType  String?            
+  
+  recipients    Json               
+  data          Json               
+  
+  status        NotificationStatus @default(PENDING)
+  
+  
+  hasReminder   Boolean            @default(false)
+  attemptCount  Int                @default(0)
+  reminderCount Int                @default(0)
+  reminderIntervalInDays Int?      @default(24)
+  
+  lastSentAt    DateTime?
+  expiredAt     DateTime?          
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([resourceId])
+  @@index([status])
+  @@index([type])
+  @@map("notifications")
+}

@@ -1,6 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsInt, Min, Max, IsString } from 'class-validator';
+import { IsOptional, IsInt, Min, Max, IsString, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
+import { PurchaseStep } from '@prisma/client';
 
 export class PaginationDto {
   @ApiPropertyOptional({
@@ -48,9 +49,11 @@ export class FilterPurchaseDto extends PaginationDto {
   @ApiPropertyOptional({
     description: 'Filtrer par étape actuelle',
     example: 'DA',
+    enum: PurchaseStep,
   })
   @IsOptional()
-  currentStep?: string;
+  @IsEnum(PurchaseStep)
+  currentStep?: PurchaseStep;
 
   @ApiPropertyOptional({
     description: 'Filtrer par priorité',
@@ -89,4 +92,13 @@ export class FilterPurchaseDto extends PaginationDto {
   @IsOptional()
   @Type(() => Number)
   maxAmount?: number;
+
+  @ApiPropertyOptional({
+    description: 'Grouper les résultats par étape (currentStep)',
+    example: false,
+    default: false,
+  })
+  @IsOptional()
+  @Type(() => Boolean)
+  groupByStep?: boolean = false;
 }
