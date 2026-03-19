@@ -52,6 +52,9 @@ uploads
 
 migrations
 
+
+migrations
+
 # Runtime data
 pids
 *.pid
