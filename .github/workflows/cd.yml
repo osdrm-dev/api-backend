@@ -36,8 +36,8 @@ jobs:
             # export PATH="$NVM_DIR/versions/node/v24.12.0/bin:/usr/local/bin:/usr/bin:$PATH"
 
             echo "Ensure app directory exists"
-            mkdir -p ${{ secrets.APP_DIR }}
-            cd ${{ secrets.APP_DIR }}
+            mkdir -p ${{ vars.APP_DIR }}
+            cd ${{ vars.APP_DIR }}
 
             echo "Prepare rollback directories"
             rm -rf failed || true
