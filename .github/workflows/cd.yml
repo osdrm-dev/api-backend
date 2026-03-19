@@ -49,7 +49,7 @@ jobs:
             fi
 
             echo "Clone new version"
-            git clone https://${{secrets.GH_ACCESS_TOKEN}}@github.com:osdrm-dev/api-backend.git current || {
+            git clone https://${{secrets.GH_ACCESS_TOKEN}}@github.com/osdrm-dev/api-backend.git current || {
               echo "Git clone failed, rollback"
               rm -rf current
               mv previous current
