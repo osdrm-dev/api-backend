@@ -40,7 +40,8 @@ model File {
   updatedAt         DateTime     @updatedAt
   
   uploadedBy        User         @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
-  
+  attachments       Attachment[]
+
   @@index([uploadedById])
   @@index([fileType])
   @@index([status])
@@ -254,6 +255,7 @@ model PurchaseItem {
 model Attachment {
   id              String          @id @default(cuid())
   purchaseId      String
+  fileId          Int?
 
   type            AttachmentType
   fileName        String
@@ -267,11 +269,13 @@ model Attachment {
   validatedAt     DateTime?
 
   purchase        Purchase        @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  file            File?           @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
 
   @@index([purchaseId])
+  @@index([fileId])
   @@index([type])
   @@map("attachments")
 }
