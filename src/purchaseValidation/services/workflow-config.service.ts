@@ -126,8 +126,9 @@ export class WorkflowConfigService {
             minAmount: 5_000_000,
             roles: [
               ValidatorRole.DEMANDEUR,
-              ValidatorRole.DP,
+              ValidatorRole.OM,
               ValidatorRole.CFO,
+              ValidatorRole.DP,
               ValidatorRole.CEO,
             ],
           },
