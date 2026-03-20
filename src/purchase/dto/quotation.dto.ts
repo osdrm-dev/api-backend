@@ -34,6 +34,12 @@ export class UploadQuoteDto {
   @Type(() => Number)
   fileSize?: number;
 
+  @ApiProperty({ description: 'ID du fichier uploadé' })
+  @IsNumber()
+  @IsNotEmpty()
+  @Type(() => Number)
+  fileId: number;
+
   @ApiPropertyOptional({
     description: 'Type MIME du fichier',
     example: 'application/pdf',
