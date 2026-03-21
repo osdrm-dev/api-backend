@@ -54,6 +54,8 @@ async function bootstrap() {
     'https://osdrm-recette.hrtechnology.online',
   ];
 
+  const allowedOrigins = ['https://osdrm.netlify.app', 'http://localhost'];
+
   app.enableCors({
     origin: (origin, callback) => {
       console.log('org', origin);
