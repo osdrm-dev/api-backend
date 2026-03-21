@@ -49,7 +49,11 @@ async function bootstrap() {
     }),
   );
 
-  const allowedOrigins = ['https://osdrm.netlify.app', 'http://localhost'];
+  const allowedOrigins = [
+    'https://osdrm.netlify.app',
+    'http://localhost',
+    'https://osdrm-recette.hrtechnology.online',
+  ];
 
   app.enableCors({
     origin: (origin, callback) => {
