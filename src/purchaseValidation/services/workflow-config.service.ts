@@ -220,51 +220,6 @@ export class WorkflowConfigService {
         ],
       },
     },
-
-    {
-      step: PurchaseStep.PROOF_OF_PAYMENT,
-      rules: {
-        [OperationType.OPERATION]: [
-          {
-            maxAmount: 5_000_000,
-            roles: [
-              ValidatorRole.DEMANDEUR,
-              ValidatorRole.OM,
-              ValidatorRole.RFR,
-              ValidatorRole.CPR,
-            ],
-          },
-          {
-            minAmount: 5_000_000,
-            roles: [
-              ValidatorRole.DEMANDEUR,
-              ValidatorRole.OM,
-              ValidatorRole.CFO,
-              ValidatorRole.CEO,
-            ],
-          },
-        ],
-        [OperationType.PROGRAMME]: [
-          {
-            maxAmount: 5_000_000,
-            roles: [
-              ValidatorRole.DEMANDEUR,
-              ValidatorRole.RFR,
-              ValidatorRole.CPR,
-            ],
-          },
-          {
-            minAmount: 5_000_000,
-            roles: [
-              ValidatorRole.DEMANDEUR,
-              ValidatorRole.DP,
-              ValidatorRole.CFO,
-              ValidatorRole.CEO,
-            ],
-          },
-        ],
-      },
-    },
   ];
 
   getRequireValidators(
