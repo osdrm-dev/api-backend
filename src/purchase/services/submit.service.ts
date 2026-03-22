@@ -202,41 +202,20 @@ export class SubmitService {
       throw new BadRequestException('Aucune facture uploadee');
     }
 
-    // Créer le workflow INVOICE
-    const requiredRoles = this.workflowConfigService.getRequireValidators(
-      PurchaseStep.INVOICE,
-      purchase.operationType,
-      totalAmount,
-    );
-
-    const workflow = await this.prisma.validationWorkflow.create({
-      data: {
-        purchaseId: purchase.id,
-        step: PurchaseStep.INVOICE,
-        currentStep: 0,
-        validators: {
-          create: requiredRoles.map((role, index) => ({
-            role,
-            order: index,
-            isValidated: false,
-          })),
-        },
-      },
-      include: { validators: { orderBy: { order: 'asc' } } },
-    });
-
     await this.prisma.purchase.update({
       where: { id: purchase.id },
-      data: { status: PurchaseStatus.PENDING_APPROVAL },
+      data: {
+        currentStep: PurchaseStep.DAP,
+        status: PurchaseStatus.AWAITING_DOCUMENTS,
+      },
     });
 
     return {
       id: purchase.id,
       reference: purchase.reference,
-      status: PurchaseStatus.PENDING_APPROVAL,
-      currentStep: PurchaseStep.INVOICE,
-      workflow: workflow.validators,
-      message: 'Facture soumise pour validation',
+      status: PurchaseStatus.AWAITING_DOCUMENTS,
+      currentStep: PurchaseStep.DAP,
+      message: "Facture enregistree, passage a l'etape DAP",
     };
   }
 
@@ -303,41 +282,22 @@ export class SubmitService {
       throw new BadRequestException('Aucune preuve de paiement uploadee');
     }
 
-    // Créer le workflow PROOF_OF_PAYMENT
-    const requiredRoles = this.workflowConfigService.getRequireValidators(
-      PurchaseStep.PROOF_OF_PAYMENT,
-      purchase.operationType,
-      totalAmount,
-    );
-
-    const workflow = await this.prisma.validationWorkflow.create({
-      data: {
-        purchaseId: purchase.id,
-        step: PurchaseStep.PROOF_OF_PAYMENT,
-        currentStep: 0,
-        validators: {
-          create: requiredRoles.map((role, index) => ({
-            role,
-            order: index,
-            isValidated: false,
-          })),
-        },
-      },
-      include: { validators: { orderBy: { order: 'asc' } } },
-    });
-
+    // PROOF_OF_PAYMENT n'a pas de circuit de validation, passage direct à DONE
     await this.prisma.purchase.update({
       where: { id: purchase.id },
-      data: { status: PurchaseStatus.PENDING_APPROVAL },
+      data: {
+        currentStep: PurchaseStep.DONE,
+        status: PurchaseStatus.VALIDATED,
+        closedAt: new Date(),
+      },
     });
 
     return {
       id: purchase.id,
       reference: purchase.reference,
-      status: PurchaseStatus.PENDING_APPROVAL,
-      currentStep: PurchaseStep.PROOF_OF_PAYMENT,
-      workflow: workflow.validators,
-      message: 'Preuve de paiement soumise pour validation',
+      status: PurchaseStatus.VALIDATED,
+      currentStep: PurchaseStep.DONE,
+      message: 'Preuve de paiement enregistree, demande completee',
     };
   }
 }
