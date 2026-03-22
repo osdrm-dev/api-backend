@@ -48,7 +48,6 @@ async function bootstrap() {
       transform: true,
     }),
   );
-
   const allowedOrigins = [
     'https://osdrm.netlify.app',
     'http://localhost',
@@ -57,6 +56,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
+      console.log('org', origin);
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {

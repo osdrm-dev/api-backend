@@ -27,13 +27,13 @@ const CFG: { [K in DocStep]: CfgEntry } = {
     step: PurchaseStep.BR,
     type: AttachmentType.DELIVERY_NOTE,
     label: 'Bon de réception',
-    hasWorkflow: false, // BR n'a pas de workflow, passage direct à INVOICE
+    hasWorkflow: false,
   },
   INVOICE: {
     step: PurchaseStep.INVOICE,
     type: AttachmentType.INVOICE,
     label: 'Facture',
-    hasWorkflow: true,
+    hasWorkflow: false,
   },
   DAP: {
     step: PurchaseStep.DAP,
@@ -45,7 +45,7 @@ const CFG: { [K in DocStep]: CfgEntry } = {
     step: PurchaseStep.PROOF_OF_PAYMENT,
     type: AttachmentType.PROOF_OF_PAYMENT,
     label: 'Preuve de paiement',
-    hasWorkflow: true,
+    hasWorkflow: false,
   },
 };
 
@@ -184,25 +184,33 @@ export class DocumentStepService {
 
     const nextStep = NEXT_STEP[cfg.step];
 
-    // BR → pas de workflow, passage direct à INVOICE
+    // BR, INVOICE, PROOF_OF_PAYMENT → pas de workflow, passage direct à l'étape suivante
     if (!cfg.hasWorkflow) {
+      const updateData: any = {
+        currentStep: nextStep,
+        status:
+          nextStep === PurchaseStep.DONE
+            ? PurchaseStatus.VALIDATED
+            : PurchaseStatus.AWAITING_DOCUMENTS,
+      };
+
+      if (docStep === 'BR') updateData.receivedAt = new Date();
+      if (docStep === 'PROOF_OF_PAYMENT') updateData.closedAt = new Date();
+
       await this.prisma.purchase.update({
         where: { id: purchaseId },
-        data: {
-          currentStep: nextStep,
-          status: PurchaseStatus.AWAITING_DOCUMENTS,
-          ...(docStep === 'BR' && { receivedAt: new Date() }),
-        },
+        data: updateData,
       });
 
       return {
         purchaseId,
         currentStep: nextStep,
+        status: updateData.status,
         message: `${cfg.label} soumis. Passage a l'etape suivante.`,
       };
     }
 
-    // INVOICE, DAP, PROOF_OF_PAYMENT → créer workflow de validation
+    // DAP → créer workflow de validation
     const amount = purchase.items.reduce((sum, item) => sum + item.amount, 0);
 
     const requiredRoles = this.workflowConfig.getRequireValidators(

@@ -196,90 +196,25 @@ export class WorkflowConfigService {
         ],
       },
     },
+
     {
       step: PurchaseStep.DAP,
       rules: {
         [OperationType.OPERATION]: [
           {
-            maxAmount: 5_000_000,
             roles: [
-              ValidatorRole.DEMANDEUR,
-              ValidatorRole.OM,
-              ValidatorRole.RFR,
-              ValidatorRole.CPR,
-            ],
-          },
-          {
-            minAmount: 5_000_000,
-            roles: [
-              ValidatorRole.DEMANDEUR,
+              ValidatorRole.ACHETEUR,
               ValidatorRole.OM,
               ValidatorRole.CFO,
-              ValidatorRole.CEO,
             ],
           },
         ],
         [OperationType.PROGRAMME]: [
           {
-            maxAmount: 5_000_000,
             roles: [
-              ValidatorRole.DEMANDEUR,
-              ValidatorRole.RFR,
-              ValidatorRole.CPR,
-            ],
-          },
-          {
-            minAmount: 5_000_000,
-            roles: [
-              ValidatorRole.DEMANDEUR,
-              ValidatorRole.DP,
-              ValidatorRole.CFO,
-              ValidatorRole.CEO,
-            ],
-          },
-        ],
-      },
-    },
-
-    {
-      step: PurchaseStep.PROOF_OF_PAYMENT,
-      rules: {
-        [OperationType.OPERATION]: [
-          {
-            maxAmount: 5_000_000,
-            roles: [
-              ValidatorRole.DEMANDEUR,
-              ValidatorRole.OM,
-              ValidatorRole.RFR,
-              ValidatorRole.CPR,
-            ],
-          },
-          {
-            minAmount: 5_000_000,
-            roles: [
-              ValidatorRole.DEMANDEUR,
+              ValidatorRole.ACHETEUR,
               ValidatorRole.OM,
               ValidatorRole.CFO,
-              ValidatorRole.CEO,
-            ],
-          },
-        ],
-        [OperationType.PROGRAMME]: [
-          {
-            maxAmount: 5_000_000,
-            roles: [
-              ValidatorRole.DEMANDEUR,
-              ValidatorRole.RFR,
-              ValidatorRole.CPR,
-            ],
-          },
-          {
-            minAmount: 5_000_000,
-            roles: [
-              ValidatorRole.DEMANDEUR,
-              ValidatorRole.DP,
-              ValidatorRole.CFO,
-              ValidatorRole.CEO,
             ],
           },
         ],
@@ -358,6 +293,7 @@ export class WorkflowConfigService {
       DP: ValidatorRole.DP,
       RFR: ValidatorRole.RFR,
       CPR: ValidatorRole.CPR,
+      ACHETEUR: ValidatorRole.ACHETEUR,
     };
 
     return mapping[role] || ValidatorRole.DEMANDEUR;

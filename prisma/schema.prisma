@@ -166,6 +166,7 @@ enum DerogationStatus {
 }
 
 enum ValidatorRole {
+  ACHETEUR
   DEMANDEUR
   RFR
   CPR
