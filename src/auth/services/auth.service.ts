@@ -15,6 +15,8 @@ import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { UpdateProfileDto } from '../dto/update-profile.dto';
+import { UpdateUserDto } from '../dto/update-user.dto';
 import type { User } from '@prisma/client';
 
 type UserWithoutPassword = Omit<User, 'password'>;
@@ -301,6 +303,91 @@ export class AuthService {
       .split('')
       .sort(() => Math.random() - 0.5)
       .join('');
+  }
+
+  async updateProfile(userId: number, updateProfileDto: UpdateProfileDto) {
+    const { email, ...otherData } = updateProfileDto;
+
+    if (email) {
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (existingUser && existingUser.id !== userId) {
+        throw new ConflictException(
+          'Cette adresse email est déjà utilisée par un autre compte.',
+        );
+      }
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { email, ...otherData },
+    });
+
+    await this.auditService.log({
+      userId,
+      action: 'PROFILE_UPDATED',
+      resource: 'User',
+      resourceId: userId.toString(),
+      details: updateProfileDto,
+    });
+
+    return {
+      user: this.excludePassword(updatedUser),
+      message: 'Profil mis à jour avec succès.',
+    };
+  }
+
+  async updateUser(
+    userId: number,
+    updateUserDto: UpdateUserDto,
+    adminId: number,
+    ipAddress?: string,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur introuvable.');
+    }
+
+    const { email, ...otherData } = updateUserDto;
+
+    if (email) {
+      const existingUser = await this.prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (existingUser && existingUser.id !== userId) {
+        throw new ConflictException(
+          'Cette adresse email est déjà utilisée par un autre compte.',
+        );
+      }
+    }
+
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { email, ...otherData },
+    });
+
+    await this.auditService.log({
+      userId: adminId,
+      action: 'USER_UPDATED_BY_ADMIN',
+      resource: 'User',
+      resourceId: userId.toString(),
+      details: {
+        targetUserId: userId,
+        changes: updateUserDto,
+      },
+      ipAddress,
+    });
+
+    return {
+      user: this.excludePassword(updatedUser),
+      message: 'Utilisateur mis à jour avec succès.',
+    };
   }
 
   private excludePassword(user: User): UserWithoutPassword {
