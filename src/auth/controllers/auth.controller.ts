@@ -8,6 +8,8 @@ import {
   HttpCode,
   HttpStatus,
   Ip,
+  Param,
+  Patch,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,6 +22,8 @@ import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
 import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { UpdateProfileDto } from '../dto/update-profile.dto';
+import { UpdateUserDto } from '../dto/update-user.dto';
 import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { RolesGuard } from '../guards/roles.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
@@ -149,5 +153,46 @@ export class AuthController {
     @Ip() ipAddress: string,
   ) {
     return this.authService.resetPassword(resetPasswordDto, adminId, ipAddress);
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update own profile' })
+  @ApiResponse({ status: 200, description: 'Profile successfully updated' })
+  @ApiResponse({ status: 409, description: 'Email already in use' })
+  async updateProfile(
+    @CurrentUser('id') userId: number,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    return this.authService.updateProfile(userId, updateProfileDto);
+  }
+
+  @Patch('user/:id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth('access-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Update user (Admin only)' })
+  @ApiResponse({ status: 200, description: 'User successfully updated' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  @ApiResponse({ status: 409, description: 'Email already in use' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Admin access required',
+  })
+  async updateUser(
+    @Param('id') userId: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @CurrentUser('id') adminId: number,
+    @Ip() ipAddress: string,
+  ) {
+    return this.authService.updateUser(
+      parseInt(userId),
+      updateUserDto,
+      adminId,
+      ipAddress,
+    );
   }
 }
