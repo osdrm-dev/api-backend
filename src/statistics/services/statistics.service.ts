@@ -6,6 +6,15 @@ import { PurchaseStatus, Role } from '@prisma/client';
 export class StatisticsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private enrichWithAmount(purchase: any) {
+    if (!purchase) return null;
+    const amount = purchase.items.reduce(
+      (sum: number, item: any) => sum + item.amount,
+      0,
+    );
+    return { ...purchase, amount };
+  }
+
   async getPurchaseCount(user: { id: number; role: Role }) {
     let totalCount: number;
     let validatedCount: number;
@@ -34,10 +43,13 @@ export class StatisticsService {
         0,
       );
 
-      highestPriorityPurchase = await this.prisma.purchase.findFirst({
-        where: { priority: 'TRES_URGENT' },
-        orderBy: { createdAt: 'desc' },
-      });
+      highestPriorityPurchase = this.enrichWithAmount(
+        await this.prisma.purchase.findFirst({
+          where: { priority: 'TRES_URGENT' },
+          orderBy: { createdAt: 'desc' },
+          include: { items: true },
+        }),
+      );
     } else {
       totalCount = await this.prisma.purchase.count({
         where: { creatorId: user.id },
@@ -67,10 +79,13 @@ export class StatisticsService {
         0,
       );
 
-      highestPriorityPurchase = await this.prisma.purchase.findFirst({
-        where: { creatorId: user.id, priority: 'TRES_URGENT' },
-        orderBy: { createdAt: 'desc' },
-      });
+      highestPriorityPurchase = this.enrichWithAmount(
+        await this.prisma.purchase.findFirst({
+          where: { creatorId: user.id, priority: 'TRES_URGENT' },
+          orderBy: { createdAt: 'desc' },
+          include: { items: true },
+        }),
+      );
     }
 
     return {

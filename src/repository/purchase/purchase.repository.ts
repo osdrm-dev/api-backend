@@ -38,16 +38,6 @@ export class PurchaseRepository {
     validationWorkflows: {
       include: {
         validators: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                email: true,
-                fonction: true,
-              },
-            },
-          },
           orderBy: { order: 'asc' },
         },
       },

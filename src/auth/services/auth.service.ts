@@ -40,7 +40,9 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException('User already exists with this email');
+      throw new ConflictException(
+        'Un compte existe déjà avec cette adresse email.',
+      );
     }
 
     const hashedPassword = await bcrypt.hash(password, 12);
@@ -70,7 +72,7 @@ export class AuthService {
 
     return {
       user: this.excludePassword(user),
-      message: 'User successfully created',
+      message: 'Compte créé avec succès.',
     };
   }
 
@@ -82,17 +84,23 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(
+        'Adresse email ou mot de passe incorrect.',
+      );
     }
 
     if (!user.isActive) {
-      throw new UnauthorizedException('Account is deactivated');
+      throw new UnauthorizedException(
+        'Votre compte a été désactivé. Veuillez contacter un administrateur.',
+      );
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(
+        'Adresse email ou mot de passe incorrect.',
+      );
     }
 
     await this.prisma.user.update({
@@ -137,7 +145,7 @@ export class AuthService {
       resourceId: userId.toString(),
     });
 
-    return { message: 'Logged out successfully' };
+    return { message: 'Déconnexion effectuée avec succès.' };
   }
 
   async logoutAll(userId: number) {
@@ -150,7 +158,9 @@ export class AuthService {
       resourceId: userId.toString(),
     });
 
-    return { message: 'Logged out from all devices successfully' };
+    return {
+      message: 'Déconnexion effectuée sur tous les appareils avec succès.',
+    };
   }
 
   async changePassword(userId: number, changePasswordDto: ChangePasswordDto) {
@@ -161,13 +171,13 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Aucun compte trouvé pour cet identifiant.');
     }
 
     const isOldPasswordValid = await bcrypt.compare(oldPassword, user.password);
 
     if (!isOldPasswordValid) {
-      throw new BadRequestException('Old password is incorrect');
+      throw new BadRequestException('Le mot de passe actuel est incorrect.');
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
@@ -186,7 +196,9 @@ export class AuthService {
       resourceId: userId.toString(),
     });
 
-    return { message: 'Password changed successfully' };
+    return {
+      message: 'Mot de passe modifié avec succès. Veuillez vous reconnecter.',
+    };
   }
 
   async resetPassword(
@@ -201,7 +213,9 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException(
+        'Aucun compte associé à cette adresse email.',
+      );
     }
 
     const newPassword = this.generateRandomPassword();
@@ -227,7 +241,7 @@ export class AuthService {
     });
 
     return {
-      message: 'Password reset successfully',
+      message: 'Mot de passe réinitialisé avec succès.',
       newPassword,
       email: user.email,
     };
@@ -260,7 +274,7 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundException('User not found');
+      throw new NotFoundException('Aucun compte trouvé pour cet identifiant.');
     }
 
     return this.excludePassword(user);

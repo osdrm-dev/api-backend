@@ -15,6 +15,8 @@ export interface ValidationContext {
   userId: number;
   userRole: ValidatorRole;
   comment?: string;
+  preloadedPurchase?: any;
+  preloadedValidator?: any;
 }
 
 export interface ValidationResult {
@@ -33,26 +35,36 @@ export class ValidationActionService {
   ) {}
 
   async validate(context: ValidationContext): Promise<ValidationResult> {
-    const { purchaseId, userId, userRole, comment } = context;
+    const {
+      purchaseId,
+      userId,
+      userRole,
+      comment,
+      preloadedPurchase,
+      preloadedValidator,
+    } = context;
 
-    const purchase = await this.getPurchaseWithWorkflow(purchaseId);
+    const purchase =
+      preloadedPurchase ?? (await this.getPurchaseWithWorkflow(purchaseId));
     this.validatePurchaseState(purchase);
 
-    const { canValidate, validator } =
-      await this.workflowService.canUserValidate(
+    let validator = preloadedValidator;
+    if (!validator) {
+      const check = await this.workflowService.canUserValidate(
         purchaseId,
         userRole,
         purchase.currentStep,
       );
-
-    if (!canValidate || !validator) {
-      throw new ForbiddenException(
-        `Vous n'êtes pas autorisé à valider cette demande. Ce n'est pas encore votre tour.`,
-      );
+      if (!check.canValidate || !check.validator) {
+        throw new ForbiddenException(
+          `Vous n'êtes pas autorisé à valider cette demande. Ce n'est pas encore votre tour.`,
+        );
+      }
+      validator = check.validator;
     }
 
     const currentWorkflow = purchase.validationWorkflows?.find(
-      (w) => w.step === purchase.currentStep,
+      (w: any) => w.step === purchase.currentStep,
     );
 
     if (!currentWorkflow) {
@@ -61,7 +73,7 @@ export class ValidationActionService {
       );
     }
 
-    const [,] = await Promise.all([
+    await Promise.all([
       this.workflowService.updateValidator({
         validatorId: validator.id,
         userId,
@@ -70,12 +82,12 @@ export class ValidationActionService {
       }),
       this.workflowService.advanceWorkflow(currentWorkflow.id),
     ]);
-    const updatedValidators = currentWorkflow.validators.map((v) =>
+
+    const updatedValidators = currentWorkflow.validators.map((v: any) =>
       v.id === validator.id ? { ...v, isValidated: true } : v,
     );
     const isComplete =
       this.workflowConfig.isWorkflowComplete(updatedValidators);
-
     const newStatus = isComplete ? PurchaseStatus.PUBLISHED : purchase.status;
 
     await this.purchaseRepo.update({
@@ -236,7 +248,6 @@ export class ValidationActionService {
       );
     }
 
-    // Vérifier que le workflow de l'étape COURANTE existe
     const currentWorkflow = purchase.validationWorkflows?.find(
       (w: any) => w.step === purchase.currentStep,
     );
