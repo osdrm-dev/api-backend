@@ -96,7 +96,10 @@ export class PurchaseService {
       throw new ForbiddenException(
         "Vous n'etes pas autorise a modifier cette DA",
       );
-    if (purchase.status !== PurchaseStatus.DRAFT)
+    if (
+      purchase.status !== PurchaseStatus.DRAFT &&
+      purchase.status !== PurchaseStatus.CHANGE_REQUESTED
+    )
       throw new BadRequestException('Cette DA ne peut plus etre modifiee');
 
     await this.prisma.purchaseItem.deleteMany({ where: { purchaseId } });
@@ -117,7 +120,24 @@ export class PurchaseService {
       ),
     );
 
-    return { purchaseId, items, message: 'Articles ajoutes avec succes' };
+    const cleanedItems = items.map((item) => {
+      const cleaned: any = {
+        id: item.id,
+        designation: item.designation,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        amount: item.amount,
+      };
+      if (item.unit) cleaned.unit = item.unit;
+      if (item.specifications) cleaned.specifications = item.specifications;
+      return cleaned;
+    });
+
+    return {
+      purchaseId,
+      items: cleanedItems,
+      message: 'Articles ajoutes avec succes',
+    };
   }
 
   async publishPurchaseForValidation(purchaseId: string, userId: number) {
@@ -131,12 +151,31 @@ export class PurchaseService {
       throw new ForbiddenException(
         "Vous n'etes pas autorise a publier cette DA",
       );
-    if (purchase.status !== PurchaseStatus.DRAFT)
-      throw new BadRequestException('Cette DA a deja ete publiee');
+    if (
+      purchase.status !== PurchaseStatus.DRAFT &&
+      purchase.status !== PurchaseStatus.CHANGE_REQUESTED
+    )
+      throw new BadRequestException(
+        'Seules les DA en brouillon ou avec modifications demandees peuvent etre publiees',
+      );
     if (purchase.items.length === 0)
       throw new BadRequestException(
         'Ajoutez au moins un article avant de publier',
       );
+
+    // Si la DA était en CHANGE_REQUESTED, on supprime les anciens workflows et on remet à zéro
+    if (purchase.status === PurchaseStatus.CHANGE_REQUESTED) {
+      await this.prisma.validationWorkflow.deleteMany({
+        where: { purchaseId },
+      });
+      await this.prisma.purchase.update({
+        where: { id: purchaseId },
+        data: {
+          observations: null,
+          closedAt: null,
+        },
+      });
+    }
 
     const totalAmount = purchase.items.reduce(
       (sum, item) => sum + item.amount,
@@ -221,8 +260,22 @@ export class PurchaseService {
       purchase.currentStep,
     );
 
+    const cleanedItems = purchase.items.map((item) => {
+      const cleaned: any = {
+        id: item.id,
+        designation: item.designation,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        amount: item.amount,
+      };
+      if (item.unit) cleaned.unit = item.unit;
+      if (item.specifications) cleaned.specifications = item.specifications;
+      return cleaned;
+    });
+
     return {
       ...purchase,
+      items: cleanedItems,
       amount: purchase.items.reduce((sum, item) => sum + item.amount, 0),
       statusMessage,
     };
@@ -279,17 +332,33 @@ export class PurchaseService {
   }
 
   private enrichPurchases(purchases: any[]) {
-    return purchases.map((purchase) => ({
-      ...purchase,
-      amount: purchase.items.reduce(
-        (sum: number, item: any) => sum + item.amount,
-        0,
-      ),
-      statusMessage: this.workflowConfigService.getStatusMessage(
-        purchase.status,
-        purchase.currentStep,
-      ),
-    }));
+    return purchases.map((purchase) => {
+      const cleanedItems = purchase.items.map((item: any) => {
+        const cleaned: any = {
+          id: item.id,
+          designation: item.designation,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          amount: item.amount,
+        };
+        if (item.unit) cleaned.unit = item.unit;
+        if (item.specifications) cleaned.specifications = item.specifications;
+        return cleaned;
+      });
+
+      return {
+        ...purchase,
+        items: cleanedItems,
+        amount: purchase.items.reduce(
+          (sum: number, item: any) => sum + item.amount,
+          0,
+        ),
+        statusMessage: this.workflowConfigService.getStatusMessage(
+          purchase.status,
+          purchase.currentStep,
+        ),
+      };
+    });
   }
 
   // ─── Méthodes publiques ───────────────────────────────────────────────────
@@ -362,6 +431,45 @@ export class PurchaseService {
     });
 
     return { message: 'DA supprimee avec succes' };
+  }
+
+  async updatePurchase(
+    purchaseId: string,
+    userId: number,
+    updateDto: Partial<CreatePurchaseDto>,
+  ) {
+    const purchase = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+    });
+
+    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (purchase.creatorId !== userId)
+      throw new ForbiddenException(
+        "Vous n'etes pas autorise a modifier cette DA",
+      );
+    if (
+      purchase.status !== PurchaseStatus.DRAFT &&
+      purchase.status !== PurchaseStatus.CHANGE_REQUESTED
+    )
+      throw new BadRequestException('Cette DA ne peut plus etre modifiee');
+
+    const updateData: any = { ...updateDto };
+
+    if (!updateData.requestedDeliveryDate)
+      delete updateData.requestedDeliveryDate;
+    if (!updateData.deliveryAddress) delete updateData.deliveryAddress;
+
+    const updated = await this.prisma.purchase.update({
+      where: { id: purchaseId },
+      data: updateData,
+    });
+
+    return {
+      id: updated.id,
+      reference: updated.reference,
+      status: updated.status,
+      message: 'DA mise a jour avec succes',
+    };
   }
 
   async updateLogistics(
@@ -446,7 +554,22 @@ export class PurchaseService {
     });
 
     if (itemsDto) {
-      await this.addPurchaseItems(purchaseId, userId, itemsDto);
+      await this.prisma.purchaseItem.deleteMany({ where: { purchaseId } });
+      await Promise.all(
+        itemsDto.items.map((item) =>
+          this.prisma.purchaseItem.create({
+            data: {
+              purchaseId,
+              designation: item.designation,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              amount: item.quantity * item.unitPrice,
+              unit: item.unit,
+              specifications: item.specifications,
+            },
+          }),
+        ),
+      );
     }
 
     await this.prisma.validationWorkflow.deleteMany({ where: { purchaseId } });

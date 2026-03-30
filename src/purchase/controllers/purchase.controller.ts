@@ -22,6 +22,8 @@ import { CreatePurchaseDto } from '../dto/create-purchase.dto';
 import { AddPurchaseItemsDto } from '../dto/purchase-item.dto';
 import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
 import { UpdateLogisticsDto } from '../dto/update-logistics.dto';
+import { UpdateAndRepublishDto } from '../dto/update-and-republish.dto';
+import { UpdatePurchaseDto } from '../dto/update-purchase.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import {
   ApiSuccessResponse,
@@ -74,7 +76,11 @@ export class PurchaseController {
   }
 
   @Post(':id/publish')
-  @ApiOperation({ summary: 'Publier la DA pour validation (Step 2)' })
+  @ApiOperation({
+    summary: 'Publier la DA pour validation (Step 2)',
+    description:
+      'Publie une DA en brouillon ou avec modifications demandees. Si la DA etait en CHANGE_REQUESTED, les anciens workflows sont automatiquement supprimes.',
+  })
   @ApiParam({ name: 'id', description: 'ID de la DA' })
   @ApiSuccessResponse('DA publiee avec succes', {
     id: 'da-123',
@@ -82,7 +88,9 @@ export class PurchaseController {
     workflow: [],
   })
   @ApiNotFoundResponse('DA')
-  @ApiBadRequestResponse('DA deja publiee ou sans articles')
+  @ApiBadRequestResponse(
+    'Seules les DA en brouillon ou avec modifications demandees peuvent etre publiees',
+  )
   @ApiCommonResponses()
   async publishPurchase(@Param('id') id: string, @Request() req) {
     return this.purchaseService.publishPurchaseForValidation(id, req.user.id);
@@ -91,9 +99,11 @@ export class PurchaseController {
   @Post(':id/update-and-republish')
   @ApiOperation({
     summary: 'Modifier et republier une DA avec modifications demandees',
+    description:
+      "Permet de modifier les informations d'imputation ET les items en un seul appel. Les items sont optionnels : si non fournis, les items existants sont conserves.",
   })
   @ApiParam({ name: 'id', description: 'ID de la DA' })
-  @ApiBody({ type: CreatePurchaseDto })
+  @ApiBody({ type: UpdateAndRepublishDto })
   @ApiSuccessResponse('DA modifiee', { id: 'da-123', status: 'DRAFT' })
   @ApiNotFoundResponse('DA')
   @ApiBadRequestResponse(
@@ -103,16 +113,38 @@ export class PurchaseController {
   async updateAndRepublish(
     @Param('id') id: string,
     @Request() req,
-    @Body() updateDto: CreatePurchaseDto,
+    @Body() body: UpdateAndRepublishDto,
   ) {
     return this.purchaseService.updateAndRepublishPurchase(
       id,
       req.user.id,
-      updateDto,
+      body.purchase,
+      body.items,
     );
   }
 
   @Put(':id')
+  @ApiOperation({
+    summary:
+      'Mettre a jour une DA en brouillon ou avec modifications demandees',
+    description:
+      "Permet de modifier partiellement les informations d'une DA (imputation, titre, etc.). Utilisable pour les DA en DRAFT ou CHANGE_REQUESTED.",
+  })
+  @ApiParam({ name: 'id', description: 'ID de la DA' })
+  @ApiBody({ type: UpdatePurchaseDto })
+  @ApiSuccessResponse('DA mise a jour', { id: 'da-123', status: 'DRAFT' })
+  @ApiNotFoundResponse('DA')
+  @ApiBadRequestResponse('DA ne peut plus etre modifiee')
+  @ApiCommonResponses()
+  async updatePurchase(
+    @Param('id') id: string,
+    @Request() req,
+    @Body() dto: UpdatePurchaseDto,
+  ) {
+    return this.purchaseService.updatePurchase(id, req.user.id, dto);
+  }
+
+  @Put(':id/logistics')
   @ApiOperation({
     summary: "Mettre a jour les informations logistiques d'une DA",
   })
