@@ -11,7 +11,6 @@ import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { FileType, FileStatus, File } from '@prisma/client';
-import type { Express } from 'express';
 import type { File as MulterFile } from 'multer';
 
 interface UploadOptions {
@@ -49,6 +48,10 @@ export class FileStorageService {
     }
   }
 
+  resolveFilePath(storedName: string): string {
+    return path.resolve(this.uploadDir, storedName);
+  }
+
   async upload(file: MulterFile, options: UploadOptions): Promise<File> {
     const maxSize = options.maxSize || this.defaultMaxFileSize;
 
@@ -68,10 +71,7 @@ export class FileStorageService {
     const checksum = await this.calculateChecksum(file.buffer);
 
     const existingFile = await this.prisma.file.findFirst({
-      where: {
-        checksum,
-        uploadedById: options.userId,
-      },
+      where: { checksum, uploadedById: options.userId },
     });
 
     if (existingFile) {
@@ -82,7 +82,7 @@ export class FileStorageService {
     }
 
     const storedName = this.generateStoredName(file.originalname);
-    const filePath = path.join(this.uploadDir, storedName);
+    const filePath = this.resolveFilePath(storedName);
 
     await fs.writeFile(filePath, file.buffer);
 
@@ -93,7 +93,7 @@ export class FileStorageService {
         mimeType: file.mimetype,
         fileType,
         size: file.size,
-        path: filePath,
+        path: storedName,
         url: `/files/${storedName}`,
         status: FileStatus.UPLOADING,
         uploadedById: options.userId,
@@ -146,7 +146,7 @@ export class FileStorageService {
           optimizedSize: result.optimizedSize,
           compressionRatio: result.compressionRatio,
           status: FileStatus.OPTIMIZED,
-          path: result.optimizedPath,
+          path: path.basename(result.optimizedPath),
         },
       });
 
@@ -180,9 +180,10 @@ export class FileStorageService {
 
   async getBuffer(fileId: number): Promise<Buffer> {
     const file = await this.getById(fileId);
+    const resolvedPath = this.resolveFilePath(file.storedName);
 
     try {
-      return await fs.readFile(file.path);
+      return await fs.readFile(resolvedPath);
     } catch (error) {
       this.logger.error(`Error reading file ${fileId}:`, error);
       throw new NotFoundException('File not found on disk');
@@ -191,17 +192,15 @@ export class FileStorageService {
 
   async delete(fileId: number): Promise<void> {
     const file = await this.getById(fileId);
+    const resolvedPath = this.resolveFilePath(file.storedName);
 
     try {
-      await fs.unlink(file.path);
+      await fs.unlink(resolvedPath);
     } catch (error) {
       this.logger.error(`Error deleting file from disk: ${fileId}`, error);
     }
 
-    await this.prisma.file.delete({
-      where: { id: fileId },
-    });
-
+    await this.prisma.file.delete({ where: { id: fileId } });
     this.logger.log(`File deleted: ${fileId}`);
   }
 
@@ -221,9 +220,7 @@ export class FileStorageService {
   }
 
   async exists(fileId: number): Promise<boolean> {
-    const count = await this.prisma.file.count({
-      where: { id: fileId },
-    });
+    const count = await this.prisma.file.count({ where: { id: fileId } });
     return count > 0;
   }
 
@@ -237,23 +234,20 @@ export class FileStorageService {
   }
 
   private determineFileType(mimeType: string): FileType {
-    if (mimeType.startsWith('image/')) {
-      return FileType.IMAGE;
-    } else if (mimeType === 'application/pdf') {
-      return FileType.PDF;
-    } else if (
+    if (mimeType.startsWith('image/')) return FileType.IMAGE;
+    if (mimeType === 'application/pdf') return FileType.PDF;
+    if (
       mimeType === 'application/msword' ||
       mimeType ===
         'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ) {
+    )
       return FileType.DOCUMENT;
-    } else if (
+    if (
       mimeType === 'application/vnd.ms-excel' ||
       mimeType ===
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ) {
+    )
       return FileType.SPREADSHEET;
-    }
     return FileType.OTHER;
   }
 
@@ -268,9 +262,7 @@ export class FileStorageService {
     return crypto.createHash('sha256').update(buffer).digest('hex');
   }
   async getByStoredName(storedName: string): Promise<File> {
-    const file = await this.prisma.file.findUnique({
-      where: { storedName },
-    });
+    const file = await this.prisma.file.findUnique({ where: { storedName } });
 
     if (!file) {
       throw new NotFoundException('File not found');
