@@ -1,0 +1,133 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../../../prisma/prisma.service';
+import { CreateSatisfactionDto } from '../dto/create-satisfaction.dto';
+
+@Injectable()
+export class SatisfactionService {
+  constructor(private prisma: PrismaService) {}
+
+  async create(purchaseId: string, dto: CreateSatisfactionDto) {
+    const purchase = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+    });
+
+    if (!purchase) {
+      throw new NotFoundException('Achat non trouvé');
+    }
+
+    if (purchase.status !== 'VALIDATED' && purchase.currentStep !== 'DONE') {
+      throw new BadRequestException(
+        "L'achat doit être terminé pour soumettre une enquête",
+      );
+    }
+
+    const existing = await this.prisma.satisfactionSurvey.findUnique({
+      where: { purchaseId },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Une enquête existe déjà pour cet achat');
+    }
+
+    // Vérifier que le fichier existe si fourni
+    if (dto.attachmentFileId) {
+      const file = await this.prisma.file.findUnique({
+        where: { id: dto.attachmentFileId },
+      });
+
+      if (!file) {
+        throw new BadRequestException('Le fichier spécifié est introuvable');
+      }
+    }
+
+    return this.prisma.satisfactionSurvey.create({
+      data: {
+        purchaseId,
+        ...dto,
+      },
+      include: {
+        purchase: {
+          select: {
+            reference: true,
+            title: true,
+          },
+        },
+        attachmentFile: true,
+      },
+    });
+  }
+
+  async findByPurchase(purchaseId: string) {
+    return this.prisma.satisfactionSurvey.findUnique({
+      where: { purchaseId },
+      include: {
+        purchase: {
+          select: {
+            reference: true,
+            title: true,
+          },
+        },
+        attachmentFile: true,
+      },
+    });
+  }
+
+  async findAll() {
+    return this.prisma.satisfactionSurvey.findMany({
+      include: {
+        purchase: {
+          select: {
+            reference: true,
+            title: true,
+          },
+        },
+        attachmentFile: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async getStatistics() {
+    const surveys = await this.prisma.satisfactionSurvey.findMany();
+
+    if (surveys.length === 0) {
+      return {
+        total: 0,
+        averageRating: 0,
+        averageDeliveryRating: 0,
+        averageQualityRating: 0,
+        averageServiceRating: 0,
+      };
+    }
+
+    const total = surveys.length;
+    const avgRating = surveys.reduce((sum, s) => sum + s.rating, 0) / total;
+    const avgDelivery =
+      surveys
+        .filter((s) => s.deliveryRating)
+        .reduce((sum, s) => sum + (s.deliveryRating || 0), 0) /
+        surveys.filter((s) => s.deliveryRating).length || 0;
+    const avgQuality =
+      surveys
+        .filter((s) => s.qualityRating)
+        .reduce((sum, s) => sum + (s.qualityRating || 0), 0) /
+        surveys.filter((s) => s.qualityRating).length || 0;
+    const avgService =
+      surveys
+        .filter((s) => s.serviceRating)
+        .reduce((sum, s) => sum + (s.serviceRating || 0), 0) /
+        surveys.filter((s) => s.serviceRating).length || 0;
+
+    return {
+      total,
+      averageRating: Math.round(avgRating * 100) / 100,
+      averageDeliveryRating: Math.round(avgDelivery * 100) / 100,
+      averageQualityRating: Math.round(avgQuality * 100) / 100,
+      averageServiceRating: Math.round(avgService * 100) / 100,
+    };
+  }
+}

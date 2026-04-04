@@ -39,8 +39,9 @@ model File {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   
-  uploadedBy        User         @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
-  attachments       Attachment[]
+  uploadedBy           User                 @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  attachments          Attachment[]
+  satisfactionSurveys  SatisfactionSurvey[]
 
   @@index([uploadedById])
   @@index([fileType])
@@ -222,6 +223,7 @@ model Purchase {
 
   updatedAt             DateTime            @updatedAt
   pv                    PV?
+  satisfactionSurvey    SatisfactionSurvey?
 
   @@index([reference])
   @@index([status])
@@ -504,4 +506,27 @@ model Notification {
   @@index([status])
   @@index([type])
   @@map("notifications")
+}
+
+model SatisfactionSurvey {
+  id                String   @id @default(cuid())
+  purchaseId        String   @unique
+  
+  rating            Int
+  comment           String?  @db.Text
+  deliveryRating    Int?
+  qualityRating     Int?
+  serviceRating     Int?
+  attachmentFileId  Int?
+  
+  purchase          Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  attachmentFile    File?    @relation(fields: [attachmentFileId], references: [id], onDelete: SetNull)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@index([purchaseId])
+  @@index([rating])
+  @@index([attachmentFileId])
+  @@map("satisfaction_surveys")
 }

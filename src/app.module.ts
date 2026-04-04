@@ -22,6 +22,7 @@ import { SupplierModule } from './supplier/supplier.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { NotificationModule } from './notification/notification.module';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { SatisfactionModule } from './satisfaction/satisfaction.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
     StatisticsModule,
     SupplierModule,
     NotificationModule,
+    SatisfactionModule,
     FileStorageModule,
     ScheduleModule.forRoot(),
   ],
