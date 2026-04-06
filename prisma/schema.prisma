@@ -39,9 +39,8 @@ model File {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   
-  uploadedBy           User                 @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
-  attachments          Attachment[]
-  satisfactionSurveys  SatisfactionSurvey[]
+  uploadedBy               User                     @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  attachments              Attachment[]
 
   @@index([uploadedById])
   @@index([fileType])
@@ -157,6 +156,7 @@ enum AttachmentType {
   PURCHASE_ORDER
   DELIVERY_NOTE
   PROOF_OF_PAYMENT
+  SATISFACTION_SURVEY
   OTHER
 }
 
@@ -509,24 +509,21 @@ model Notification {
 }
 
 model SatisfactionSurvey {
-  id                String   @id @default(cuid())
-  purchaseId        String   @unique
+  id                String                     @id @default(cuid())
+  purchaseId        String                     @unique
   
   rating            Int
-  comment           String?  @db.Text
+  comment           String?                    @db.Text
   deliveryRating    Int?
   qualityRating     Int?
   serviceRating     Int?
-  attachmentFileId  Int?
   
-  purchase          Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  attachmentFile    File?    @relation(fields: [attachmentFileId], references: [id], onDelete: SetNull)
+  purchase          Purchase                   @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
   
   @@index([purchaseId])
   @@index([rating])
-  @@index([attachmentFileId])
   @@map("satisfaction_surveys")
 }

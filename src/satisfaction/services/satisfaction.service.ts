@@ -33,32 +33,60 @@ export class SatisfactionService {
       throw new BadRequestException('Une enquête existe déjà pour cet achat');
     }
 
-    // Vérifier que le fichier existe si fourni
-    if (dto.attachmentFileId) {
-      const file = await this.prisma.file.findUnique({
-        where: { id: dto.attachmentFileId },
+    // Vérifier que les fichiers existent si fournis
+    if (dto.fileIds && dto.fileIds.length > 0) {
+      const files = await this.prisma.file.findMany({
+        where: { id: { in: dto.fileIds } },
       });
 
-      if (!file) {
-        throw new BadRequestException('Le fichier spécifié est introuvable');
+      if (files.length !== dto.fileIds.length) {
+        throw new BadRequestException(
+          'Un ou plusieurs fichiers sont introuvables',
+        );
       }
     }
 
-    return this.prisma.satisfactionSurvey.create({
-      data: {
-        purchaseId,
-        ...dto,
-      },
-      include: {
-        purchase: {
-          select: {
-            reference: true,
-            title: true,
+    const { fileIds, ...surveyData } = dto;
+
+    return this.prisma.satisfactionSurvey
+      .create({
+        data: {
+          purchaseId,
+          ...surveyData,
+        },
+        include: {
+          purchase: {
+            select: {
+              reference: true,
+              title: true,
+            },
           },
         },
-        attachmentFile: true,
-      },
-    });
+      })
+      .then(async (survey) => {
+        // Créer les attachments après la création du survey
+        if (fileIds && fileIds.length > 0) {
+          // Récupérer les infos des fichiers
+          const files = await this.prisma.file.findMany({
+            where: { id: { in: fileIds } },
+          });
+
+          // Créer les attachments avec les infos complètes
+          await this.prisma.attachment.createMany({
+            data: files.map((file) => ({
+              purchaseId,
+              fileId: file.id,
+              type: 'SATISFACTION_SURVEY',
+              fileName: file.originalName,
+              fileUrl: file.url,
+              fileSize: file.size,
+              mimeType: file.mimeType,
+            })),
+          });
+        }
+
+        return survey;
+      });
   }
 
   async findByPurchase(purchaseId: string) {
@@ -71,7 +99,6 @@ export class SatisfactionService {
             title: true,
           },
         },
-        attachmentFile: true,
       },
     });
   }
@@ -85,7 +112,6 @@ export class SatisfactionService {
             title: true,
           },
         },
-        attachmentFile: true,
       },
       orderBy: { createdAt: 'desc' },
     });

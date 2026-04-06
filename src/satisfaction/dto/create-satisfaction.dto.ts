@@ -1,5 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  IsArray,
+} from 'class-validator';
 
 export class CreateSatisfactionDto {
   @ApiProperty({ description: 'Note globale (1-5)', minimum: 1, maximum: 5 })
@@ -50,10 +57,13 @@ export class CreateSatisfactionDto {
   serviceRating?: number;
 
   @ApiProperty({
-    description: 'ID du fichier joint (optionnel)',
+    description: 'IDs des fichiers joints (optionnel)',
     required: false,
+    type: [Number],
+    example: [1, 2, 3],
   })
   @IsOptional()
-  @IsInt()
-  attachmentFileId?: number;
+  @IsArray()
+  @IsInt({ each: true })
+  fileIds?: number[];
 }
