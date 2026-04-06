@@ -41,6 +41,7 @@ model File {
   
   uploadedBy        User         @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
   attachments       Attachment[]
+  budgetTables      BudgetTable[]
 
   @@index([uploadedById])
   @@index([fileType])
@@ -78,6 +79,7 @@ model User {
   validators        Validator[]
   purchasesCreated  Purchase[]          @relation("PurchaseCreator")
   files File[]
+  budgetTables      BudgetTable[]
 
 
   @@index([email])
@@ -504,4 +506,50 @@ model Notification {
   @@index([status])
   @@index([type])
   @@map("notifications")
+}
+
+model BudgetTable {
+  id            Int               @id @default(autoincrement())
+  version       Int
+  label         String
+  isPending     Boolean           @default(false)
+  isActive      Boolean           @default(false)
+  activatedAt   DateTime?
+  uploadedById  Int
+  fileId        Int
+
+  uploadedBy    User              @relation(fields: [uploadedById], references: [id])
+  file          File              @relation(fields: [fileId], references: [id])
+  projects      BudgetProject[]
+
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([isActive])
+  @@index([isPending])
+  @@index([uploadedById])
+  @@map("budget_tables")
+}
+
+model BudgetProject {
+  id              Int          @id @default(autoincrement())
+  budgetTableId   Int
+  projectName     String
+  projectCode     String
+  grantCode       String
+  activityCode    String
+  costCenter      String
+  region          String
+  site            String
+  budgetThreshold Decimal      @db.Decimal(18, 2)
+
+  budgetTable     BudgetTable  @relation(fields: [budgetTableId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@unique([budgetTableId, projectCode])
+  @@index([budgetTableId])
+  @@index([projectCode])
+  @@map("budget_projects")
 }
