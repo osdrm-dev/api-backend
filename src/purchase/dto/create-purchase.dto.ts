@@ -2,13 +2,10 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   IsString,
   IsNotEmpty,
-  IsNumber,
   IsEnum,
   IsOptional,
-  Min,
   MaxLength,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { OperationType } from '@prisma/client';
 
 export class CreatePurchaseDto {
@@ -22,15 +19,6 @@ export class CreatePurchaseDto {
   operationType: OperationType;
 
   @ApiProperty({
-    description: 'Montant estime en MGA',
-    example: 10000000,
-    minimum: 0,
-  })
-  // @IsNumber()
-  // @Type(() => Number)
-  // @Min(0)
-  // amount: number;
-  @ApiProperty({
     description: 'Titre de la demande',
     example: 'Achat de materiel informatique',
     maxLength: 255,
@@ -42,7 +30,6 @@ export class CreatePurchaseDto {
 
   @ApiPropertyOptional({
     description: 'Description detaillee de la demande',
-    example: 'Ordinateurs portables pour le service IT',
   })
   @IsString()
   @IsOptional()
@@ -56,61 +43,56 @@ export class CreatePurchaseDto {
   @IsNotEmpty()
   justification: string;
 
-  @ApiPropertyOptional({
-    description: 'Code projet',
+  @ApiProperty({
+    description:
+      "Code projet issu du tableau budgetaire actif (les champs d'imputation sont resolus cote serveur)",
     example: 'PROJ-2024-001',
   })
   @IsString()
-  @IsOptional()
-  project?: string;
+  @IsNotEmpty()
+  projectCode: string;
 
   @ApiPropertyOptional({
-    description: 'Region',
-    example: 'Analamanga',
+    description:
+      'Nom du projet (informatif, resolu cote serveur depuis le tableau budgetaire)',
   })
   @IsString()
   @IsOptional()
-  region?: string;
+  projectName?: string;
 
   @ApiPropertyOptional({
-    description: 'Site',
-    example: 'Antananarivo',
-  })
-  @IsString()
-  @IsOptional()
-  site?: string;
-
-  @ApiPropertyOptional({
-    description: 'Code projet comptable',
-    example: 'PC-001',
-  })
-  @IsString()
-  @IsOptional()
-  projectCode?: string;
-
-  @ApiPropertyOptional({
-    description: 'Code subvention',
-    example: 'GRANT-2024',
+    description:
+      'Code subvention (informatif, resolu cote serveur depuis le tableau budgetaire)',
   })
   @IsString()
   @IsOptional()
   grantCode?: string;
 
   @ApiPropertyOptional({
-    description: 'Code activite',
-    example: 'ACT-IT',
+    description:
+      'Code activite (informatif, resolu cote serveur depuis le tableau budgetaire)',
   })
   @IsString()
   @IsOptional()
   activityCode?: string;
 
   @ApiPropertyOptional({
-    description: 'Centre de cout',
-    example: 'CC-IT',
+    description:
+      'Centre de cout (informatif, resolu cote serveur depuis le tableau budgetaire)',
   })
   @IsString()
   @IsOptional()
   costCenter?: string;
+
+  @ApiPropertyOptional({ description: 'Region (saisie manuelle)' })
+  @IsString()
+  @IsOptional()
+  region?: string;
+
+  @ApiPropertyOptional({ description: 'Site (saisie manuelle)' })
+  @IsString()
+  @IsOptional()
+  site?: string;
 
   @ApiPropertyOptional({
     description: 'Type de marche',

@@ -20,6 +20,7 @@ import {
 } from 'src/common/pagination.utils';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
+import { BudgetTableService } from '../../budget/services/budget-table.service';
 
 // Ordre d'affichage des étapes dans le groupement
 const STEP_ORDER: PurchaseStep[] = [
@@ -42,6 +43,7 @@ export class PurchaseService {
     private readonly workflowConfigService: WorkflowConfigService,
     private readonly purchaseQueryService: PurchaseQueryService,
     private readonly submitService: SubmitService,
+    private readonly budgetTableService: BudgetTableService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
@@ -49,17 +51,39 @@ export class PurchaseService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('Utilisateur non trouve');
 
+    // Resolve imputation fields from the active budget table server-side.
+    // Throws 503 if no active table, 404 if projectCode is unknown.
+    const project = await this.budgetTableService.getActiveProjectInternal(
+      createDto.projectCode,
+    );
+
     const year = new Date().getFullYear();
     const count = await this.prisma.purchase.count({ where: { year } });
     const sequentialNumber = String(count + 1).padStart(4, '0');
     const reference = `DA-${year}-${sequentialNumber}`;
+
+    const {
+      projectCode: _pc,
+      region: regionInput,
+      site: siteInput,
+      ...rest
+    } = createDto;
 
     const purchase = await this.prisma.purchase.create({
       data: {
         reference,
         year,
         sequentialNumber,
-        ...createDto,
+        ...rest,
+        // Imputation fields resolved from the active budget project:
+        project: project.projectName,
+        projectCode: project.projectCode,
+        grantCode: project.grantCode,
+        activityCode: project.activityCode,
+        costCenter: project.costCenter,
+        // region & site remain manually editable (NOT auto-filled from budget table):
+        region: regionInput,
+        site: siteInput,
         status: PurchaseStatus.DRAFT,
         currentStep: PurchaseStep.DA,
         creatorId: userId,
@@ -101,6 +125,22 @@ export class PurchaseService {
       purchase.status !== PurchaseStatus.CHANGE_REQUESTED
     )
       throw new BadRequestException('Cette DA ne peut plus etre modifiee');
+
+    // Budget threshold enforcement at item-addition time.
+    if (purchase.projectCode) {
+      const project = await this.budgetTableService.getActiveProjectInternal(
+        purchase.projectCode,
+      );
+      const total = itemsDto.items.reduce(
+        (sum, item) => sum + item.quantity * item.unitPrice,
+        0,
+      );
+      if (total > project.budgetThreshold) {
+        throw new BadRequestException(
+          'Le montant total de la DA dépasse le seuil budgétaire autorisé pour ce projet.',
+        );
+      }
+    }
 
     await this.prisma.purchaseItem.deleteMany({ where: { purchaseId } });
 
@@ -455,6 +495,26 @@ export class PurchaseService {
 
     const updateData: any = { ...updateDto };
 
+    // Project imputation fields are resolved from the active budget table,
+    // not from user input. Strip any freeform values.
+    delete updateData.project;
+    delete updateData.grantCode;
+    delete updateData.activityCode;
+    delete updateData.costCenter;
+
+    // If the caller changes the projectCode, re-resolve imputation from the
+    // active budget table.
+    if (updateData.projectCode) {
+      const project = await this.budgetTableService.getActiveProjectInternal(
+        updateData.projectCode,
+      );
+      updateData.project = project.projectName;
+      updateData.projectCode = project.projectCode;
+      updateData.grantCode = project.grantCode;
+      updateData.activityCode = project.activityCode;
+      updateData.costCenter = project.costCenter;
+    }
+
     if (!updateData.requestedDeliveryDate)
       delete updateData.requestedDeliveryDate;
     if (!updateData.deliveryAddress) delete updateData.deliveryAddress;
@@ -543,6 +603,23 @@ export class PurchaseService {
       observations: null,
       closedAt: null,
     };
+
+    // Project imputation fields are resolved from the active budget table.
+    delete updateData.project;
+    delete updateData.grantCode;
+    delete updateData.activityCode;
+    delete updateData.costCenter;
+
+    if (updateData.projectCode) {
+      const project = await this.budgetTableService.getActiveProjectInternal(
+        updateData.projectCode,
+      );
+      updateData.project = project.projectName;
+      updateData.projectCode = project.projectCode;
+      updateData.grantCode = project.grantCode;
+      updateData.activityCode = project.activityCode;
+      updateData.costCenter = project.costCenter;
+    }
 
     if (!updateData.requestedDeliveryDate)
       delete updateData.requestedDeliveryDate;
