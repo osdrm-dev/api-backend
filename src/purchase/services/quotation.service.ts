@@ -367,11 +367,11 @@ export class QuotationService {
 
     const hasEnoughQuotes = uploaded >= required;
 
-    if (!hasEnoughQuotes && !useDerogation) {
-      throw new BadRequestException(
-        `Devis insuffisants (${uploaded}/${required}). Cochez la case dérogation pour continuer malgré le manque de devis.`,
-      );
-    }
+    // if (!hasEnoughQuotes && !useDerogation) {
+    //   throw new BadRequestException(
+    //     `Devis insuffisants (${uploaded}/${required}). Cochez la case dérogation pour continuer malgré le manque de devis.`,
+    //   );
+    // }
 
     if (useDerogation && !derogationJustification?.trim()) {
       throw new BadRequestException(

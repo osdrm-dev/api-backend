@@ -33,21 +33,18 @@ export class AttachmentService {
       throw new NotFoundException("Demande d'achat non trouvee");
     }
 
-    // Vérifier les permissions selon le type
     if (dto.type === 'PURCHASE_ORDER' && user.role !== Role.ACHETEUR) {
       throw new ForbiddenException(
         'Seul un ACHETEUR peut ajouter un bon de commande',
       );
     }
 
-    // Vérifier que la purchase est à la bonne étape
     if (dto.type === 'PURCHASE_ORDER' && purchase.currentStep !== 'BC') {
       throw new BadRequestException(
         "La DA doit être à l'étape BC pour ajouter un bon de commande",
       );
     }
 
-    // Vérifier que le fichier existe
     const file = await this.prisma.file.findUnique({
       where: { id: dto.fileId },
     });
@@ -59,13 +56,14 @@ export class AttachmentService {
     const attachment = await this.prisma.attachment.create({
       data: {
         purchaseId,
+        fileId: dto.fileId, // ← fix : lier le fichier
         type: dto.type,
         fileName: file.originalName,
         fileUrl: `/files/${file.storedName}`,
         fileSize: file.size,
         mimeType: file.mimeType,
         description: dto.description,
-        uploadedBy: userId.toString(),
+        uploadedBy: user.name, // ← utiliser user.name plutôt que userId.toString()
       },
     });
 
@@ -99,7 +97,6 @@ export class AttachmentService {
       throw new NotFoundException('Document non trouve');
     }
 
-    // Vérifier les permissions
     if (attachment.type === 'PURCHASE_ORDER' && user.role !== Role.ACHETEUR) {
       throw new ForbiddenException(
         'Seul un ACHETEUR peut supprimer un bon de commande',

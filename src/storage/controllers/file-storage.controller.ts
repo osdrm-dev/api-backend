@@ -29,7 +29,7 @@ import type { Response } from 'express';
 import type { File as MulterFile } from 'multer';
 import { FileStorageService } from '../services/file-storage.service';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { createReadStream } from 'fs';
+import { createReadStream, existsSync } from 'fs';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 import {
@@ -86,7 +86,6 @@ export class FileStorageController {
         files: {
           type: 'array',
           items: { type: 'string', format: 'binary' },
-          description: 'Files to upload (max 10)',
         },
       },
     },
@@ -123,12 +122,23 @@ export class FileStorageController {
   ) {
     const file = await this.fileStorageService.getById(id);
 
+    // ← Reconstruire le chemin depuis uploadDir + storedName
+    // pour éviter le problème de chemin absolu Windows stocké en base
+    const resolvedPath = this.fileStorageService.resolveFilePath(
+      file.storedName,
+    );
+
+    if (!existsSync(resolvedPath)) {
+      throw new NotFoundException('File not found on disk');
+    }
+
     res.set({
       'Content-Type': file.mimeType,
-      'Content-Disposition': `attachment; filename="${file.originalName}"`,
+      'Content-Disposition': `attachment; filename="${encodeURIComponent(file.originalName)}"`,
+      'Content-Length': (file.optimizedSize ?? file.size).toString(),
     });
 
-    const stream = createReadStream(file.path);
+    const stream = createReadStream(resolvedPath);
     return new StreamableFile(stream);
   }
 
@@ -151,11 +161,7 @@ export class FileStorageController {
 
   @Get(':storedName')
   @ApiOperation({ summary: 'Serve a file by its stored name' })
-  @ApiParam({
-    name: 'storedName',
-    description: 'Stored name of the file',
-    example: '1718000000000-abc123def.jpg',
-  })
+  @ApiParam({ name: 'storedName', description: 'Stored name of the file' })
   @ApiResponse({ status: 200, description: 'File served successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'File not found' })
@@ -165,16 +171,21 @@ export class FileStorageController {
   ) {
     const file = await this.fileStorageService.getByStoredName(storedName);
 
-    if (!file) {
-      throw new NotFoundException('File not found');
+    // ← Même fix : reconstruire le chemin proprement
+    const resolvedPath = this.fileStorageService.resolveFilePath(
+      file.storedName,
+    );
+
+    if (!existsSync(resolvedPath)) {
+      throw new NotFoundException('File not found on disk');
     }
 
     res.set({
       'Content-Type': file.mimeType,
-      'Content-Disposition': `inline; filename="${file.originalName}"`,
+      'Content-Disposition': `inline; filename="${encodeURIComponent(file.originalName)}"`,
     });
 
-    const stream = createReadStream(file.path);
+    const stream = createReadStream(resolvedPath);
     return new StreamableFile(stream);
   }
 

@@ -44,13 +44,12 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
-      forbidNonWhitelisted: true,
       transform: true,
     }),
   );
   const allowedOrigins = [
     'https://osdrm.netlify.app',
-    'http://localhost',
+    'http://localhost:5173',
     'https://osdrm-recette.hrtechnology.online',
   ];
 

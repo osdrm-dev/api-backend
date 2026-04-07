@@ -8,22 +8,28 @@ export interface FilterOptions {
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
   status?: PurchaseStatus;
+  currentStep?: string;
+  priority?: string;
   project?: string;
   region?: string;
   search?: string;
+  startDate?: string;
+  endDate?: string;
+  minAmount?: number;
+  maxAmount?: number;
 }
 
 @Injectable()
 export class PurchaseQueryService {
   constructor(private purchaseRepo: PurchaseRepository) {}
 
-  private buildWhereClause(
-    filters: FilterOptions,
-    additionalCriteria?: any,
-  ): any {
+  buildWhereClause(filters: FilterOptions, additionalCriteria?: any): any {
     const where: any = { ...additionalCriteria };
 
     if (filters.status) where.status = filters.status;
+    if (filters.currentStep) where.currentStep = filters.currentStep;
+    if (filters.priority) where.priority = filters.priority;
+
     if (filters.project)
       where.project = { contains: filters.project, mode: 'insensitive' };
     if (filters.region)
@@ -37,7 +43,51 @@ export class PurchaseQueryService {
       ];
     }
 
+    if (filters.startDate || filters.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
+      if (filters.endDate) where.createdAt.lte = new Date(filters.endDate);
+    }
+
+    if (filters.minAmount !== undefined || filters.maxAmount !== undefined) {
+      where.items = { some: {} };
+    }
+
     return where;
+  }
+
+  private buildValidatorWhere(
+    userRole: ValidatorRole,
+    filters: FilterOptions = {},
+  ): any {
+    return this.buildWhereClause(
+      { ...filters, status: undefined },
+      {
+        status: {
+          in: [
+            PurchaseStatus.PUBLISHED,
+            PurchaseStatus.PENDING_APPROVAL,
+            PurchaseStatus.IN_DEROGATION,
+          ],
+        },
+        validationWorkflows: {
+          some: {
+            isComplete: false,
+            validators: {
+              some: {
+                role: userRole,
+                isValidated: false,
+                // NOTE: on ne filtre PAS sur `order` ici intentionnellement.
+                // Le filtre JS dans findForValidator vérifie que c'est bien
+                // le PROCHAIN validateur non validé (ordre croissant) qui correspond
+                // au rôle de l'utilisateur. Filtrer sur order: 0 ici empêchait
+                // les validateurs d'ordre > 0 de voir leurs demandes en attente.
+              },
+            },
+          },
+        },
+      },
+    );
   }
 
   async findForValidator(userRole: ValidatorRole, filters: FilterOptions) {
@@ -47,65 +97,41 @@ export class PurchaseQueryService {
       sortBy = 'createdAt',
       sortOrder = 'desc',
     } = filters;
+    const skip = (page - 1) * limit;
 
-    // On ne transmet pas `status` pour ne pas filtrer : la clause WHERE gère déjà les statuts
-    const filtersWithoutStatus: FilterOptions = { ...filters };
-    delete filtersWithoutStatus.status;
+    const where = this.buildValidatorWhere(userRole, filters);
 
-    const where = this.buildWhereClause(filtersWithoutStatus, {
-      status: {
-        in: [
-          PurchaseStatus.PUBLISHED,
-          PurchaseStatus.PENDING_APPROVAL,
-          PurchaseStatus.IN_DEROGATION,
-        ],
-      },
-      validationWorkflows: {
-        some: {
-          validators: {
-            some: {
-              role: userRole,
-              isValidated: false,
-            },
-          },
-        },
-      },
-    });
-
+    // On récupère tous les candidats sans pagination d'abord, car le filtre JS
+    // (vérification du tour exact du validateur) peut réduire le nombre de résultats.
+    // Paginer avant ce filtre rendrait le `total` et les pages incorrects.
     const allCandidates = await this.purchaseRepo.findMany({
       where,
       orderBy: { [sortBy]: sortOrder },
     });
 
-    const isMyTurn = (purchase: any): boolean => {
-      const currentWorkflow = purchase.validationWorkflows?.find(
-        (w: any) => w.step === purchase.currentStep,
-      );
+    const filtered = allCandidates
+      .filter((purchase: any) => {
+        const currentWorkflow = purchase.validationWorkflows?.find(
+          (w: any) => w.step === purchase.currentStep && !w.isComplete,
+        );
+        if (!currentWorkflow?.validators?.length) return false;
+        const nextValidator = currentWorkflow.validators
+          .filter((v: any) => !v.isValidated)
+          .sort((a: any, b: any) => a.order - b.order)[0];
+        return nextValidator?.role === userRole;
+      })
+      .map((purchase: any) => ({
+        ...purchase,
+        amount:
+          purchase.items?.reduce(
+            (sum: number, item: any) => sum + item.amount,
+            0,
+          ) || 0,
+      }));
 
-      if (!currentWorkflow?.validators?.length) return false;
-
-      const nextValidator = currentWorkflow.validators
-        .filter((v: any) => !v.isValidated)
-        .sort((a: any, b: any) => a.order - b.order)[0];
-
-      return nextValidator?.role === userRole;
-    };
-
-    const validPurchases = allCandidates.filter(isMyTurn);
-    const total = validPurchases.length;
-
-    const skip = (page - 1) * limit;
-    const paginated = validPurchases.slice(skip, skip + limit);
-
-    const data = paginated.map((purchase: any) => {
-      const amount =
-        purchase.items?.reduce(
-          (sum: number, item: any) => sum + item.amount,
-          0,
-        ) || 0;
-
-      return { ...purchase, amount };
-    });
+    // Pagination manuelle après le filtre JS pour que total et totalPages soient exacts
+    const total = filtered.length;
+    const data = filtered.slice(skip, skip + limit);
 
     return {
       data,
@@ -116,6 +142,11 @@ export class PurchaseQueryService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async countForValidator(userRole: ValidatorRole): Promise<number> {
+    const where = this.buildValidatorWhere(userRole);
+    return this.purchaseRepo.count(where);
   }
 
   async findByCreator(userId: number, filters: FilterOptions) {
@@ -159,7 +190,9 @@ export class PurchaseQueryService {
     const skip = (page - 1) * limit;
 
     const where = this.buildWhereClause(filters, {
-      status: { in: ['PUBLISHED', 'AWAITING_DOCUMENTS'] },
+      status: {
+        in: [PurchaseStatus.PUBLISHED, PurchaseStatus.AWAITING_DOCUMENTS],
+      },
       currentStep: 'QR',
     });
 

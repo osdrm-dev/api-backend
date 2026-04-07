@@ -1,56 +1,51 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsString,
-  IsNotEmpty,
-  IsEnum,
-  IsOptional,
-  MaxLength,
-} from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsEnum, IsOptional, MaxLength } from 'class-validator';
 import { OperationType } from '@prisma/client';
 
-export class CreatePurchaseDto {
-  @ApiProperty({
+export class UpdatePurchaseDto {
+  @ApiPropertyOptional({
     description: "Type de l'operation",
     enum: OperationType,
     example: 'OPERATION',
   })
   @IsEnum(OperationType)
-  @IsNotEmpty()
-  operationType: OperationType;
+  @IsOptional()
+  operationType?: OperationType;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Titre de la demande',
     example: 'Achat de materiel informatique',
     maxLength: 255,
   })
   @IsString()
-  @IsNotEmpty()
+  @IsOptional()
   @MaxLength(255)
-  title: string;
+  title?: string;
 
   @ApiPropertyOptional({
     description: 'Description detaillee de la demande',
+    example: 'Ordinateurs portables pour le service IT',
   })
   @IsString()
   @IsOptional()
   description?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description: 'Justification de la demande',
     example: 'Renouvellement du parc informatique',
   })
   @IsString()
-  @IsNotEmpty()
-  justification: string;
+  @IsOptional()
+  justification?: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description:
-      "Code projet issu du tableau budgetaire actif (les champs d'imputation sont resolus cote serveur)",
+      'Code projet issu du tableau budgetaire actif (optionnel a la mise a jour)',
     example: 'PROJ-2024-001',
   })
   @IsString()
-  @IsNotEmpty()
-  projectCode: string;
+  @IsOptional()
+  projectCode?: string;
 
   @ApiPropertyOptional({
     description:
@@ -116,6 +111,14 @@ export class CreatePurchaseDto {
   })
   @IsOptional()
   requestedDeliveryDate?: Date;
+
+  @ApiPropertyOptional({
+    description: 'Observations',
+    example: 'Remarques supplementaires',
+  })
+  @IsString()
+  @IsOptional()
+  observations?: string;
 
   @ApiPropertyOptional({
     description: 'Priorite',
