@@ -39,9 +39,10 @@ model File {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
   
-  uploadedBy        User         @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
-  attachments       Attachment[]
-  budgetTables      BudgetTable[]
+  uploadedBy          User                 @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  attachments         Attachment[]
+  budgetTables        BudgetTable[]
+  signatureSpecimens  SignatureSpecimen[]
 
   @@index([uploadedById])
   @@index([fileType])
@@ -74,13 +75,13 @@ model User {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   
-  refreshTokens     RefreshToken[]
-  auditLogs         AuditLog[]
-  validators        Validator[]
-  purchasesCreated  Purchase[]          @relation("PurchaseCreator")
-  files File[]
-  budgetTables      BudgetTable[]
-
+  refreshTokens       RefreshToken[]
+  auditLogs           AuditLog[]
+  validators          Validator[]
+  purchasesCreated    Purchase[]           @relation("PurchaseCreator")
+  files               File[]
+  budgetTables        BudgetTable[]
+  signatureSpecimens  SignatureSpecimen[]
 
   @@index([email])
   @@index([role])
@@ -552,4 +553,19 @@ model BudgetProject {
   @@index([budgetTableId])
   @@index([projectCode])
   @@map("budget_projects")
+}
+
+model SignatureSpecimen {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  fileId    Int
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("signature_specimens")
 }
