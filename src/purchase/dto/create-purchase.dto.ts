@@ -5,11 +5,64 @@ import {
   IsNumber,
   IsEnum,
   IsOptional,
+  IsArray,
+  ValidateNested,
   Min,
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { OperationType } from '@prisma/client';
+
+export class AttachmentDto {
+  @ApiProperty({
+    description: 'Nom du fichier',
+    example: 'devis-fournisseur.pdf',
+  })
+  @IsString()
+  @IsNotEmpty()
+  fileName!: string;
+
+  @ApiProperty({
+    description: 'URL du fichier uploadé',
+    example: 'https://storage.example.com/files/abc123.pdf',
+  })
+  @IsString()
+  @IsNotEmpty()
+  fileUrl!: string;
+
+  @ApiProperty({
+    description: 'ID du fichier dans la table File',
+    example: 1,
+  })
+  @IsNumber()
+  @Type(() => Number)
+  fileId!: number;
+
+  @ApiPropertyOptional({
+    description: 'Taille du fichier en bytes',
+    example: 1024000,
+  })
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
+  fileSize?: number;
+
+  @ApiPropertyOptional({
+    description: 'Type MIME du fichier',
+    example: 'application/pdf',
+  })
+  @IsOptional()
+  @IsString()
+  mimeType?: string;
+
+  @ApiPropertyOptional({
+    description: 'Description du fichier',
+    example: 'Devis du fournisseur ABC',
+  })
+  @IsOptional()
+  @IsString()
+  description?: string;
+}
 
 export class CreatePurchaseDto {
   @ApiProperty({
@@ -19,17 +72,8 @@ export class CreatePurchaseDto {
   })
   @IsEnum(OperationType)
   @IsNotEmpty()
-  operationType: OperationType;
+  operationType!: OperationType;
 
-  @ApiProperty({
-    description: 'Montant estime en MGA',
-    example: 10000000,
-    minimum: 0,
-  })
-  // @IsNumber()
-  // @Type(() => Number)
-  // @Min(0)
-  // amount: number;
   @ApiProperty({
     description: 'Titre de la demande',
     example: 'Achat de materiel informatique',
@@ -38,7 +82,7 @@ export class CreatePurchaseDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(255)
-  title: string;
+  title!: string;
 
   @ApiPropertyOptional({
     description: 'Description detaillee de la demande',
@@ -54,7 +98,7 @@ export class CreatePurchaseDto {
   })
   @IsString()
   @IsNotEmpty()
-  justification: string;
+  justification!: string;
 
   @ApiPropertyOptional({
     description: 'Code projet',
@@ -142,4 +186,14 @@ export class CreatePurchaseDto {
   @IsString()
   @IsOptional()
   priority?: string;
+
+  @ApiPropertyOptional({
+    description: 'Pièces jointes de la demande',
+    type: [AttachmentDto],
+  })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => AttachmentDto)
+  attachments?: AttachmentDto[];
 }

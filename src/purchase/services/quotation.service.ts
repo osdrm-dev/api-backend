@@ -423,10 +423,8 @@ export class QuotationService {
     let newStatus: PurchaseStatus;
     if (useDerogation && !hasEnoughQuotes) {
       newStatus = PurchaseStatus.IN_DEROGATION;
-    } else if (hasEnoughQuotes) {
-      newStatus = PurchaseStatus.PENDING_APPROVAL;
     } else {
-      newStatus = PurchaseStatus.PUBLISHED;
+      newStatus = PurchaseStatus.PENDING_APPROVAL;
     }
 
     await this.prisma.purchase.update({

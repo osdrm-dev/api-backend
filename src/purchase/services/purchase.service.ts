@@ -13,7 +13,7 @@ import { SubmitService } from './submit.service';
 import { CreatePurchaseDto } from '../dto/create-purchase.dto';
 import { AddPurchaseItemsDto } from '../dto/purchase-item.dto';
 import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
-import { PurchaseStatus, PurchaseStep } from '@prisma/client';
+import { PurchaseStatus, PurchaseStep, AttachmentType } from '@prisma/client';
 import {
   buildPaginatedResponse,
   parsePaginationParams,
@@ -21,7 +21,6 @@ import {
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 
-// Ordre d'affichage des étapes dans le groupement
 const STEP_ORDER: PurchaseStep[] = [
   PurchaseStep.DA,
   PurchaseStep.QR,
@@ -54,15 +53,37 @@ export class PurchaseService {
     const sequentialNumber = String(count + 1).padStart(4, '0');
     const reference = `DA-${year}-${sequentialNumber}`;
 
+    // Extraire les attachments du DTO
+    const { attachments, ...purchaseData } = createDto;
+
     const purchase = await this.prisma.purchase.create({
       data: {
         reference,
         year,
         sequentialNumber,
-        ...createDto,
+        ...purchaseData,
         status: PurchaseStatus.DRAFT,
         currentStep: PurchaseStep.DA,
         creatorId: userId,
+        // Créer les attachments si fournis
+        ...(attachments &&
+          attachments.length > 0 && {
+            attachments: {
+              create: attachments.map((att) => ({
+                type: AttachmentType.DA_ATTACHMENT, // Pièces jointes de la DA
+                fileName: att.fileName,
+                fileUrl: att.fileUrl,
+                fileId: att.fileId,
+                fileSize: att.fileSize,
+                mimeType: att.mimeType,
+                description: att.description,
+                uploadedBy: user.name,
+              })),
+            },
+          }),
+      },
+      include: {
+        attachments: true,
       },
     });
 
@@ -70,6 +91,7 @@ export class PurchaseService {
       purchaseId: purchase.id,
       reference: purchase.reference,
       userId,
+      attachmentsCount: purchase.attachments.length,
     });
 
     return {
@@ -77,6 +99,7 @@ export class PurchaseService {
       reference: purchase.reference,
       status: purchase.status,
       currentStep: purchase.currentStep,
+      attachments: purchase.attachments,
       message: 'DA creee avec succes. Ajoutez maintenant les articles.',
     };
   }
@@ -140,6 +163,69 @@ export class PurchaseService {
     };
   }
 
+  async updatePurchase(
+    purchaseId: string,
+    userId: number,
+    updateDto: Partial<CreatePurchaseDto>,
+  ) {
+    const purchase = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+    });
+
+    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (purchase.creatorId !== userId)
+      throw new ForbiddenException(
+        "Vous n'etes pas autorise a modifier cette DA",
+      );
+    if (
+      purchase.status !== PurchaseStatus.DRAFT &&
+      purchase.status !== PurchaseStatus.CHANGE_REQUESTED
+    )
+      throw new BadRequestException('Cette DA ne peut plus etre modifiee');
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    // Extraire les attachments du DTO
+    const { attachments, ...updateData } = updateDto;
+
+    if (!updateData.requestedDeliveryDate)
+      delete updateData.requestedDeliveryDate;
+    if (!updateData.deliveryAddress) delete updateData.deliveryAddress;
+
+    // Si des attachments sont fournis, on les ajoute (sans supprimer les anciens)
+    if (attachments && attachments.length > 0) {
+      await this.prisma.attachment.createMany({
+        data: attachments.map((att) => ({
+          purchaseId,
+          type: AttachmentType.DA_ATTACHMENT, // Pièces jointes de la DA
+          fileName: att.fileName,
+          fileUrl: att.fileUrl,
+          fileId: att.fileId,
+          fileSize: att.fileSize,
+          mimeType: att.mimeType,
+          description: att.description,
+          uploadedBy: user?.name,
+        })),
+      });
+    }
+
+    const updated = await this.prisma.purchase.update({
+      where: { id: purchaseId },
+      data: updateData,
+      include: {
+        attachments: true,
+      },
+    });
+
+    return {
+      id: updated.id,
+      reference: updated.reference,
+      status: updated.status,
+      attachments: updated.attachments,
+      message: 'DA mise a jour avec succes',
+    };
+  }
+
   async publishPurchaseForValidation(purchaseId: string, userId: number) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
@@ -163,7 +249,6 @@ export class PurchaseService {
         'Ajoutez au moins un article avant de publier',
       );
 
-    // Si la DA était en CHANGE_REQUESTED, on supprime les anciens workflows et on remet à zéro
     if (purchase.status === PurchaseStatus.CHANGE_REQUESTED) {
       await this.prisma.validationWorkflow.deleteMany({
         where: { purchaseId },
@@ -276,134 +361,7 @@ export class PurchaseService {
     return {
       ...purchase,
       items: cleanedItems,
-      amount: purchase.items.reduce((sum, item) => sum + item.amount, 0),
       statusMessage,
-    };
-  }
-
-  // ─── Helpers privés ───────────────────────────────────────────────────────
-
-  private buildPurchaseWhereClause(
-    filters: FilterPurchaseDto,
-    baseWhere: Record<string, any> = {},
-  ): Record<string, any> {
-    const where: any = { ...baseWhere };
-
-    if (filters.status) where.status = filters.status;
-    if (filters.currentStep) where.currentStep = filters.currentStep;
-    if (filters.priority) where.priority = filters.priority;
-
-    if (filters.search) {
-      where.OR = [
-        { reference: { contains: filters.search, mode: 'insensitive' } },
-        { title: { contains: filters.search, mode: 'insensitive' } },
-      ];
-    }
-
-    if (filters.startDate || filters.endDate) {
-      where.createdAt = {};
-      if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
-      if (filters.endDate) where.createdAt.lte = new Date(filters.endDate);
-    }
-
-    if (filters.minAmount !== undefined || filters.maxAmount !== undefined) {
-      // On filtre sur le montant total via les items (agregat côté app après fetch)
-      // Pour un filtrage SQL, on utilise une sous-requête via items
-      where.items = {
-        some: {},
-      };
-    }
-
-    return where;
-  }
-
-  /** Groupe un tableau de DA par currentStep selon STEP_ORDER */
-  private groupPurchasesByStep(purchases: any[]): Record<string, any[]> {
-    const grouped: Record<string, any[]> = {};
-
-    for (const step of STEP_ORDER) {
-      const group = purchases.filter((p) => p.currentStep === step);
-      if (group.length > 0) {
-        grouped[step] = group;
-      }
-    }
-
-    return grouped;
-  }
-
-  private enrichPurchases(purchases: any[]) {
-    return purchases.map((purchase) => {
-      const cleanedItems = purchase.items.map((item: any) => {
-        const cleaned: any = {
-          id: item.id,
-          designation: item.designation,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          amount: item.amount,
-        };
-        if (item.unit) cleaned.unit = item.unit;
-        if (item.specifications) cleaned.specifications = item.specifications;
-        return cleaned;
-      });
-
-      return {
-        ...purchase,
-        items: cleanedItems,
-        amount: purchase.items.reduce(
-          (sum: number, item: any) => sum + item.amount,
-          0,
-        ),
-        statusMessage: this.workflowConfigService.getStatusMessage(
-          purchase.status,
-          purchase.currentStep,
-        ),
-      };
-    });
-  }
-
-  // ─── Méthodes publiques ───────────────────────────────────────────────────
-
-  async getMyPurchases(userId: number, filters: FilterPurchaseDto = {}) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('Utilisateur non trouve');
-
-    const pagination = parsePaginationParams(filters, {
-      defaultPage: 1,
-      defaultLimit: 10,
-      maxLimit: 100,
-    });
-
-    const where = this.buildPurchaseWhereClause(filters, {
-      creatorId: userId,
-    });
-
-    const [purchases, total] = await Promise.all([
-      this.prisma.purchase.findMany({
-        where,
-        include: {
-          items: true,
-          validationWorkflows: {
-            include: {
-              validators: { orderBy: { order: 'asc' } },
-            },
-            orderBy: { createdAt: 'desc' },
-          },
-        },
-        orderBy: [{ currentStep: 'asc' }, { createdAt: 'desc' }],
-        skip: pagination.skip,
-        take: pagination.limit,
-      }),
-      this.prisma.purchase.count({ where }),
-    ]);
-
-    const enriched = this.enrichPurchases(purchases);
-
-    return {
-      grouped: this.groupPurchasesByStep(enriched),
-      total,
-      page: pagination.page,
-      limit: pagination.limit,
-      totalPages: Math.ceil(total / pagination.limit),
     };
   }
 
@@ -431,45 +389,6 @@ export class PurchaseService {
     });
 
     return { message: 'DA supprimee avec succes' };
-  }
-
-  async updatePurchase(
-    purchaseId: string,
-    userId: number,
-    updateDto: Partial<CreatePurchaseDto>,
-  ) {
-    const purchase = await this.prisma.purchase.findUnique({
-      where: { id: purchaseId },
-    });
-
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
-    if (purchase.creatorId !== userId)
-      throw new ForbiddenException(
-        "Vous n'etes pas autorise a modifier cette DA",
-      );
-    if (
-      purchase.status !== PurchaseStatus.DRAFT &&
-      purchase.status !== PurchaseStatus.CHANGE_REQUESTED
-    )
-      throw new BadRequestException('Cette DA ne peut plus etre modifiee');
-
-    const updateData: any = { ...updateDto };
-
-    if (!updateData.requestedDeliveryDate)
-      delete updateData.requestedDeliveryDate;
-    if (!updateData.deliveryAddress) delete updateData.deliveryAddress;
-
-    const updated = await this.prisma.purchase.update({
-      where: { id: purchaseId },
-      data: updateData,
-    });
-
-    return {
-      id: updated.id,
-      reference: updated.reference,
-      status: updated.status,
-      message: 'DA mise a jour avec succes',
-    };
   }
 
   async updateLogistics(
@@ -537,8 +456,13 @@ export class PurchaseService {
         'Seules les DA avec modifications demandees peuvent etre republiees',
       );
 
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+
+    // Extraire les attachments du DTO
+    const { attachments, ...purchaseUpdateData } = updateDto;
+
     const updateData: any = {
-      ...updateDto,
+      ...purchaseUpdateData,
       status: PurchaseStatus.DRAFT,
       observations: null,
       closedAt: null,
@@ -552,6 +476,23 @@ export class PurchaseService {
       where: { id: purchaseId },
       data: updateData,
     });
+
+    // Si des attachments sont fournis, on les ajoute
+    if (attachments && attachments.length > 0) {
+      await this.prisma.attachment.createMany({
+        data: attachments.map((att) => ({
+          purchaseId,
+          type: AttachmentType.DA_ATTACHMENT, // Pièces jointes de la DA
+          fileName: att.fileName,
+          fileUrl: att.fileUrl,
+          fileId: att.fileId,
+          fileSize: att.fileSize,
+          mimeType: att.mimeType,
+          description: att.description,
+          uploadedBy: user?.name,
+        })),
+      });
+    }
 
     if (itemsDto) {
       await this.prisma.purchaseItem.deleteMany({ where: { purchaseId } });
@@ -582,6 +523,56 @@ export class PurchaseService {
     };
   }
 
+  async getMyPurchases(userId: number, filters: FilterPurchaseDto = {}) {
+    const pagination = parsePaginationParams(filters, {
+      defaultPage: 1,
+      defaultLimit: 10,
+      maxLimit: 100,
+    });
+
+    const where: any = { creatorId: userId };
+
+    if (filters.status) where.status = filters.status;
+    if (filters.currentStep) where.currentStep = filters.currentStep;
+
+    const [purchases, total] = await Promise.all([
+      this.prisma.purchase.findMany({
+        where,
+        include: {
+          items: true,
+          attachments: true,
+          validationWorkflows: {
+            include: {
+              validators: { orderBy: { order: 'asc' } },
+            },
+          },
+        },
+        orderBy: [{ currentStep: 'asc' }, { createdAt: 'desc' }],
+        skip: pagination.skip,
+        take: pagination.limit,
+      }),
+      this.prisma.purchase.count({ where }),
+    ]);
+
+    const enriched = purchases.map((p) => ({
+      ...p,
+      amount: p.items.reduce((sum, item) => sum + item.amount, 0),
+    }));
+
+    const grouped: Record<string, any[]> = {};
+    for (const step of STEP_ORDER) {
+      const group = enriched.filter((p) => p.currentStep === step);
+      if (group.length > 0) grouped[step] = group;
+    }
+
+    return {
+      grouped,
+      total,
+      page: pagination.page,
+      limit: pagination.limit,
+      totalPages: Math.ceil(total / pagination.limit),
+    };
+  }
   async getBuyerWorkspace(filters: FilterPurchaseDto = {}) {
     const pagination = parsePaginationParams(filters, {
       defaultPage: 1,
@@ -598,8 +589,6 @@ export class PurchaseService {
           PurchaseStatus.PUBLISHED,
         ],
       },
-      // Si un filtre currentStep est précisé, il sera appliqué dans buildPurchaseWhereClause,
-      // sinon on restreint aux étapes acheteur par défaut.
       ...(!filters.currentStep && {
         currentStep: {
           in: [
@@ -615,13 +604,18 @@ export class PurchaseService {
       }),
     };
 
-    const where = this.buildPurchaseWhereClause(filters, baseWhere);
+    const where = { ...baseWhere };
+
+    if (filters.currentStep) {
+      where.currentStep = filters.currentStep;
+    }
 
     const [purchases, total] = await Promise.all([
       this.prisma.purchase.findMany({
         where,
         include: {
           items: true,
+          attachments: true,
           validationWorkflows: {
             include: {
               validators: { orderBy: { order: 'asc' } },
@@ -631,7 +625,6 @@ export class PurchaseService {
             select: { id: true, name: true, email: true, role: true },
           },
         },
-        // Tri : d'abord par étape (ordre naturel enum), puis par date décroissante
         orderBy: [{ currentStep: 'asc' }, { createdAt: 'desc' }],
         skip: pagination.skip,
         take: pagination.limit,
@@ -639,10 +632,8 @@ export class PurchaseService {
       this.prisma.purchase.count({ where }),
     ]);
 
-    const enriched = this.enrichPurchases(purchases);
-
     return {
-      grouped: this.groupPurchasesByStep(enriched),
+      data: purchases,
       total,
       page: pagination.page,
       limit: pagination.limit,
