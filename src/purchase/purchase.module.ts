@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { PurchaseValidationModule } from '../purchaseValidation/purchase.module';
+import { BudgetModule } from '../budget/budget.module';
 
 import { PurchaseController } from './controllers/purchase.controller';
 import { QuotationController } from './controllers/quotation.controller';
@@ -27,7 +28,7 @@ import { DocumentStepService } from 'src/purchase/services/step.service';
 import { PVRepository } from '../repository/purchase/pv.repository';
 
 @Module({
-  imports: [PrismaModule, PurchaseValidationModule],
+  imports: [PrismaModule, PurchaseValidationModule, BudgetModule],
   controllers: [
     PurchaseController,
     QuotationController,

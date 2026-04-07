@@ -10,35 +10,37 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy to OVH server
+      - name: Write .env on server
+        uses: appleboy/ssh-action@v1.0.3
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: DATABASE_URL
+          script: |
+            set -e
+            mkdir -p ${{ vars.APP_DIR }}
+            {
+              echo "NODE_ENV=production"
+              echo "PORT=3000"
+              echo "DATABASE_URL=${DATABASE_URL}"
+            } > ${{ vars.APP_DIR }}/.env
+            echo ".env written"
+
+      - name: Deploy application
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          debug: true
           script: |
             set -e
 
-            echo "=== Load environment ==="
-            # export HOME=/home/dev
-            # export NVM_DIR="$HOME/.nvm"
-
-            # if [ -s "$NVM_DIR/nvm.sh" ]; then
-            #   . "$NVM_DIR/nvm.sh"
-            #   nvm use 24
-            # else
-            #   echo "NVM not found"
-            #   exit 1
-            # fi
-
-            # export PATH="$NVM_DIR/versions/node/v24.12.0/bin:/usr/local/bin:/usr/bin:$PATH"
-
-            echo "Ensure app directory exists"
             mkdir -p ${{ vars.APP_DIR }}
             cd ${{ vars.APP_DIR }}
 
-            echo "Prepare rollback directories"
             rm -rf failed || true
 
             if [ -d "current" ]; then
@@ -48,21 +50,16 @@ jobs:
             fi
 
             echo "Clone new version"
-            git clone https://${{secrets.GH_ACCESS_TOKEN}}@github.com/osdrm-dev/api-backend.git current || {
+            git clone https://${{ secrets.GH_ACCESS_TOKEN }}@github.com/osdrm-dev/api-backend.git current || {
               echo "Git clone failed, rollback"
               rm -rf current
               mv previous current
               exit 1
             }
 
-            cd current
+            cp .env current/.env
 
-            echo "Create .env file"
-            cat <<EOF > .env
-            NODE_ENV=production
-            PORT=3000
-            DATABASE_URL=${{ secrets.DATABASE_URL }}
-            EOF
+            cd current
 
             echo "Install production dependencies"
             npm install || {
@@ -73,7 +70,7 @@ jobs:
               exit 1
             }
 
-            echo "=== Generate Prisma Client ==="
+            echo "Generate Prisma Client"
             npx prisma generate || {
               echo "Prisma generate failed, rollback"
               cd ..
@@ -96,11 +93,12 @@ jobs:
               exit 1
             fi
 
-            echo "Load environment variables from .env" 
-            export $(cat .env | xargs)
-
             echo "Restart application with PM2"
             pm2 delete ${{ secrets.PM2_APP_NAME }} || true
+
+            set -a
+            source .env
+            set +a
 
             pm2 start dist/src/main.js \
               --name ${{ secrets.PM2_APP_NAME }} \

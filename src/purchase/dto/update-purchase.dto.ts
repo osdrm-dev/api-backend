@@ -39,60 +39,55 @@ export class UpdatePurchaseDto {
   justification?: string;
 
   @ApiPropertyOptional({
-    description: 'Code projet',
+    description:
+      'Code projet issu du tableau budgetaire actif (optionnel a la mise a jour)',
     example: 'PROJ-2024-001',
-  })
-  @IsString()
-  @IsOptional()
-  project?: string;
-
-  @ApiPropertyOptional({
-    description: 'Region',
-    example: 'Analamanga',
-  })
-  @IsString()
-  @IsOptional()
-  region?: string;
-
-  @ApiPropertyOptional({
-    description: 'Site',
-    example: 'Antananarivo',
-  })
-  @IsString()
-  @IsOptional()
-  site?: string;
-
-  @ApiPropertyOptional({
-    description: 'Code projet comptable',
-    example: 'PC-001',
   })
   @IsString()
   @IsOptional()
   projectCode?: string;
 
   @ApiPropertyOptional({
-    description: 'Code subvention',
-    example: 'GRANT-2024',
+    description:
+      'Nom du projet (informatif, resolu cote serveur depuis le tableau budgetaire)',
+  })
+  @IsString()
+  @IsOptional()
+  projectName?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Code subvention (informatif, resolu cote serveur depuis le tableau budgetaire)',
   })
   @IsString()
   @IsOptional()
   grantCode?: string;
 
   @ApiPropertyOptional({
-    description: 'Code activite',
-    example: 'ACT-IT',
+    description:
+      'Code activite (informatif, resolu cote serveur depuis le tableau budgetaire)',
   })
   @IsString()
   @IsOptional()
   activityCode?: string;
 
   @ApiPropertyOptional({
-    description: 'Centre de cout',
-    example: 'CC-IT',
+    description:
+      'Centre de cout (informatif, resolu cote serveur depuis le tableau budgetaire)',
   })
   @IsString()
   @IsOptional()
   costCenter?: string;
+
+  @ApiPropertyOptional({ description: 'Region (saisie manuelle)' })
+  @IsString()
+  @IsOptional()
+  region?: string;
+
+  @ApiPropertyOptional({ description: 'Site (saisie manuelle)' })
+  @IsString()
+  @IsOptional()
+  site?: string;
 
   @ApiPropertyOptional({
     description: 'Type de marche',

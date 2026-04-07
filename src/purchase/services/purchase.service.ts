@@ -20,6 +20,7 @@ import {
 } from 'src/common/pagination.utils';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
+import { BudgetTableService } from '../../budget/services/budget-table.service';
 
 const STEP_ORDER: PurchaseStep[] = [
   PurchaseStep.DA,
@@ -41,6 +42,7 @@ export class PurchaseService {
     private readonly workflowConfigService: WorkflowConfigService,
     private readonly purchaseQueryService: PurchaseQueryService,
     private readonly submitService: SubmitService,
+    private readonly budgetTableService: BudgetTableService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
@@ -48,13 +50,25 @@ export class PurchaseService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('Utilisateur non trouve');
 
+    // Resolve imputation fields from the active budget table server-side.
+    // Throws 503 if no active table, 404 if projectCode is unknown.
+    const project = await this.budgetTableService.getActiveProjectInternal(
+      createDto.projectCode,
+    );
+
     const year = new Date().getFullYear();
     const count = await this.prisma.purchase.count({ where: { year } });
     const sequentialNumber = String(count + 1).padStart(4, '0');
     const reference = `DA-${year}-${sequentialNumber}`;
 
     // Extraire les attachments du DTO
-    const { attachments, ...purchaseData } = createDto;
+    const {
+      attachments,
+      projectCode: _pc,
+      region: regionInput,
+      site: siteInput,
+      ...purchaseData
+    } = createDto;
 
     const purchase = await this.prisma.purchase.create({
       data: {
@@ -62,15 +76,21 @@ export class PurchaseService {
         year,
         sequentialNumber,
         ...purchaseData,
+        project: project.projectName,
+        projectCode: project.projectCode,
+        grantCode: project.grantCode,
+        activityCode: project.activityCode,
+        costCenter: project.costCenter,
+        region: regionInput,
+        site: siteInput,
         status: PurchaseStatus.DRAFT,
         currentStep: PurchaseStep.DA,
         creatorId: userId,
-        // Créer les attachments si fournis
         ...(attachments &&
           attachments.length > 0 && {
             attachments: {
               create: attachments.map((att) => ({
-                type: AttachmentType.DA_ATTACHMENT, // Pièces jointes de la DA
+                type: AttachmentType.DA_ATTACHMENT,
                 fileName: att.fileName,
                 fileUrl: att.fileUrl,
                 fileId: att.fileId,
@@ -82,16 +102,15 @@ export class PurchaseService {
             },
           }),
       },
-      include: {
-        attachments: true,
-      },
     });
+
+    const attachmentsCount = attachments?.length ?? 0;
 
     this.logger.info('DA creee', {
       purchaseId: purchase.id,
       reference: purchase.reference,
       userId,
-      attachmentsCount: purchase.attachments.length,
+      attachmentsCount,
     });
 
     return {
@@ -99,7 +118,7 @@ export class PurchaseService {
       reference: purchase.reference,
       status: purchase.status,
       currentStep: purchase.currentStep,
-      attachments: purchase.attachments,
+      attachments: attachments ?? [],
       message: 'DA creee avec succes. Ajoutez maintenant les articles.',
     };
   }
@@ -124,6 +143,22 @@ export class PurchaseService {
       purchase.status !== PurchaseStatus.CHANGE_REQUESTED
     )
       throw new BadRequestException('Cette DA ne peut plus etre modifiee');
+
+    // Budget threshold enforcement at item-addition time.
+    if (purchase.projectCode) {
+      const project = await this.budgetTableService.getActiveProjectInternal(
+        purchase.projectCode,
+      );
+      const total = itemsDto.items.reduce(
+        (sum, item) => sum + item.quantity * item.unitPrice,
+        0,
+      );
+      if (total > project.budgetThreshold) {
+        throw new BadRequestException(
+          'Le montant total de la DA dépasse le seuil budgétaire autorisé pour ce projet.',
+        );
+      }
+    }
 
     await this.prisma.purchaseItem.deleteMany({ where: { purchaseId } });
 
@@ -163,68 +198,68 @@ export class PurchaseService {
     };
   }
 
-  async updatePurchase(
-    purchaseId: string,
-    userId: number,
-    updateDto: Partial<CreatePurchaseDto>,
-  ) {
-    const purchase = await this.prisma.purchase.findUnique({
-      where: { id: purchaseId },
-    });
+  // async updatePurchase(
+  //   purchaseId: string,
+  //   userId: number,
+  //   updateDto: Partial<CreatePurchaseDto>,
+  // ) {
+  //   const purchase = await this.prisma.purchase.findUnique({
+  //     where: { id: purchaseId },
+  //   });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
-    if (purchase.creatorId !== userId)
-      throw new ForbiddenException(
-        "Vous n'etes pas autorise a modifier cette DA",
-      );
-    if (
-      purchase.status !== PurchaseStatus.DRAFT &&
-      purchase.status !== PurchaseStatus.CHANGE_REQUESTED
-    )
-      throw new BadRequestException('Cette DA ne peut plus etre modifiee');
+  //   if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+  //   if (purchase.creatorId !== userId)
+  //     throw new ForbiddenException(
+  //       "Vous n'etes pas autorise a modifier cette DA",
+  //     );
+  //   if (
+  //     purchase.status !== PurchaseStatus.DRAFT &&
+  //     purchase.status !== PurchaseStatus.CHANGE_REQUESTED
+  //   )
+  //     throw new BadRequestException('Cette DA ne peut plus etre modifiee');
 
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  //   const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
-    // Extraire les attachments du DTO
-    const { attachments, ...updateData } = updateDto;
+  //   // Extraire les attachments du DTO
+  //   const { attachments, ...updateData } = updateDto;
 
-    if (!updateData.requestedDeliveryDate)
-      delete updateData.requestedDeliveryDate;
-    if (!updateData.deliveryAddress) delete updateData.deliveryAddress;
+  //   if (!updateData.requestedDeliveryDate)
+  //     delete updateData.requestedDeliveryDate;
+  //   if (!updateData.deliveryAddress) delete updateData.deliveryAddress;
 
-    // Si des attachments sont fournis, on les ajoute (sans supprimer les anciens)
-    if (attachments && attachments.length > 0) {
-      await this.prisma.attachment.createMany({
-        data: attachments.map((att) => ({
-          purchaseId,
-          type: AttachmentType.DA_ATTACHMENT, // Pièces jointes de la DA
-          fileName: att.fileName,
-          fileUrl: att.fileUrl,
-          fileId: att.fileId,
-          fileSize: att.fileSize,
-          mimeType: att.mimeType,
-          description: att.description,
-          uploadedBy: user?.name,
-        })),
-      });
-    }
+  //   // Si des attachments sont fournis, on les ajoute (sans supprimer les anciens)
+  //   if (attachments && attachments.length > 0) {
+  //     await this.prisma.attachment.createMany({
+  //       data: attachments.map((att) => ({
+  //         purchaseId,
+  //         type: AttachmentType.DA_ATTACHMENT, // Pièces jointes de la DA
+  //         fileName: att.fileName,
+  //         fileUrl: att.fileUrl,
+  //         fileId: att.fileId,
+  //         fileSize: att.fileSize,
+  //         mimeType: att.mimeType,
+  //         description: att.description,
+  //         uploadedBy: user?.name,
+  //       })),
+  //     });
+  //   }
 
-    const updated = await this.prisma.purchase.update({
-      where: { id: purchaseId },
-      data: updateData,
-      include: {
-        attachments: true,
-      },
-    });
+  //   const updated = await this.prisma.purchase.update({
+  //     where: { id: purchaseId },
+  //     data: updateData,
+  //     include: {
+  //       attachments: true,
+  //     },
+  //   });
 
-    return {
-      id: updated.id,
-      reference: updated.reference,
-      status: updated.status,
-      attachments: updated.attachments,
-      message: 'DA mise a jour avec succes',
-    };
-  }
+  //   return {
+  //     id: updated.id,
+  //     reference: updated.reference,
+  //     status: updated.status,
+  //     attachments: updated.attachments,
+  //     message: 'DA mise a jour avec succes',
+  //   };
+  // }
 
   async publishPurchaseForValidation(purchaseId: string, userId: number) {
     const purchase = await this.prisma.purchase.findUnique({
@@ -391,6 +426,65 @@ export class PurchaseService {
     return { message: 'DA supprimee avec succes' };
   }
 
+  async updatePurchase(
+    purchaseId: string,
+    userId: number,
+    updateDto: Partial<CreatePurchaseDto>,
+  ) {
+    const purchase = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+    });
+
+    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (purchase.creatorId !== userId)
+      throw new ForbiddenException(
+        "Vous n'etes pas autorise a modifier cette DA",
+      );
+    if (
+      purchase.status !== PurchaseStatus.DRAFT &&
+      purchase.status !== PurchaseStatus.CHANGE_REQUESTED
+    )
+      throw new BadRequestException('Cette DA ne peut plus etre modifiee');
+
+    const updateData: any = { ...updateDto };
+
+    // Project imputation fields are resolved from the active budget table,
+    // not from user input. Strip any freeform values.
+    delete updateData.project;
+    delete updateData.grantCode;
+    delete updateData.activityCode;
+    delete updateData.costCenter;
+
+    // If the caller changes the projectCode, re-resolve imputation from the
+    // active budget table.
+    if (updateData.projectCode) {
+      const project = await this.budgetTableService.getActiveProjectInternal(
+        updateData.projectCode,
+      );
+      updateData.project = project.projectName;
+      updateData.projectCode = project.projectCode;
+      updateData.grantCode = project.grantCode;
+      updateData.activityCode = project.activityCode;
+      updateData.costCenter = project.costCenter;
+    }
+
+    if (!updateData.requestedDeliveryDate)
+      delete updateData.requestedDeliveryDate;
+    if (!updateData.deliveryAddress) delete updateData.deliveryAddress;
+
+    const updated = await this.prisma.purchase.update({
+      where: { id: purchaseId },
+      data: updateData,
+    });
+
+    return {
+      id: updated.id,
+      reference: updated.reference,
+      status: updated.status,
+      message: 'DA mise a jour avec succes',
+    };
+  }
+
   async updateLogistics(
     purchaseId: string,
     userId: number,
@@ -467,6 +561,23 @@ export class PurchaseService {
       observations: null,
       closedAt: null,
     };
+
+    // Project imputation fields are resolved from the active budget table.
+    delete updateData.project;
+    delete updateData.grantCode;
+    delete updateData.activityCode;
+    delete updateData.costCenter;
+
+    if (updateData.projectCode) {
+      const project = await this.budgetTableService.getActiveProjectInternal(
+        updateData.projectCode,
+      );
+      updateData.project = project.projectName;
+      updateData.projectCode = project.projectCode;
+      updateData.grantCode = project.grantCode;
+      updateData.activityCode = project.activityCode;
+      updateData.costCenter = project.costCenter;
+    }
 
     if (!updateData.requestedDeliveryDate)
       delete updateData.requestedDeliveryDate;
