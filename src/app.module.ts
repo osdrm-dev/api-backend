@@ -1,6 +1,6 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { WinstonModule } from 'nest-winston';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -23,6 +23,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { NotificationModule } from './notification/notification.module';
 import { BudgetModule } from './budget/budget.module';
 import { SignaturesModule } from './signatures/signatures.module';
+import { BullModule } from '@nestjs/bullmq';
+import { PdfSigningModule } from './pdf-signing/pdf-signing.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 
 @Module({
@@ -48,6 +50,22 @@ import { MailerModule } from '@nestjs-modules/mailer';
       },
     }),
     WinstonModule.forRoot(winstonConfig),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        const url =
+          configService.get<string>('REDIS_URL') || 'redis://localhost:6379';
+        const parsed = new URL(url);
+        return {
+          connection: {
+            host: parsed.hostname,
+            port: parseInt(parsed.port || '6379'),
+            password: parsed.password,
+          },
+        };
+      },
+      inject: [ConfigService],
+    }),
     PrismaModule,
     LoggerModule,
     AuthModule,
@@ -60,6 +78,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
     FileStorageModule,
     BudgetModule,
     SignaturesModule,
+    PdfSigningModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

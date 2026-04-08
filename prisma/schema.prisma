@@ -162,6 +162,13 @@ enum AttachmentType {
   OTHER
 }
 
+enum SigningStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
 enum DerogationStatus {
   PENDING
   VALIDATED
@@ -272,8 +279,15 @@ model Attachment {
   receivedAt      DateTime?
   validatedAt     DateTime?
 
-  purchase        Purchase        @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  file            File?           @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  originHash      String?
+  signedHash      String?
+  signingStatus   SigningStatus?
+  jobId           String?
+  signedAt        DateTime?
+  versions        Json?
+
+  purchase        Purchase           @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  file            File?              @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -563,9 +577,8 @@ model SignatureSpecimen {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
-
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  file              File         @relation(fields: [fileId], references: [id], onDelete: Cascade)
   @@index([userId])
   @@map("signature_specimens")
 }
