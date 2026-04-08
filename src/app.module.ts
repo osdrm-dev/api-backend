@@ -21,6 +21,8 @@ import { FileStorageModule } from 'src/storage/file.module';
 import { SupplierModule } from './supplier/supplier.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { NotificationModule } from './notification/notification.module';
+import { BudgetModule } from './budget/budget.module';
+import { SignaturesModule } from './signatures/signatures.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { SatisfactionModule } from './satisfaction/satisfaction.module';
 
@@ -58,6 +60,8 @@ import { SatisfactionModule } from './satisfaction/satisfaction.module';
     NotificationModule,
     SatisfactionModule,
     FileStorageModule,
+    BudgetModule,
+    SignaturesModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],
