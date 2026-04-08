@@ -24,6 +24,7 @@ import { NotificationModule } from './notification/notification.module';
 import { BudgetModule } from './budget/budget.module';
 import { SignaturesModule } from './signatures/signatures.module';
 import { MailerModule } from '@nestjs-modules/mailer';
+import { SatisfactionModule } from './satisfaction/satisfaction.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
     StatisticsModule,
     SupplierModule,
     NotificationModule,
+    SatisfactionModule,
     FileStorageModule,
     BudgetModule,
     SignaturesModule,
