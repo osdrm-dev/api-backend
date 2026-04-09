@@ -1460,5 +1460,599 @@
         "uploadedByKey": "cfo"
       }
     ]
+  },
+  {
+    "reference": "DA-2026-020",
+    "year": 2026,
+    "site": "Antananarivo",
+    "sequentialNumber": "020",
+    "project": "PROJET HEALTH",
+    "region": "Analamanga",
+    "projectCode": "PRJ-2026-001",
+    "grantCode": "GNT-2026-H01",
+    "activityCode": "ACT-020",
+    "costCenter": "CC-HEALTH-001",
+    "title": "Medicaments essentiels - Demande d'avance de paiement",
+    "description": "Medicaments essentiels pour la pharmacie centrale, en attente de paiement anticipe",
+    "marketType": "Consultation",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-04-30",
+    "priority": "NORMAL",
+    "justification": "Approvisionner les stocks de medicaments essentiels pour Q2 2026",
+    "deliveryAddress": "Pharmacie Centrale OSDRM, Antananarivo",
+    "status": "PENDING_APPROVAL",
+    "currentStep": "DAP",
+    "validatedAt": "2026-03-20",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Paracetamol 500mg",
+        "quantity": 5000,
+        "unitPrice": 500,
+        "amount": 2500000,
+        "unit": "blister"
+      },
+      {
+        "designation": "Amoxicilline 250mg",
+        "quantity": 3000,
+        "unitPrice": 800,
+        "amount": 2400000,
+        "unit": "blister"
+      }
+    ],
+    "daWorkflowApproved": {
+      "demandeurKey": "demandeur1",
+      "omKey": "om",
+      "dpKey": "dp",
+      "cfoKey": "cfo",
+      "ceoKey": "ceo",
+      "baseDate": "2026-03-01"
+    },
+    "qrWorkflowApproved": true,
+    "pv": {
+      "evaluateurKey": "acheteur",
+      "dateEvaluation": "2026-03-15",
+      "natureObjet": "Medicaments essentiels",
+      "decisionFinale": "Approbation pour paiement — MedSupply Madagascar retenu",
+      "status": "VALIDATED",
+      "suppliers": [
+        {
+          "supplierKey": "sup2",
+          "order": 1,
+          "rang": 1,
+          "reponseDansDelai": "OUI",
+          "conformiteSpecs": "CONFORME",
+          "items": [
+            {
+              "designation": "Paracetamol 500mg",
+              "quantity": 5000,
+              "unitPrice": 500,
+              "amount": 2500000,
+              "disponibilite": "Immediate"
+            },
+            {
+              "designation": "Amoxicilline 250mg",
+              "quantity": 3000,
+              "unitPrice": 800,
+              "amount": 2400000,
+              "disponibilite": "Immediate"
+            }
+          ]
+        }
+      ]
+    },
+    "attachments": [
+      {
+        "type": "QUOTE",
+        "fileName": "devis_medsupply.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/da020_devis.pdf",
+        "fileSize": 280000,
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-10"
+      },
+      {
+        "type": "PURCHASE_ORDER",
+        "fileName": "BC-2026-020.pdf",
+        "fileUrl": "s3://osdrm-bucket/bc/da020_bc.pdf",
+        "fileSize": 320000,
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-12"
+      },
+      {
+        "type": "INVOICE",
+        "fileName": "FACTURE-2026-020.pdf",
+        "fileUrl": "s3://osdrm-bucket/invoices/da020_inv.pdf",
+        "fileSize": 240000,
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-15"
+      },
+      {
+        "type": "OTHER",
+        "fileName": "PV-2026-020.pdf",
+        "fileUrl": "s3://osdrm-bucket/pv/da020_pv.pdf",
+        "fileSize": 350000,
+        "description": "Proces verbal d'evaluation",
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-15"
+      }
+    ],
+    "dapWorkflow": {
+      "currentStep": 0,
+      "isComplete": false,
+      "validators": [
+        {
+          "role": "ACHETEUR",
+          "order": 0,
+          "userKey": "acheteur",
+          "isValidated": false
+        },
+        {
+          "role": "OM",
+          "order": 1,
+          "userKey": "om",
+          "isValidated": false
+        },
+        {
+          "role": "CFO",
+          "order": 2,
+          "userKey": "cfo",
+          "isValidated": false
+        }
+      ]
+    }
+  },
+  {
+    "reference": "DA-2026-021",
+    "year": 2026,
+    "site": "Mahajanga",
+    "sequentialNumber": "021",
+    "project": "PROJET AGRICULTURE",
+    "region": "Boeny",
+    "projectCode": "PRJ-2026-003",
+    "grantCode": "GNT-2026-A01",
+    "activityCode": "ACT-021",
+    "costCenter": "CC-AGRI-001",
+    "title": "Engrais et pesticides - Demande d'avance de paiement",
+    "description": "Engrais et pesticides pour les agriculteurs partenaires, paiement anticipe demande",
+    "marketType": "Consultation",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-05-15",
+    "priority": "URGENT",
+    "justification": "Saison agricole en cours, paiement anticipe pour assurer livraison rapide",
+    "deliveryAddress": "Direction Regionale Agriculture, Mahajanga",
+    "status": "PENDING_APPROVAL",
+    "currentStep": "DAP",
+    "validatedAt": "2026-03-18",
+    "creatorKey": "demandeur2",
+    "items": [
+      {
+        "designation": "Engrais NPK 15-15-15",
+        "quantity": 10000,
+        "unitPrice": 3500,
+        "amount": 35000000,
+        "unit": "kg"
+      },
+      {
+        "designation": "Insecticide organique",
+        "quantity": 500,
+        "unitPrice": 8000,
+        "amount": 4000000,
+        "unit": "litre"
+      }
+    ],
+    "daWorkflowApproved": {
+      "demandeurKey": "demandeur2",
+      "omKey": "om",
+      "dpKey": "dp",
+      "cfoKey": "cfo",
+      "ceoKey": "ceo",
+      "baseDate": "2026-02-15"
+    },
+    "qrWorkflowApproved": true,
+    "pv": {
+      "evaluateurKey": "acheteur",
+      "dateEvaluation": "2026-03-14",
+      "natureObjet": "Engrais et produits phytosanitaires",
+      "decisionFinale": "Approuve — AgroTech Mada retenu",
+      "status": "VALIDATED",
+      "suppliers": [
+        {
+          "supplierKey": "sup3",
+          "order": 1,
+          "rang": 1,
+          "reponseDansDelai": "OUI",
+          "conformiteSpecs": "CONFORME",
+          "items": [
+            {
+              "designation": "Engrais NPK 15-15-15",
+              "quantity": 10000,
+              "unitPrice": 3500,
+              "amount": 35000000,
+              "disponibilite": "Immediate"
+            },
+            {
+              "designation": "Insecticide organique",
+              "quantity": 500,
+              "unitPrice": 8000,
+              "amount": 4000000,
+              "disponibilite": "Immediate"
+            }
+          ]
+        }
+      ]
+    },
+    "attachments": [
+      {
+        "type": "QUOTE",
+        "fileName": "devis_agrotech.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/da021_devis.pdf",
+        "fileSize": 300000,
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-08"
+      },
+      {
+        "type": "PURCHASE_ORDER",
+        "fileName": "BC-2026-021.pdf",
+        "fileUrl": "s3://osdrm-bucket/bc/da021_bc.pdf",
+        "fileSize": 350000,
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-10"
+      },
+      {
+        "type": "INVOICE",
+        "fileName": "FACTURE-2026-021.pdf",
+        "fileUrl": "s3://osdrm-bucket/invoices/da021_inv.pdf",
+        "fileSize": 260000,
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-14"
+      },
+      {
+        "type": "OTHER",
+        "fileName": "PV-2026-021.pdf",
+        "fileUrl": "s3://osdrm-bucket/pv/da021_pv.pdf",
+        "fileSize": 380000,
+        "description": "Proces verbal d'evaluation",
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-14"
+      }
+    ],
+    "dapWorkflow": {
+      "currentStep": 1,
+      "isComplete": false,
+      "validators": [
+        {
+          "role": "ACHETEUR",
+          "order": 0,
+          "userKey": "acheteur",
+          "isValidated": true,
+          "validatedAt": "2026-03-15",
+          "decision": "APPROVED",
+          "comment": "Documents complets et conformes"
+        },
+        {
+          "role": "OM",
+          "order": 1,
+          "userKey": "om",
+          "isValidated": false
+        },
+        {
+          "role": "CFO",
+          "order": 2,
+          "userKey": "cfo",
+          "isValidated": false
+        }
+      ]
+    }
+  },
+  {
+    "reference": "DA-2026-022",
+    "year": 2026,
+    "site": "Toliara",
+    "sequentialNumber": "022",
+    "project": "PROJET EAU",
+    "region": "Androy",
+    "projectCode": "PRJ-2026-004",
+    "grantCode": "GNT-2026-W01",
+    "activityCode": "ACT-022",
+    "costCenter": "CC-WATER-001",
+    "title": "Pompes solaires et reservoirs - Demande d'avance de paiement",
+    "description": "Systemes d'alimentation en eau solaires pour localites isolees, paiement anticipe",
+    "marketType": "Appel d'offres",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-06-01",
+    "priority": "NORMAL",
+    "justification": "Installation avant periode seche, paiement anticipe requis par fournisseur",
+    "deliveryAddress": "Localites zones seches, Toliara",
+    "status": "PENDING_APPROVAL",
+    "currentStep": "DAP",
+    "validatedAt": "2026-03-16",
+    "creatorKey": "demandeur1",
+    "items": [
+      {
+        "designation": "Pompe solaire 5kW",
+        "quantity": 20,
+        "unitPrice": 2500000,
+        "amount": 50000000,
+        "unit": "unite",
+        "specifications": "Debit 5m3/h, hauteur 40m, panneau 400Wc inclus"
+      },
+      {
+        "designation": "Reservoir beton 50m3",
+        "quantity": 10,
+        "unitPrice": 5000000,
+        "amount": 50000000,
+        "unit": "unite",
+        "specifications": "Beton arme, couvercle aluminium, vanne DN50"
+      }
+    ],
+    "daWorkflowApproved": {
+      "demandeurKey": "demandeur1",
+      "omKey": "om",
+      "dpKey": "dp",
+      "cfoKey": "cfo",
+      "ceoKey": "ceo",
+      "baseDate": "2026-02-20"
+    },
+    "qrWorkflowApproved": true,
+    "pv": {
+      "evaluateurKey": "acheteur",
+      "dateEvaluation": "2026-03-13",
+      "natureObjet": "Equipements hydrauliques et energetiques",
+      "decisionFinale": "Approuve — Global Trade SARL retenu",
+      "status": "VALIDATED",
+      "suppliers": [
+        {
+          "supplierKey": "sup1",
+          "order": 1,
+          "rang": 1,
+          "reponseDansDelai": "OUI",
+          "conformiteSpecs": "CONFORME",
+          "items": [
+            {
+              "designation": "Pompe solaire 5kW",
+              "quantity": 20,
+              "unitPrice": 2500000,
+              "amount": 50000000,
+              "disponibilite": "4-6 semaines"
+            },
+            {
+              "designation": "Reservoir beton 50m3",
+              "quantity": 10,
+              "unitPrice": 5000000,
+              "amount": 50000000,
+              "disponibilite": "8-10 semaines"
+            }
+          ]
+        }
+      ]
+    },
+    "attachments": [
+      {
+        "type": "QUOTE",
+        "fileName": "devis_globaltrade.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/da022_devis.pdf",
+        "fileSize": 420000,
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-05"
+      },
+      {
+        "type": "PURCHASE_ORDER",
+        "fileName": "BC-2026-022.pdf",
+        "fileUrl": "s3://osdrm-bucket/bc/da022_bc.pdf",
+        "fileSize": 380000,
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-09"
+      },
+      {
+        "type": "INVOICE",
+        "fileName": "FACTURE-2026-022.pdf",
+        "fileUrl": "s3://osdrm-bucket/invoices/da022_inv.pdf",
+        "fileSize": 290000,
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-13"
+      },
+      {
+        "type": "OTHER",
+        "fileName": "PV-2026-022.pdf",
+        "fileUrl": "s3://osdrm-bucket/pv/da022_pv.pdf",
+        "fileSize": 450000,
+        "description": "Proces verbal evaluation technique",
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-13"
+      }
+    ],
+    "dapWorkflow": {
+      "currentStep": 2,
+      "isComplete": false,
+      "validators": [
+        {
+          "role": "ACHETEUR",
+          "order": 0,
+          "userKey": "acheteur",
+          "isValidated": true,
+          "validatedAt": "2026-03-14",
+          "decision": "APPROVED",
+          "comment": "Tous documents verifies"
+        },
+        {
+          "role": "OM",
+          "order": 1,
+          "userKey": "om",
+          "isValidated": true,
+          "validatedAt": "2026-03-15",
+          "decision": "APPROVED",
+          "comment": "Planning realiste, fournisseur qualifie"
+        },
+        {
+          "role": "CFO",
+          "order": 2,
+          "userKey": "cfo",
+          "isValidated": false
+        }
+      ]
+    }
+  },
+  {
+    "reference": "DA-2026-023",
+    "year": 2026,
+    "site": "Fianarantsoa",
+    "sequentialNumber": "023",
+    "project": "PROJET EDUCATION",
+    "region": "Vakinankaratra",
+    "projectCode": "PRJ-2026-005",
+    "grantCode": "GNT-2026-E01",
+    "activityCode": "ACT-023",
+    "costCenter": "CC-EDU-001",
+    "title": "Fournitures scolaires et mobilier - DAP completement signee",
+    "description": "Fournitures scolaires et mobilier pour ecoles partenaires, paiement confirme par tous validateurs",
+    "marketType": "Consultation",
+    "operationType": "PROGRAMME",
+    "requestedDeliveryDate": "2026-05-30",
+    "priority": "NORMAL",
+    "justification": "Renouvellement avant annee scolaire 2026-2027, tous validateurs accords",
+    "deliveryAddress": "Ecoles partenaires region Vakinankaratra, Fianarantsoa",
+    "status": "PENDING_APPROVAL",
+    "currentStep": "DAP",
+    "validatedAt": "2026-03-17",
+    "creatorKey": "demandeur2",
+    "items": [
+      {
+        "designation": "Cahiers ecolier 192 pages",
+        "quantity": 5000,
+        "unitPrice": 1500,
+        "amount": 7500000,
+        "unit": "piece"
+      },
+      {
+        "designation": "Bancs scolaires doubles",
+        "quantity": 100,
+        "unitPrice": 25000,
+        "amount": 2500000,
+        "unit": "piece",
+        "specifications": "Bois traite, capacite 2 eleves"
+      },
+      {
+        "designation": "Tableaux noirs 1.5m x 1m",
+        "quantity": 50,
+        "unitPrice": 8000,
+        "amount": 400000,
+        "unit": "piece"
+      }
+    ],
+    "daWorkflowApproved": {
+      "demandeurKey": "demandeur2",
+      "omKey": "om",
+      "cfoKey": "cfo",
+      "ceoKey": "ceo",
+      "baseDate": "2026-02-25"
+    },
+    "qrWorkflowApproved": true,
+    "pv": {
+      "evaluateurKey": "acheteur",
+      "dateEvaluation": "2026-03-12",
+      "natureObjet": "Fournitures educatives et mobilier scolaire",
+      "decisionFinale": "Approbation totale — BoisMada Menuiserie retenu",
+      "status": "VALIDATED",
+      "suppliers": [
+        {
+          "supplierKey": "sup4",
+          "order": 1,
+          "rang": 1,
+          "reponseDansDelai": "OUI",
+          "conformiteSpecs": "CONFORME",
+          "items": [
+            {
+              "designation": "Cahiers ecolier 192 pages",
+              "quantity": 5000,
+              "unitPrice": 1500,
+              "amount": 7500000,
+              "disponibilite": "Stock"
+            },
+            {
+              "designation": "Bancs scolaires doubles",
+              "quantity": 100,
+              "unitPrice": 25000,
+              "amount": 2500000,
+              "disponibilite": "2 semaines"
+            },
+            {
+              "designation": "Tableaux noirs 1.5m x 1m",
+              "quantity": 50,
+              "unitPrice": 8000,
+              "amount": 400000,
+              "disponibilite": "Stock"
+            }
+          ]
+        }
+      ]
+    },
+    "attachments": [
+      {
+        "type": "QUOTE",
+        "fileName": "devis_boismada.pdf",
+        "fileUrl": "s3://osdrm-bucket/qr/da023_devis.pdf",
+        "fileSize": 250000,
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-06"
+      },
+      {
+        "type": "PURCHASE_ORDER",
+        "fileName": "BC-2026-023.pdf",
+        "fileUrl": "s3://osdrm-bucket/bc/da023_bc.pdf",
+        "fileSize": 310000,
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-08"
+      },
+      {
+        "type": "INVOICE",
+        "fileName": "FACTURE-2026-023.pdf",
+        "fileUrl": "s3://osdrm-bucket/invoices/da023_inv.pdf",
+        "fileSize": 200000,
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-12"
+      },
+      {
+        "type": "OTHER",
+        "fileName": "PV-2026-023.pdf",
+        "fileUrl": "s3://osdrm-bucket/pv/da023_pv.pdf",
+        "fileSize": 320000,
+        "description": "Proces verbal avec toutes signatures",
+        "uploadedByKey": "acheteur",
+        "receivedAt": "2026-03-12"
+      }
+    ],
+    "dapWorkflow": {
+      "currentStep": 3,
+      "isComplete": true,
+      "validators": [
+        {
+          "role": "ACHETEUR",
+          "order": 0,
+          "userKey": "acheteur",
+          "isValidated": true,
+          "validatedAt": "2026-03-14",
+          "decision": "APPROVED",
+          "comment": "Documents verifies et acceptes"
+        },
+        {
+          "role": "OM",
+          "order": 1,
+          "userKey": "om",
+          "isValidated": true,
+          "validatedAt": "2026-03-15",
+          "decision": "APPROVED",
+          "comment": "Planning conforme"
+        },
+        {
+          "role": "CFO",
+          "order": 2,
+          "userKey": "cfo",
+          "isValidated": true,
+          "validatedAt": "2026-03-16",
+          "decision": "APPROVED",
+          "comment": "Budget valide, paiement autorise"
+        }
+      ]
+    }
   }
 ]

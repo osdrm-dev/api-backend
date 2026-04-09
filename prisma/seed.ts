@@ -122,6 +122,8 @@ async function cleanup() {
   await prisma.purchase.deleteMany();
   await prisma.supplier.deleteMany();
   await prisma.refreshToken.deleteMany();
+  await prisma.budgetProject.deleteMany();
+  await prisma.budgetTable.deleteMany();
   await prisma.file.deleteMany();
   await prisma.user.deleteMany();
 }
@@ -167,6 +169,8 @@ async function main() {
     });
     supplierMap[s.key] = created;
   }
+
+  console.log(supplierMap);
 
   const purchasesData = loadJson<any[]>('purchases.json');
   const purchaseMap: Record<string, any> = {};
@@ -322,6 +326,30 @@ async function main() {
       });
     }
 
+    if (pd.dapWorkflow) {
+      await prisma.validationWorkflow.create({
+        data: {
+          purchaseId: purchase.id,
+          step: PurchaseStep.DAP,
+          currentStep: pd.dapWorkflow.currentStep,
+          isComplete: pd.dapWorkflow.isComplete,
+          validators: {
+            create: pd.dapWorkflow.validators.map((v: any) => ({
+              role: v.role as ValidatorRole,
+              order: v.order,
+              userId: userMap[v.userKey].id,
+              name: userMap[v.userKey].name,
+              email: userMap[v.userKey].email,
+              isValidated: v.isValidated,
+              ...(v.validatedAt && { validatedAt: new Date(v.validatedAt) }),
+              ...(v.decision && { decision: v.decision }),
+              ...(v.comment && { comment: v.comment }),
+            })),
+          },
+        },
+      });
+    }
+
     if (pd.attachments?.length) {
       await prisma.attachment.createMany({
         data: pd.attachments.map((a: any) => ({
@@ -414,7 +442,9 @@ async function main() {
     })),
   });
 
-  console.log('Seeding termine: 8 users | 4 fournisseurs | 19 dossiers achat');
+  console.log(
+    'Seeding termine: 8 users | 4 fournisseurs | 23 dossiers achat (19 + 4 DAP)',
+  );
 }
 
 main()
