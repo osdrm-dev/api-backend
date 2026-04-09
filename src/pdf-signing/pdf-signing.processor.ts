@@ -83,7 +83,12 @@ export class PdfSigningProcessor extends WorkerHost {
       );
     }
 
-    // 3. Load specimen for this signer from job data
+    // 3. Load signer name and specimen
+    const signer = await this.prisma.user.findUnique({
+      where: { id: signedById },
+      select: { name: true },
+    });
+
     const specimen = await this.prisma.signatureSpecimen.findUnique({
       where: { id: specimenId },
       include: { file: true },
@@ -95,7 +100,13 @@ export class PdfSigningProcessor extends WorkerHost {
 
     // 4. Determine base PDF: last signed version, or fileId (the original) if no signatures yet
     const versions = (attachment.versions as {
-      signatures: { fileId: number; signedById: number; specimenId: number }[];
+      signatures: {
+        fileId: number;
+        signedBy: string;
+        specimenId: number;
+        signedAt: string;
+        signedHash: string;
+      }[];
     } | null) ?? { signatures: [] };
     const baseFileId =
       versions.signatures.length > 0
@@ -139,10 +150,18 @@ export class PdfSigningProcessor extends WorkerHost {
     });
 
     // 9. Append signature entry to versions.signatures; attachment.fileId stays as original
+    const signedAt = new Date();
     const newVersions = {
       signatures: [
         ...versions.signatures,
-        { fileId: signedFile.id, signedById, specimenId },
+        {
+          fileId: signedFile.id,
+          signedBy: signer?.name ?? String(signedById),
+          specimenId,
+          signedAt,
+          signedHash: hashAfter,
+          fileUrl: signedFile.url,
+        },
       ],
     };
 
