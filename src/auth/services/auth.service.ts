@@ -10,7 +10,6 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { PrismaService } from 'prisma/prisma.service';
 import { TokenService } from './token.service';
-import { AuditService } from '../../audit/services/audit.service';
 import { RegisterDto } from '../dto/register.dto';
 import { LoginDto } from '../dto/login.dto';
 import { ChangePasswordDto } from '../dto/change-password.dto';
@@ -26,15 +25,10 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly tokenService: TokenService,
-    private readonly auditService: AuditService,
     private readonly configService: ConfigService,
   ) {}
 
-  async register(
-    registerDto: RegisterDto,
-    ipAddress?: string,
-    adminId?: number,
-  ) {
+  async register(registerDto: RegisterDto) {
     const { email, password, name, fonction, role } = registerDto;
 
     const existingUser = await this.prisma.user.findUnique({
@@ -57,19 +51,6 @@ export class AuthService {
         fonction,
         role,
       },
-    });
-
-    await this.auditService.log({
-      userId: adminId,
-      action: 'USER_CREATED',
-      resource: 'User',
-      resourceId: user.id.toString(),
-      details: {
-        createdUserId: user.id,
-        createdUserEmail: email,
-        createdUserRole: role,
-      },
-      ipAddress,
     });
 
     return {
@@ -110,15 +91,6 @@ export class AuthService {
       data: { lastLoginAt: new Date() },
     });
 
-    await this.auditService.log({
-      userId: user.id,
-      action: 'USER_LOGIN',
-      resource: 'User',
-      resourceId: user.id.toString(),
-      ipAddress,
-      userAgent,
-    });
-
     const tokens = await this.tokenService.generateTokens(
       user,
       ipAddress,
@@ -140,25 +112,11 @@ export class AuthService {
       await this.tokenService.revokeToken(refreshToken);
     }
 
-    await this.auditService.log({
-      userId,
-      action: 'USER_LOGOUT',
-      resource: 'User',
-      resourceId: userId.toString(),
-    });
-
     return { message: 'Déconnexion effectuée avec succès.' };
   }
 
   async logoutAll(userId: number) {
     await this.tokenService.revokeAllUserTokens(userId);
-
-    await this.auditService.log({
-      userId,
-      action: 'USER_LOGOUT_ALL',
-      resource: 'User',
-      resourceId: userId.toString(),
-    });
 
     return {
       message: 'Déconnexion effectuée sur tous les appareils avec succès.',
@@ -191,23 +149,12 @@ export class AuthService {
 
     await this.tokenService.revokeAllUserTokens(userId);
 
-    await this.auditService.log({
-      userId,
-      action: 'PASSWORD_CHANGED',
-      resource: 'User',
-      resourceId: userId.toString(),
-    });
-
     return {
       message: 'Mot de passe modifié avec succès. Veuillez vous reconnecter.',
     };
   }
 
-  async resetPassword(
-    resetPasswordDto: ResetPasswordDto,
-    adminId: number,
-    ipAddress?: string,
-  ) {
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
     const { email } = resetPasswordDto;
 
     const user = await this.prisma.user.findUnique({
@@ -229,18 +176,6 @@ export class AuthService {
     });
 
     await this.tokenService.revokeAllUserTokens(user.id);
-
-    await this.auditService.log({
-      userId: adminId,
-      action: 'PASSWORD_RESET_BY_ADMIN',
-      resource: 'User',
-      resourceId: user.id.toString(),
-      details: {
-        targetUserId: user.id,
-        targetUserEmail: email,
-      },
-      ipAddress,
-    });
 
     return {
       message: 'Mot de passe réinitialisé avec succès.',
@@ -325,26 +260,13 @@ export class AuthService {
       data: { email, ...otherData },
     });
 
-    await this.auditService.log({
-      userId,
-      action: 'PROFILE_UPDATED',
-      resource: 'User',
-      resourceId: userId.toString(),
-      details: updateProfileDto,
-    });
-
     return {
       user: this.excludePassword(updatedUser),
       message: 'Profil mis à jour avec succès.',
     };
   }
 
-  async updateUser(
-    userId: number,
-    updateUserDto: UpdateUserDto,
-    adminId: number,
-    ipAddress?: string,
-  ) {
+  async updateUser(userId: number, updateUserDto: UpdateUserDto) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
     });
@@ -370,18 +292,6 @@ export class AuthService {
     const updatedUser = await this.prisma.user.update({
       where: { id: userId },
       data: { email, ...otherData },
-    });
-
-    await this.auditService.log({
-      userId: adminId,
-      action: 'USER_UPDATED_BY_ADMIN',
-      resource: 'User',
-      resourceId: userId.toString(),
-      details: {
-        targetUserId: userId,
-        changes: updateUserDto,
-      },
-      ipAddress,
     });
 
     return {

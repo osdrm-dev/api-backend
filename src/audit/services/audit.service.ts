@@ -1,7 +1,10 @@
-import { Injectable } from '@nestjs/common';
-import type { Response } from 'express';
-import { Prisma } from '@prisma/client';
+import { Injectable, Inject } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
+import { Logger } from 'winston';
 import { AuditLogRepository } from 'src/repository/purchase';
+import { AUDIT_LOG_QUEUE, AUDIT_LOG_JOB } from '../audit.constants';
 
 interface AuditLogData {
   userId?: number;
@@ -15,10 +18,19 @@ interface AuditLogData {
 
 @Injectable()
 export class AuditService {
-  constructor(private readonly auditLogRepository: AuditLogRepository) {}
+  constructor(
+    private readonly auditLogRepository: AuditLogRepository,
+    @InjectQueue(AUDIT_LOG_QUEUE) private readonly auditQueue: Queue,
+    @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
+  ) {}
 
-  async log(data: AuditLogData) {
-    return this.auditLogRepository.log(data);
+  log(data: AuditLogData): void {
+    this.auditQueue.add(AUDIT_LOG_JOB, data).catch((err) => {
+      this.logger.error('Failed to enqueue audit log', {
+        error: err?.message,
+        data,
+      });
+    });
   }
 
   async getUserAuditLogs(userId: number, limit = 50) {
