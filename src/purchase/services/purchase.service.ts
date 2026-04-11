@@ -127,6 +127,7 @@ export class PurchaseService {
       throw new BadRequestException('Cette DA ne peut plus etre modifiee');
 
     // Budget threshold enforcement at item-addition time.
+    console.log('code ', purchase.projectCode);
     if (purchase.projectCode) {
       const project = await this.budgetTableService.getActiveProjectInternal(
         purchase.projectCode,
@@ -508,6 +509,7 @@ export class PurchaseService {
       const project = await this.budgetTableService.getActiveProjectInternal(
         updateData.projectCode,
       );
+
       updateData.project = project.projectName;
       updateData.projectCode = project.projectCode;
       updateData.grantCode = project.grantCode;
