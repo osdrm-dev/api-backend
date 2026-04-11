@@ -522,6 +522,7 @@ model Notification {
   @@index([resourceId])
   @@index([status])
   @@index([type])
+  @@index([createdAt])
   @@map("notifications")
 }
 

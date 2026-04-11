@@ -5,6 +5,15 @@ import {
   Prisma,
 } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
+import { GetNotificationsQueryDto } from 'src/notification/dto/get-notifications-query.dto';
+
+const DISPLAYED_NOTIFICATION_TYPES = [
+  'DA_CREATED',
+  'BC_UPLOADED',
+  'PV_UPLOADED',
+  'QR_UPLOADED',
+  'DPA_CREATED',
+] as const;
 
 @Injectable()
 export class NotificationRepository {
@@ -40,6 +49,55 @@ export class NotificationRepository {
    */
   async create(data: Prisma.NotificationCreateInput) {
     return this.prisma.notification.create({ data });
+  }
+
+  /**
+   * Récupère les notifications paginées pour l'API publique
+   */
+  async findPaginated(filters: GetNotificationsQueryDto) {
+    const { page = 1, limit = 20, type, status, startDate, endDate } = filters;
+
+    const allowedType =
+      type && (DISPLAYED_NOTIFICATION_TYPES as readonly string[]).includes(type)
+        ? type
+        : undefined;
+
+    const where: Prisma.NotificationWhereInput = {
+      type: allowedType
+        ? allowedType
+        : { in: [...DISPLAYED_NOTIFICATION_TYPES] },
+      ...(status && { status }),
+      ...(startDate || endDate
+        ? {
+            createdAt: {
+              ...(startDate && { gte: new Date(startDate) }),
+              ...(endDate && { lte: new Date(endDate) }),
+            },
+          }
+        : {}),
+    };
+
+    const skip = (page - 1) * limit;
+
+    const [data, total] = await Promise.all([
+      this.prisma.notification.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this.prisma.notification.count({ where }),
+    ]);
+
+    return {
+      data,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   /**
