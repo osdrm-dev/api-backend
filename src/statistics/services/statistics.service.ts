@@ -7,6 +7,15 @@ import { sumBy, enrich } from '../../utils/data-helpers';
 export class StatisticsService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private enrichWithAmount(purchase: any) {
+    if (!purchase) return null;
+    const amount = purchase.items.reduce(
+      (sum: number, item: any) => sum + item.amount,
+      0,
+    );
+    return { ...purchase, amount };
+  }
+
   async getPurchaseCount(user: { id: number; role: Role }) {
     let totalCount: number;
     let validatedCount: number;

@@ -55,6 +55,7 @@ async function bootstrap() {
 
   app.enableCors({
     origin: (origin, callback) => {
+      console.log('org', origin);
       if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
