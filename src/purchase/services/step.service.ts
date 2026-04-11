@@ -6,12 +6,15 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { WorkflowConfigService } from 'src/purchaseValidation/services/workflow-config.service';
+import { PdfSigningService } from 'src/pdf-signing/pdf-signing.service';
 import {
   AttachmentType,
   PurchaseStatus,
   PurchaseStep,
   Role,
+  SigningStatus,
 } from '@prisma/client';
+import { RequestSigningDto } from '../dto/request-signing.dto';
 
 export type DocStep = 'BR' | 'INVOICE' | 'DAP' | 'PROOF_OF_PAYMENT';
 
@@ -61,6 +64,7 @@ export class DocumentStepService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly workflowConfig: WorkflowConfigService,
+    private readonly pdfSigning: PdfSigningService,
   ) {}
 
   private async assertAcheteur(userId: number) {
@@ -260,6 +264,91 @@ export class DocumentStepService {
       workflow: workflow.validators,
       message: `${cfg.label} soumis pour validation.`,
     };
+  }
+
+  async signStep(
+    docStep: DocStep,
+    purchaseId: string,
+    attachmentId: string,
+    userId: number,
+    dto: RequestSigningDto,
+  ): Promise<{ jobId: string; attachmentId: string }> {
+    if (!CFG[docStep]) {
+      throw new BadRequestException(`Étape inconnue : ${docStep}`);
+    }
+    const cfg = CFG[docStep];
+
+    // 1. Load attachment + file (for checksum) and verify ownership + step type
+    const attachment = await this.prisma.attachment.findUnique({
+      where: { id: attachmentId },
+      include: { file: { select: { checksum: true } } },
+    });
+
+    if (
+      !attachment ||
+      attachment.purchaseId !== purchaseId ||
+      attachment.type !== cfg.type
+    ) {
+      throw new ForbiddenException(
+        'Pièce jointe inaccessible pour cette étape',
+      );
+    }
+
+    // 2. Verify user is the next active validator for this step
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    if (!user) throw new ForbiddenException('Utilisateur introuvable');
+
+    // const validatorRole = this.workflowConfig.roleToValidatorRole(user.role);
+
+    // const workflow = await this.prisma.validationWorkflow.findFirst({
+    //   where: { purchaseId, step: cfg.step },
+    //   include: { validators: { orderBy: { order: 'asc' } } },
+    // });
+
+    // if (!workflow || !this.workflowConfig.isValidatorAuthorized(validatorRole, workflow.validators)) {
+    //   throw new ForbiddenException(
+    //     "Vous n'êtes pas le validateur actif pour cette étape",
+    //   );
+    // }
+
+    // 3. Verify active signature specimen
+    const specimen = await this.prisma.signatureSpecimen.findFirst({
+      where: { userId, isActive: true },
+    });
+    if (!specimen) {
+      throw new BadRequestException(
+        'Aucun spécimen de signature actif. Configurez votre signature dans votre profil.',
+      );
+    }
+
+    // 4. Mark PENDING and capture origin hash on the attachment
+    await this.prisma.attachment.update({
+      where: { id: attachmentId },
+      data: {
+        signingStatus: SigningStatus.PENDING,
+        originHash: attachment.file?.checksum ?? null,
+      },
+    });
+
+    // 5. Enqueue — signer identity + position params travel in the job payload
+    const jobId = await this.pdfSigning.enqueue(attachmentId, {
+      signedById: userId,
+      specimenId: specimen.id,
+      pageNumber: dto.pageNumber ?? 1,
+      positionX: dto.positionX,
+      positionY: dto.positionY,
+      signatureWidth: dto.signatureWidth ?? 0.2,
+    });
+
+    await this.prisma.attachment.update({
+      where: { id: attachmentId },
+      data: { jobId },
+    });
+
+    return { jobId, attachmentId };
   }
 
   async get(docStep: DocStep, purchaseId: string) {

@@ -159,7 +159,15 @@ enum AttachmentType {
   PURCHASE_ORDER
   DELIVERY_NOTE
   PROOF_OF_PAYMENT
+  SATISFACTION_SURVEY
   OTHER
+}
+
+enum SigningStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
 }
 
 enum DerogationStatus {
@@ -225,6 +233,7 @@ model Purchase {
 
   updatedAt             DateTime            @updatedAt
   pv                    PV?
+  satisfactionSurvey    SatisfactionSurvey?
 
   @@index([reference])
   @@index([status])
@@ -272,8 +281,15 @@ model Attachment {
   receivedAt      DateTime?
   validatedAt     DateTime?
 
-  purchase        Purchase        @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  file            File?           @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  originHash      String?
+  signedHash      String?
+  signingStatus   SigningStatus?
+  jobId           String?
+  signedAt        DateTime?
+  versions        Json?
+
+  purchase        Purchase           @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  file            File?              @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
@@ -506,6 +522,7 @@ model Notification {
   @@index([resourceId])
   @@index([status])
   @@index([type])
+  @@index([createdAt])
   @@map("notifications")
 }
 
@@ -563,9 +580,28 @@ model SignatureSpecimen {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
-
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  file              File         @relation(fields: [fileId], references: [id], onDelete: Cascade)
   @@index([userId])
   @@map("signature_specimens")
+}
+
+model SatisfactionSurvey {
+  id                String                     @id @default(cuid())
+  purchaseId        String                     @unique
+  
+  rating            Int
+  comment           String?                    @db.Text
+  deliveryRating    Int?
+  qualityRating     Int?
+  serviceRating     Int?
+  
+  purchase          Purchase                   @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  
+  createdAt         DateTime                   @default(now())
+  updatedAt         DateTime                   @updatedAt
+  
+  @@index([purchaseId])
+  @@index([rating])
+  @@map("satisfaction_surveys")
 }
