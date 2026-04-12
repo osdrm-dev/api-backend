@@ -166,6 +166,7 @@ enum AttachmentType {
   DELIVERY_NOTE     // Bon de livraison
   PROOF_OF_PAYMENT  // Preuve de paiement,
   SATISFACTION_SURVEY
+  DAP
   OTHER             // Autre
 }
 

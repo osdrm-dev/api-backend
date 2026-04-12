@@ -8,7 +8,13 @@ import {
   ApiPropertyOptional,
   ApiProperty,
 } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsNumber, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsInt,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 import {
   DocumentStepService,
@@ -16,6 +22,7 @@ import {
 } from 'src/purchase/services/step.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
+import { console } from 'inspector';
 
 export class UploadDocDto {
   @ApiProperty({ example: 'document.pdf' })
@@ -37,6 +44,14 @@ export class UploadDocDto {
   @IsString()
   @IsNotEmpty()
   mimeType: string;
+
+  @ApiPropertyOptional({
+    example: 42,
+    description: 'ID du fichier uploadé via /files/upload',
+  })
+  @IsInt()
+  @IsOptional()
+  fileId?: number;
 }
 
 export class UploadBRDto extends UploadDocDto {
