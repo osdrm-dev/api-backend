@@ -49,6 +49,7 @@ export class AttachmentService {
       where: { id: dto.fileId },
     });
 
+    console.log('file here');
     if (!file) {
       throw new NotFoundException('Fichier non trouve');
     }

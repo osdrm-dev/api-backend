@@ -40,7 +40,7 @@ const CFG: { [K in DocStep]: CfgEntry } = {
   },
   DAP: {
     step: PurchaseStep.DAP,
-    type: AttachmentType.OTHER,
+    type: AttachmentType.DAP,
     label: 'DAP',
     hasWorkflow: true,
   },
@@ -87,6 +87,7 @@ export class DocumentStepService {
       fileSize: number;
       mimeType: string;
       justification?: string;
+      fileId?: number;
     },
   ) {
     const cfg = CFG[docStep];
@@ -118,6 +119,15 @@ export class DocumentStepService {
       );
     }
 
+    if (dto.fileId !== undefined) {
+      const file = await this.prisma.file.findUnique({
+        where: { id: dto.fileId },
+      });
+      if (!file) {
+        throw new NotFoundException('Fichier non trouve');
+      }
+    }
+
     await this.prisma.attachment.deleteMany({
       where: { purchaseId, type: cfg.type },
     });
@@ -134,6 +144,7 @@ export class DocumentStepService {
           ? `Justification incoherence BC: ${dto.justification}`
           : undefined,
         uploadedBy: user.name,
+        ...(dto.fileId !== undefined && { fileId: dto.fileId }),
       },
     });
 
