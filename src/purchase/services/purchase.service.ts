@@ -461,6 +461,7 @@ export class PurchaseService {
       const project = await this.budgetTableService.getActiveProjectInternal(
         updateData.projectCode,
       );
+
       updateData.project = project.projectName;
       updateData.projectCode = project.projectCode;
       updateData.grantCode = project.grantCode;

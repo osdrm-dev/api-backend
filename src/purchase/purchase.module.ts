@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { PurchaseValidationModule } from '../purchaseValidation/purchase.module';
 import { BudgetModule } from '../budget/budget.module';
+import { PdfSigningModule } from '../pdf-signing/pdf-signing.module';
 
 import { PurchaseController } from './controllers/purchase.controller';
 import { QuotationController } from './controllers/quotation.controller';
@@ -15,6 +16,7 @@ import {
   DAPController,
   ProofOfPaymentController,
 } from './controllers/step.controller';
+import { SignController } from './controllers/sign.controller';
 
 import { PurchaseService } from './services/purchase.service';
 import { PVService } from './services/pv.service';
@@ -28,7 +30,12 @@ import { DocumentStepService } from 'src/purchase/services/step.service';
 import { PVRepository } from '../repository/purchase/pv.repository';
 
 @Module({
-  imports: [PrismaModule, PurchaseValidationModule, BudgetModule],
+  imports: [
+    PrismaModule,
+    PurchaseValidationModule,
+    BudgetModule,
+    PdfSigningModule,
+  ],
   controllers: [
     PurchaseController,
     QuotationController,
@@ -40,6 +47,7 @@ import { PVRepository } from '../repository/purchase/pv.repository';
     InvoiceController,
     DAPController,
     ProofOfPaymentController,
+    SignController,
   ],
   providers: [
     PurchaseService,

@@ -26,6 +26,7 @@ jobs:
               echo "NODE_ENV=production"
               echo "PORT=3000"
               echo "DATABASE_URL=${DATABASE_URL}"
+              echo "REDIS_URL=${REDIS_URL}"
             } > ${{ vars.APP_DIR }}/.env
             echo ".env written"
 
