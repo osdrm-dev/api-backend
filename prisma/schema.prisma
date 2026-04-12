@@ -164,7 +164,8 @@ enum AttachmentType {
   INVOICE           // Facture
   PURCHASE_ORDER    // Bon de commande
   DELIVERY_NOTE     // Bon de livraison
-  PROOF_OF_PAYMENT  // Preuve de paiement
+  PROOF_OF_PAYMENT  // Preuve de paiement,
+  SATISFACTION_SURVEY
   OTHER             // Autre
 }
 
