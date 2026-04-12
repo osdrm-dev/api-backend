@@ -646,6 +646,12 @@ export class PurchaseService {
 
     if (filters.status) where.status = filters.status;
     if (filters.currentStep) where.currentStep = filters.currentStep;
+    if (filters.search) {
+      where.OR = [
+        { reference: { contains: filters.search, mode: 'insensitive' } },
+        { title: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
 
     const [purchases, total] = await Promise.all([
       this.prisma.purchase.findMany({
@@ -721,6 +727,12 @@ export class PurchaseService {
     if (filters.currentStep) {
       where.currentStep = filters.currentStep;
     }
+    if (filters.search) {
+      where.OR = [
+        { reference: { contains: filters.search, mode: 'insensitive' } },
+        { title: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
 
     const [purchases, total] = await Promise.all([
       this.prisma.purchase.findMany({
@@ -744,8 +756,19 @@ export class PurchaseService {
       this.prisma.purchase.count({ where }),
     ]);
 
+    const enriched = purchases.map((p) => ({
+      ...p,
+      amount: p.items.reduce((sum, item) => sum + item.amount, 0),
+    }));
+
+    const grouped: Record<string, any[]> = {};
+    for (const step of STEP_ORDER) {
+      const group = enriched.filter((p) => p.currentStep === step);
+      if (group.length > 0) grouped[step] = group;
+    }
+
     return {
-      data: purchases,
+      grouped,
       total,
       page: pagination.page,
       limit: pagination.limit,
