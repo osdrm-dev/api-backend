@@ -50,6 +50,7 @@ model File {
   @@index([checksum])
   @@map("files")
 }
+
 enum Role {
   DEMANDEUR
   OM
@@ -153,14 +154,19 @@ enum PurchaseStatus {
   CHANGE_REQUESTED
 }
 
+// =====================================================
+// MODIFICATION: Ajout de DA_ATTACHMENT pour les pièces 
+// jointes lors de la création de la demande d'achat
+// =====================================================
 enum AttachmentType {
-  QUOTE
-  INVOICE
-  PURCHASE_ORDER
-  DELIVERY_NOTE
-  PROOF_OF_PAYMENT
+  DA_ATTACHMENT     // <- NOUVEAU: Pièces jointes de la DA (étape création)
+  QUOTE             // Devis (étape QR)
+  INVOICE           // Facture
+  PURCHASE_ORDER    // Bon de commande
+  DELIVERY_NOTE     // Bon de livraison
+  PROOF_OF_PAYMENT  // Preuve de paiement,
   SATISFACTION_SURVEY
-  OTHER
+  OTHER             // Autre
 }
 
 enum SigningStatus {
@@ -398,7 +404,6 @@ model Supplier {
   @@map("suppliers")
 }
 
-
 enum PVStatus {
   DRAFT
   SUBMITTED
@@ -455,7 +460,7 @@ model PVSupplier {
   offreFinanciere           Decimal? @db.Decimal(15, 2)
 
   pv        PV        @relation(fields: [pvId], references: [id], onDelete: Cascade)
-  supplier  Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull) // ← ajout
+  supplier  Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
   items     PVSupplierItem[]
 
   createdAt   DateTime  @default(now())
@@ -499,7 +504,6 @@ model Notification {
   id            String             @id @default(cuid())
   type          String             
   
-  
   resourceId    String?
   resourceType  String?            
   
@@ -507,7 +511,6 @@ model Notification {
   data          Json               
   
   status        NotificationStatus @default(PENDING)
-  
   
   hasReminder   Boolean            @default(false)
   attemptCount  Int                @default(0)
