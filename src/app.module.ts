@@ -27,6 +27,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { PdfSigningModule } from './pdf-signing/pdf-signing.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { SatisfactionModule } from './satisfaction/satisfaction.module';
+import { CommentModule } from './comment/comment.module';
 
 @Module({
   imports: [
@@ -81,6 +82,7 @@ import { SatisfactionModule } from './satisfaction/satisfaction.module';
     BudgetModule,
     SignaturesModule,
     PdfSigningModule,
+    CommentModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

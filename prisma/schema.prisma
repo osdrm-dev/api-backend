@@ -80,6 +80,7 @@ model User {
   auditLogs           AuditLog[]
   validators          Validator[]
   purchasesCreated    Purchase[]           @relation("PurchaseCreator")
+  purchaseComments    PurchaseComment[]
   files               File[]
   budgetTables        BudgetTable[]
   signatureSpecimens  SignatureSpecimen[]
@@ -241,6 +242,7 @@ model Purchase {
   updatedAt             DateTime            @updatedAt
   pv                    PV?
   satisfactionSurvey    SatisfactionSurvey?
+  comments              PurchaseComment[]
 
   @@index([reference])
   @@index([status])
@@ -608,4 +610,24 @@ model SatisfactionSurvey {
   @@index([purchaseId])
   @@index([rating])
   @@map("satisfaction_surveys")
+}
+
+model PurchaseComment {
+  id          String        @id @default(cuid())
+  purchaseId  String
+  authorId    Int?
+
+  content     String        @db.Text
+  currentStep PurchaseStep
+
+  purchase    Purchase      @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  author      User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@index([purchaseId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("purchase_comments")
 }

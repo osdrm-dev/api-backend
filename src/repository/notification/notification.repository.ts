@@ -12,7 +12,8 @@ const DISPLAYED_NOTIFICATION_TYPES = [
   'BC_UPLOADED',
   'PV_UPLOADED',
   'QR_UPLOADED',
-  'DPA_CREATED',
+  'DAP_CREATED',
+  'PURCHASE_COMMENT_ADDED',
 ] as const;
 
 @Injectable()

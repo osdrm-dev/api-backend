@@ -3,8 +3,9 @@ export const RESEND_TEMPLATES = {
   BC_UPLOADED: 'bc-uploaded',
   PV_UPLOADED: 'pv-uploaded',
   QR_UPLOADED: 'qr-uploaded',
-  DPA_CREATED: 'dpa-created',
+  DAP_CREATED: 'dap-created',
   CONFIRMATION: 'confirmation',
+  PURCHASE_COMMENT_ADDED: 'purchase-comment-added',
 } as const;
 
 export type ResendTemplate =

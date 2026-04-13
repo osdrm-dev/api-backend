@@ -254,11 +254,11 @@ export class NotificationService {
           },
         };
 
-      case OSDRM_PROCESS_EVENT.DPA_CREATED:
+      case OSDRM_PROCESS_EVENT.DAP_CREATED:
         return {
           to,
-          subject: `${isReminder ? '[RAPPEL] ' : ''}Validation DPA requise : ${ref}`,
-          template: RESEND_TEMPLATES.DPA_CREATED,
+          subject: `${isReminder ? '[RAPPEL] ' : ''}Validation DAP requise : ${ref}`,
+          template: RESEND_TEMPLATES.DAP_CREATED,
           variables: {
             isReminder,
             reference: ref,
@@ -266,9 +266,30 @@ export class NotificationService {
           },
         };
 
+      case OSDRM_PROCESS_EVENT.PURCHASE_COMMENT_ADDED: {
+        const commentFrontendUrl =
+          this.config.get<string>('FRONTEND_URL') ??
+          this.config.get<string>('RESEND_FRONTEND_URL') ??
+          'http://localhost:5173';
+        return {
+          to,
+          subject: `Nouveau commentaire sur la DA ${ref}`,
+          template: RESEND_TEMPLATES.PURCHASE_COMMENT_ADDED,
+          variables: {
+            reference: ref,
+            purchaseTitle: data.purchaseTitle,
+            authorName: data.authorName,
+            currentStep: data.currentStep,
+            commentExcerpt: data.commentExcerpt,
+            purchaseUrl: `${commentFrontendUrl}/achats/${data.purchaseId}`,
+          },
+        };
+      }
+
       case OSDRM_PROCESS_EVENT.FORGOT_PASSWORD: {
         const frontendUrl =
-          this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173';
+          this.config.get<string>('RESEND_FRONTEND_URL') ??
+          'http://localhost:5173';
         return {
           to,
           subject: 'Réinitialisation de votre mot de passe',
