@@ -226,7 +226,7 @@ export class PdfSigningProcessor extends WorkerHost {
       if (!nextValidator?.user?.email) return;
 
       await this.notificationService.createNotification(
-        OSDRM_PROCESS_EVENT.DPA_CREATED,
+        OSDRM_PROCESS_EVENT.DAP_CREATED,
         [nextValidator.user.email],
         purchaseId,
         { reference: purchase?.reference ?? purchaseId, attachmentId },

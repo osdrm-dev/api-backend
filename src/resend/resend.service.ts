@@ -87,7 +87,7 @@ export class ResendService {
 
   async sendConfirmation(to: string, token: string): Promise<void> {
     const frontendUrl =
-      this.config.get<string>('FRONTEND_URL') ?? 'http://localhost:5173';
+      this.config.get<string>('RESEND_FRONTEND_URL') ?? 'http://localhost:5173';
     await this.sendWithTemplate(
       to,
       'Réinitialisation de votre mot de passe',
