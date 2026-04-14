@@ -3,8 +3,10 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateSatisfactionDto } from '../dto/create-satisfaction.dto';
+import { FilterSatisfactionDto } from '../dto/filter-satisfaction.dto';
 
 @Injectable()
 export class SatisfactionService {
@@ -103,18 +105,140 @@ export class SatisfactionService {
     });
   }
 
-  async findAll() {
-    return this.prisma.satisfactionSurvey.findMany({
+  async findAll(filters: FilterSatisfactionDto = {}) {
+    const purchaseWhere: Prisma.PurchaseWhereInput = {};
+
+    if (filters.startDate || filters.endDate) {
+      purchaseWhere.createdAt = {
+        ...(filters.startDate ? { gte: new Date(filters.startDate) } : {}),
+        ...(filters.endDate ? { lte: new Date(filters.endDate) } : {}),
+      };
+    }
+
+    if (filters.marketType) {
+      purchaseWhere.marketType = filters.marketType;
+    }
+
+    if (filters.operationType) {
+      purchaseWhere.operationType = filters.operationType;
+    }
+
+    if (filters.supplierId) {
+      purchaseWhere.pv = {
+        suppliers: {
+          some: {
+            supplierId: filters.supplierId,
+            rang: 1,
+          },
+        },
+      };
+    }
+
+    if (filters.purchaseId) {
+      purchaseWhere.id = filters.purchaseId;
+    }
+
+    const surveys = await this.prisma.satisfactionSurvey.findMany({
+      where:
+        Object.keys(purchaseWhere).length > 0
+          ? { purchase: purchaseWhere }
+          : undefined,
       include: {
         purchase: {
           select: {
             reference: true,
             title: true,
+            marketType: true,
+            operationType: true,
+            createdAt: true,
+            status: true,
+            pv: {
+              include: {
+                suppliers: {
+                  where: { rang: 1 },
+                  take: 1,
+                  include: {
+                    supplier: {
+                      select: { id: true, name: true },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
       orderBy: { createdAt: 'desc' },
     });
+
+    return surveys.map((survey) => {
+      const retainedPvSupplier = survey.purchase.pv?.suppliers?.[0];
+      const { reference, title, marketType, operationType, createdAt, status } =
+        survey.purchase;
+      return {
+        ...survey,
+        purchase: {
+          reference,
+          title,
+          marketType,
+          operationType,
+          createdAt,
+          status,
+        },
+        supplier: retainedPvSupplier?.supplier ?? null,
+      };
+    });
+  }
+
+  async findById(id: string) {
+    const survey = await this.prisma.satisfactionSurvey.findUnique({
+      where: { id },
+      include: {
+        purchase: {
+          select: {
+            reference: true,
+            title: true,
+            marketType: true,
+            operationType: true,
+            status: true,
+            createdAt: true,
+            pv: {
+              include: {
+                suppliers: {
+                  where: { rang: 1 },
+                  take: 1,
+                  include: {
+                    supplier: {
+                      select: { id: true, name: true },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!survey) {
+      throw new NotFoundException('Enquête de satisfaction introuvable');
+    }
+
+    const retainedPvSupplier = survey.purchase.pv?.suppliers?.[0];
+    const { reference, title, marketType, operationType, status, createdAt } =
+      survey.purchase;
+    return {
+      ...survey,
+      purchase: {
+        reference,
+        title,
+        marketType,
+        operationType,
+        status,
+        createdAt,
+      },
+      supplier: retainedPvSupplier?.supplier ?? null,
+    };
   }
 
   async getStatistics() {

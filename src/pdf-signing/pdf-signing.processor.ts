@@ -2,10 +2,10 @@ import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { PrismaService } from 'prisma/prisma.service';
-import { PurchaseStep, SigningStatus, ValidatorRole } from '@prisma/client';
+import { PurchaseStep, SigningStatus } from '@prisma/client';
 import type { File as MulterFile } from 'multer';
 import { FileStorageService } from 'src/storage/services/file-storage.service';
-import { ValidationActionService } from 'src/purchaseValidation/services/validation-action.service';
+import { DAValidationService } from 'src/purchaseValidation/services/validation.service';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { PdfLibService } from './pdf-lib.service';
 import { PDF_SIGNING_QUEUE, PDF_SIGNING_JOB } from './pdf-signing.service';
@@ -29,7 +29,7 @@ export class PdfSigningProcessor extends WorkerHost {
     private readonly prisma: PrismaService,
     private readonly fileStorage: FileStorageService,
     private readonly pdfLib: PdfLibService,
-    private readonly validationAction: ValidationActionService,
+    private readonly daValidationService: DAValidationService,
     private readonly notificationService: NotificationService,
   ) {
     super();
@@ -191,17 +191,7 @@ export class PdfSigningProcessor extends WorkerHost {
     userId: number,
   ): Promise<void> {
     try {
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-        select: { role: true },
-      });
-      if (!user) return;
-
-      await this.validationAction.validate({
-        purchaseId,
-        userId,
-        userRole: user.role as unknown as ValidatorRole,
-      });
+      await this.daValidationService.validateDA(purchaseId, userId, {});
     } catch (error) {
       this.logger.error(
         `Workflow validation failed for purchase ${purchaseId}: ${error.message}`,
@@ -236,7 +226,7 @@ export class PdfSigningProcessor extends WorkerHost {
       if (!nextValidator?.user?.email) return;
 
       await this.notificationService.createNotification(
-        OSDRM_PROCESS_EVENT.DPA_CREATED,
+        OSDRM_PROCESS_EVENT.DAP_CREATED,
         [nextValidator.user.email],
         purchaseId,
         { reference: purchase?.reference ?? purchaseId, attachmentId },

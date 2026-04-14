@@ -47,12 +47,8 @@ export class AuthController {
     status: 403,
     description: 'Forbidden - Admin access required',
   })
-  async register(
-    @Body() registerDto: RegisterDto,
-    @Ip() ipAddress: string,
-    @CurrentUser('id') adminId: number,
-  ) {
-    return this.authService.register(registerDto, ipAddress, adminId);
+  async register(@Body() registerDto: RegisterDto) {
+    return this.authService.register(registerDto);
   }
 
   @Public()
@@ -147,12 +143,8 @@ export class AuthController {
     status: 403,
     description: 'Forbidden - Admin access required',
   })
-  async resetPassword(
-    @Body() resetPasswordDto: ResetPasswordDto,
-    @CurrentUser('id') adminId: number,
-    @Ip() ipAddress: string,
-  ) {
-    return this.authService.resetPassword(resetPasswordDto, adminId, ipAddress);
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    return this.authService.resetPassword(resetPasswordDto);
   }
 
   @Patch('profile')
@@ -185,14 +177,7 @@ export class AuthController {
   async updateUser(
     @Param('id') userId: string,
     @Body() updateUserDto: UpdateUserDto,
-    @CurrentUser('id') adminId: number,
-    @Ip() ipAddress: string,
   ) {
-    return this.authService.updateUser(
-      parseInt(userId),
-      updateUserDto,
-      adminId,
-      ipAddress,
-    );
+    return this.authService.updateUser(parseInt(userId), updateUserDto);
   }
 }

@@ -1,36 +1,65 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
+import { randomUUID } from 'crypto';
 import { AuditService } from '../../audit/services/audit.service';
+import { resolveAuditEventType } from '../../audit/audit.constants';
 
 @Injectable()
 export class AuditMiddleware implements NestMiddleware {
   constructor(private readonly auditService: AuditService) {}
 
-  async use(req: Request, res: Response, next: NextFunction) {
+  use(req: Request, res: Response, next: NextFunction) {
     const startTime = Date.now();
+    const traceId = randomUUID();
+    req['traceId'] = traceId;
 
-    res.on('finish', async () => {
+    const shouldLog = this.shouldLogRequest(req.method, req.path);
+
+    if (shouldLog) {
+      const user = req['user'];
+      const eventType = resolveAuditEventType(req.method, req.path);
+      this.auditService.log({
+        userId: (user as any)?.id,
+        action: `${req.method}_${req.path}`,
+        resource: this.extractResource(req.path),
+        resourceId: this.extractResourceId(req.path),
+        details: {
+          method: req.method,
+          path: req.path,
+          phase: 'START',
+          traceId,
+          type: eventType,
+          body: this.sanitizeBody(req.body),
+        },
+        ipAddress: this.getClientIp(req),
+        userAgent: req.headers['user-agent'],
+      });
+    }
+
+    res.on('finish', () => {
+      if (!shouldLog) return;
+
       const duration = Date.now() - startTime;
       const user = req['user'];
+      const eventType = resolveAuditEventType(req.method, req.path);
 
-      const shouldLog = this.shouldLogRequest(req.method, req.path);
-
-      if (shouldLog && res.statusCode < 400) {
-        await this.auditService.log({
-          userId: (user as any)?.id,
-          action: `${req.method}_${req.path}`,
-          resource: this.extractResource(req.path),
-          resourceId: this.extractResourceId(req.path),
-          details: {
-            method: req.method,
-            path: req.path,
-            statusCode: res.statusCode,
-            duration,
-          },
-          ipAddress: this.getClientIp(req),
-          userAgent: req.headers['user-agent'],
-        });
-      }
+      this.auditService.log({
+        userId: (user as any)?.id,
+        action: `${req.method}_${req.path}`,
+        resource: this.extractResource(req.path),
+        resourceId: this.extractResourceId(req.path),
+        details: {
+          method: req.method,
+          path: req.path,
+          statusCode: res.statusCode,
+          duration,
+          phase: 'FINISH',
+          traceId,
+          type: eventType,
+        },
+        ipAddress: this.getClientIp(req),
+        userAgent: req.headers['user-agent'],
+      });
     });
 
     next();
@@ -64,6 +93,17 @@ export class AuditMiddleware implements NestMiddleware {
       (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
       req.socket.remoteAddress ||
       'unknown'
+    );
+  }
+
+  private sanitizeBody(body: any): any {
+    if (!body || typeof body !== 'object') return undefined;
+    const sensitive = ['password', 'token', 'secret', 'authorization'];
+    return Object.fromEntries(
+      Object.entries(body).map(([k, v]) => [
+        k,
+        sensitive.includes(k.toLowerCase()) ? '[REDACTED]' : v,
+      ]),
     );
   }
 }

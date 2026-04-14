@@ -1,12 +1,22 @@
-import { Controller, Post, Get, Body, Param, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiBearerAuth,
   ApiResponse,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { SatisfactionService } from '../services/satisfaction.service';
 import { CreateSatisfactionDto } from '../dto/create-satisfaction.dto';
+import { FilterSatisfactionDto } from '../dto/filter-satisfaction.dto';
 import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 
 @ApiTags('Satisfaction')
@@ -43,8 +53,38 @@ export class SatisfactionController {
   @Get()
   @ApiOperation({ summary: 'Récupérer toutes les enquêtes de satisfaction' })
   @ApiResponse({ status: 200, description: 'Liste des enquêtes' })
-  findAll() {
-    return this.satisfactionService.findAll();
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    description: 'Date de début (ISO 8601)',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    description: 'Date de fin (ISO 8601)',
+  })
+  @ApiQuery({
+    name: 'supplierId',
+    required: false,
+    description: 'ID du fournisseur retenu',
+  })
+  @ApiQuery({
+    name: 'marketType',
+    required: false,
+    description: 'Type de marché',
+  })
+  @ApiQuery({
+    name: 'operationType',
+    required: false,
+    enum: ['PROGRAMME', 'OPERATION'],
+  })
+  @ApiQuery({
+    name: 'purchaseId',
+    required: false,
+    description: "ID du dossier d'achat",
+  })
+  findAll(@Query() filters: FilterSatisfactionDto) {
+    return this.satisfactionService.findAll(filters);
   }
 
   @Get('statistics/summary')
@@ -54,5 +94,13 @@ export class SatisfactionController {
   @ApiResponse({ status: 200, description: 'Statistiques calculées' })
   getStatistics() {
     return this.satisfactionService.getStatistics();
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: "Récupérer le détail d'une enquête par son ID" })
+  @ApiResponse({ status: 200, description: 'Enquête récupérée' })
+  @ApiResponse({ status: 404, description: 'Enquête introuvable' })
+  findById(@Param('id') id: string) {
+    return this.satisfactionService.findById(id);
   }
 }
