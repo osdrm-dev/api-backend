@@ -178,13 +178,6 @@ enum SigningStatus {
   FAILED
 }
 
-enum SigningStatus {
-  PENDING
-  PROCESSING
-  DONE
-  FAILED
-}
-
 enum DerogationStatus {
   PENDING
   VALIDATED
