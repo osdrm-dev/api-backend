@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { SupplierActiveStatus } from '@prisma/client';
 import { SupplierRepository } from 'src/repository/supplier/supplier.repository';
 import { CreateSupplierDto } from '../dto/create-supplier.dto';
 import { UpdateSupplierDto } from '../dto/update-supplier.dto';
@@ -23,7 +24,7 @@ export class SupplierService {
     return this.repository.update(id, dto);
   }
 
-  async setActive(id: string, active: boolean) {
-    return this.repository.setActive(id, active);
+  async setStatus(id: string, activeStatus: SupplierActiveStatus) {
+    return this.repository.setStatus(id, activeStatus);
   }
 }

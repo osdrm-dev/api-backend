@@ -70,6 +70,7 @@ export class PurchaseService {
       ...purchaseData
     } = createDto;
 
+    console.log(purchaseData);
     const purchase = await this.prisma.purchase.create({
       data: {
         reference,
@@ -685,10 +686,13 @@ export class PurchaseService {
 
     return {
       grouped,
-      total,
-      page: pagination.page,
-      limit: pagination.limit,
-      totalPages: Math.ceil(total / pagination.limit),
+      pagination: {
+        ...pagination,
+        total,
+        page: pagination.page,
+        limit: pagination.limit,
+        totalPages: Math.ceil(total / pagination.limit),
+      },
     };
   }
   async getBuyerWorkspace(filters: FilterPurchaseDto = {}) {

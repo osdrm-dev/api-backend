@@ -7,7 +7,9 @@ import {
   Body,
   Query,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
+import { SupplierActiveStatus } from '@prisma/client';
 import {
   ApiTags,
   ApiOperation,
@@ -73,9 +75,10 @@ export class SupplierController {
     description: 'Filter by region',
   })
   @ApiQuery({
-    name: 'active',
+    name: 'activeStatus',
     required: false,
-    description: 'Filter by active state',
+    enum: SupplierActiveStatus,
+    description: 'Filter by active status (ACTIVE, INACTIVE, BLACK_LIST)',
   })
   @ApiResponse({ status: 200, description: 'List of suppliers returned.' })
   async findAll(@Query() filters: any) {
@@ -121,20 +124,34 @@ export class SupplierController {
     return this.supplierService.update(id, dto);
   }
 
-  @Put(':id/active')
+  @Put(':id/status')
   @Roles('ADMIN', 'ACHETEUR')
   @UseGuards(RolesGuard)
-  @ApiOperation({ summary: 'Activate or deactivate a supplier' })
+  @ApiOperation({ summary: 'Update the active status of a supplier' })
   @ApiParam({ name: 'id', description: 'Supplier unique identifier' })
   @ApiBody({
-    schema: { type: 'object', properties: { active: { type: 'boolean' } } },
+    schema: {
+      type: 'object',
+      properties: {
+        activeStatus: {
+          type: 'string',
+          enum: Object.values(SupplierActiveStatus),
+        },
+      },
+    },
   })
-  @ApiResponse({
-    status: 200,
-    description: 'Supplier activation status updated.',
-  })
+  @ApiResponse({ status: 200, description: 'Supplier status updated.' })
+  @ApiResponse({ status: 400, description: 'Invalid status value.' })
   @ApiResponse({ status: 404, description: 'Supplier not found.' })
-  async setActive(@Param('id') id: string, @Body('active') active: boolean) {
-    return this.supplierService.setActive(id, active);
+  async setStatus(
+    @Param('id') id: string,
+    @Body('activeStatus') activeStatus: SupplierActiveStatus,
+  ) {
+    if (!Object.values(SupplierActiveStatus).includes(activeStatus)) {
+      throw new BadRequestException(
+        `activeStatus must be one of: ${Object.values(SupplierActiveStatus).join(', ')}`,
+      );
+    }
+    return this.supplierService.setStatus(id, activeStatus);
   }
 }
