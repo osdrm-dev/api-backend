@@ -10,7 +10,12 @@ import { PVRepository } from '../../repository/purchase/pv.repository';
 import { CreatePVDto } from '../dto/create-pv.dto';
 import { UpdatePVDto } from '../dto/update-pv.dto';
 import { AddSupplierItemsDto } from '../dto/add-supplier-items.dto';
-import { PurchaseStep, PurchaseStatus, Role } from '@prisma/client';
+import {
+  PurchaseStep,
+  PurchaseStatus,
+  Role,
+  SupplierActiveStatus,
+} from '@prisma/client';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 
@@ -74,7 +79,7 @@ export class PVService {
             `Fournisseur avec l'id ${supplier.supplierId} non trouve`,
           );
         }
-        if (!existing.active) {
+        if (existing.activeStatus != SupplierActiveStatus.ACTIVE) {
           throw new BadRequestException(
             `Le fournisseur ${existing.name} n'est pas actif`,
           );

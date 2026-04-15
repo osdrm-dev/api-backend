@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsEmail, IsBoolean } from 'class-validator';
+import { IsString, IsOptional, IsEmail, IsEnum } from 'class-validator';
+import { SupplierActiveStatus } from '@prisma/client';
 
 export class CreateSupplierDto {
   @IsString()
