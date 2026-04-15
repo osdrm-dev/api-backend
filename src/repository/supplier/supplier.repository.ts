@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Supplier } from '@prisma/client';
+import { Supplier, SupplierActiveStatus } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateSupplierDto } from 'src/supplier/dto/create-supplier.dto';
 import { UpdateSupplierDto } from 'src/supplier/dto/update-supplier.dto';
@@ -13,14 +13,14 @@ export class SupplierRepository {
   }
 
   async findAll(filters: any) {
-    const { status, region, active, skip = 0, take = 10 } = filters;
+    const { status, region, activeStatus, skip = 0, take = 10 } = filters;
 
     const where: any = {};
 
     if (status && status !== 'ALL') where.status = status;
     if (region && region !== 'ALL') where.region = region;
-    if (active !== undefined)
-      where.active = active === 'true' || active === true;
+    if (activeStatus && activeStatus !== 'ALL')
+      where.activeStatus = activeStatus;
     const [data, total] = await Promise.all([
       this.prisma.supplier.findMany({
         where,
@@ -50,7 +50,13 @@ export class SupplierRepository {
     return this.prisma.supplier.update({ where: { id }, data });
   }
 
-  async setActive(id: string, active: boolean): Promise<Supplier> {
-    return this.prisma.supplier.update({ where: { id }, data: { active } });
+  async setStatus(
+    id: string,
+    activeStatus: SupplierActiveStatus,
+  ): Promise<Supplier> {
+    return this.prisma.supplier.update({
+      where: { id },
+      data: { activeStatus },
+    });
   }
 }
