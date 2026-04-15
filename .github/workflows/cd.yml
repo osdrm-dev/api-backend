@@ -23,7 +23,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: DATABASE_URL
+          envs: DATABASE_URL,REDIS_URL,RESEND_ENABLED_EVENTS,RESEND_FRONTEND_URL,RESEND_FROM,RESEND_API_KEY
           script: |
             set -e
             mkdir -p ${{ vars.APP_DIR }}
