@@ -34,7 +34,7 @@ jobs:
               echo "RESEND_API_KEY=${RESEND_API_KEY}"
               echo "RESEND_FROM=${RESEND_FROM}"
               echo "RESEND_FRONTEND_URL=${RESEND_FRONTEND_URL}"
-              echo "RESEND_ENABLED_EVENTS=${RESEND_FRONTEND_URL}"
+              echo "RESEND_ENABLED_EVENTS=${RESEND_ENABLED_EVENTS}"
             } > ${{ vars.APP_DIR }}/.env
             echo ".env written"
 
