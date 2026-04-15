@@ -19,6 +19,7 @@ jobs:
           RESEND_FROM: ${{ vars.RESEND_FROM }}
           RESEND_FRONTEND_URL: ${{ vars.RESEND_FRONTEND_URL }}
           RESEND_ENABLED_EVENTS: ${{ vars.RESEND_ENABLED_EVENTS }}
+        with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
