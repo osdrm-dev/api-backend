@@ -180,7 +180,7 @@ export class PurchaseQueryService {
     return this.purchaseRepo.findById(id);
   }
 
-  async findValidatedForQR(filters: FilterOptions) {
+  async findValidatedForQR(filters: FilterOptions, acheteurId?: number) {
     const {
       page = 1,
       limit = 10,
@@ -189,12 +189,18 @@ export class PurchaseQueryService {
     } = filters;
     const skip = (page - 1) * limit;
 
-    const where = this.buildWhereClause(filters, {
+    const additionalCriteria: any = {
       status: {
         in: [PurchaseStatus.PUBLISHED, PurchaseStatus.AWAITING_DOCUMENTS],
       },
       currentStep: 'QR',
-    });
+    };
+
+    if (acheteurId !== undefined) {
+      additionalCriteria.acheteurId = acheteurId;
+    }
+
+    const where = this.buildWhereClause(filters, additionalCriteria);
 
     const [purchases, total] = await Promise.all([
       this.purchaseRepo.findMany({

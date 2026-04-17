@@ -13,7 +13,12 @@ import { SubmitService } from './submit.service';
 import { CreatePurchaseDto } from '../dto/create-purchase.dto';
 import { AddPurchaseItemsDto } from '../dto/purchase-item.dto';
 import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
-import { PurchaseStatus, PurchaseStep, AttachmentType } from '@prisma/client';
+import {
+  PurchaseStatus,
+  PurchaseStep,
+  AttachmentType,
+  Role,
+} from '@prisma/client';
 import {
   buildPaginatedResponse,
   parsePaginationParams,
@@ -46,9 +51,27 @@ export class PurchaseService {
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
+  private async resolveAcheteur(acheteurId: number) {
+    const acheteur = await this.prisma.user.findUnique({
+      where: { id: acheteurId },
+    });
+    if (!acheteur) throw new NotFoundException('Acheteur non trouve.');
+    if (acheteur.role !== Role.ACHETEUR) {
+      throw new BadRequestException(
+        "L'utilisateur sélectionné n'est pas un acheteur.",
+      );
+    }
+    if (!acheteur.isActive) {
+      throw new BadRequestException("L'acheteur sélectionné n'est pas actif.");
+    }
+    return acheteur;
+  }
+
   async createPurchase(userId: number, createDto: CreatePurchaseDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('Utilisateur non trouve');
+
+    await this.resolveAcheteur(createDto.acheteurId);
 
     // Resolve imputation fields from the active budget table server-side.
     // Throws 503 if no active table, 404 if projectCode is unknown.
@@ -371,6 +394,9 @@ export class PurchaseService {
         creator: {
           select: { id: true, name: true, email: true, role: true },
         },
+        acheteur: {
+          select: { id: true, name: true, email: true, role: true },
+        },
       },
     });
 
@@ -448,6 +474,10 @@ export class PurchaseService {
       throw new BadRequestException('Cette DA ne peut plus etre modifiee');
 
     const updateData: any = { ...updateDto };
+
+    if (updateData.acheteurId !== undefined) {
+      await this.resolveAcheteur(updateData.acheteurId);
+    }
 
     // Project imputation fields are resolved from the active budget table,
     // not from user input. Strip any freeform values.
@@ -695,7 +725,7 @@ export class PurchaseService {
       },
     };
   }
-  async getBuyerWorkspace(filters: FilterPurchaseDto = {}) {
+  async getBuyerWorkspace(userId: number, filters: FilterPurchaseDto = {}) {
     const pagination = parsePaginationParams(filters, {
       defaultPage: 1,
       defaultLimit: 10,
@@ -703,6 +733,7 @@ export class PurchaseService {
     });
 
     const baseWhere: any = {
+      acheteurId: userId,
       status: {
         in: [
           PurchaseStatus.AWAITING_DOCUMENTS,
@@ -750,6 +781,9 @@ export class PurchaseService {
             },
           },
           creator: {
+            select: { id: true, name: true, email: true, role: true },
+          },
+          acheteur: {
             select: { id: true, name: true, email: true, role: true },
           },
         },

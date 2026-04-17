@@ -18,6 +18,7 @@ import {
 } from '@prisma/client';
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
+import { assertIsOwningBuyer } from '../../utils/purchase-guards';
 
 @Injectable()
 export class PVService {
@@ -96,6 +97,8 @@ export class PVService {
 
     if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
 
+    assertIsOwningBuyer(purchase, userId);
+
     if (purchase.currentStep !== PurchaseStep.PV) {
       throw new BadRequestException(`La DA n'est pas a l'etape PV`);
     }
@@ -142,6 +145,8 @@ export class PVService {
     if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
     if (!purchase.pv)
       throw new NotFoundException('Aucun PV trouve pour cette DA');
+
+    assertIsOwningBuyer(purchase, userId);
 
     if (purchase.status !== PurchaseStatus.PUBLISHED) {
       throw new BadRequestException(

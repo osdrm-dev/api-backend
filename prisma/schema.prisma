@@ -76,14 +76,15 @@ model User {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   
-  refreshTokens       RefreshToken[]
-  auditLogs           AuditLog[]
-  validators          Validator[]
-  purchasesCreated    Purchase[]           @relation("PurchaseCreator")
-  purchaseComments    PurchaseComment[]
-  files               File[]
-  budgetTables        BudgetTable[]
-  signatureSpecimens  SignatureSpecimen[]
+  refreshTokens         RefreshToken[]
+  auditLogs             AuditLog[]
+  validators            Validator[]
+  purchasesCreated      Purchase[]           @relation("PurchaseCreator")
+  purchasesAsAcheteur   Purchase[]           @relation("PurchaseAcheteur")
+  purchaseComments      PurchaseComment[]
+  files                 File[]
+  budgetTables          BudgetTable[]
+  signatureSpecimens    SignatureSpecimen[]
 
   @@index([email])
   @@index([role])
@@ -234,6 +235,9 @@ model Purchase {
   creatorId             Int?
   creator               User?               @relation("PurchaseCreator", fields: [creatorId], references: [id], onDelete: SetNull)
 
+  acheteurId            Int?
+  acheteur              User?               @relation("PurchaseAcheteur", fields: [acheteurId], references: [id], onDelete: SetNull)
+
   items                 PurchaseItem[]
   attachments           Attachment[]
   derogation            Derogation?
@@ -250,6 +254,7 @@ model Purchase {
   @@index([project])
   @@index([region])
   @@index([creatorId])
+  @@index([acheteurId])
   @@index([createdAt])
   @@map("purchases")
 }

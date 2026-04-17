@@ -203,6 +203,7 @@ async function main() {
         ...(pd.validatedAt && { validatedAt: new Date(pd.validatedAt) }),
         ...(pd.receivedAt && { receivedAt: new Date(pd.receivedAt) }),
         creatorId: userMap[pd.creatorKey].id,
+        acheteurId: userMap['acheteur'].id,
         items: {
           create: pd.items.map((item: any) => ({
             designation: item.designation,

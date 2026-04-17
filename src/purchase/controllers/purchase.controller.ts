@@ -191,7 +191,7 @@ export class PurchaseController {
   @ApiOperation({
     summary: "Espace de travail de l'acheteur",
     description:
-      "DA en attente de traitement par l'acheteur (etapes QR, PV, BC, BR). Utiliser ce endpoint plutot que GET /purchases pour les acheteurs.",
+      "DA en attente de traitement par l'acheteur (etapes QR, PV, BC, BR). Filtre automatiquement sur l'acheteur connecte.",
   })
   @ApiPaginatedResponse({
     id: 'da-123',
@@ -200,7 +200,7 @@ export class PurchaseController {
   })
   @ApiCommonResponses()
   async getBuyerWorkspace(@Request() req, @Query() filters: FilterPurchaseDto) {
-    return this.purchaseService.getBuyerWorkspace(filters);
+    return this.purchaseService.getBuyerWorkspace(req.user.id, filters);
   }
 
   @Get(':id')

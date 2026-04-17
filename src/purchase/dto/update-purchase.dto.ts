@@ -1,5 +1,11 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsEnum, IsOptional, MaxLength } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsOptional,
+  IsInt,
+  MaxLength,
+} from 'class-validator';
 import { OperationType } from '@prisma/client';
 
 export class UpdatePurchaseDto {
@@ -127,4 +133,12 @@ export class UpdatePurchaseDto {
   @IsString()
   @IsOptional()
   priority?: string;
+
+  @ApiPropertyOptional({
+    description: "ID de l'acheteur responsable de cette DA",
+    example: 5,
+  })
+  @IsInt()
+  @IsOptional()
+  acheteurId?: number;
 }
