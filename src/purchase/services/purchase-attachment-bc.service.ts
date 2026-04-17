@@ -7,6 +7,7 @@ import {
 import { AttachmentType, Role, PurchaseStep } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { UploadBcDto } from '../dto/upload-bc.dto';
+import { assertIsOwningBuyer } from '../../utils/purchase-guards';
 
 @Injectable()
 export class PurchaseAttachmentBcService {
@@ -30,6 +31,8 @@ export class PurchaseAttachmentBcService {
     if (!purchase) {
       throw new NotFoundException("Demande d'achat non trouvee");
     }
+
+    assertIsOwningBuyer(purchase, user.id);
 
     if (purchase.currentStep !== PurchaseStep.BC) {
       throw new BadRequestException("Cette DA n'est pas a l'etape QR");

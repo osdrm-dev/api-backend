@@ -13,6 +13,7 @@ import {
   PurchaseStep,
   Role,
 } from '@prisma/client';
+import { assertIsOwningBuyer } from '../../utils/purchase-guards';
 
 @Injectable()
 export class BCService {
@@ -35,6 +36,8 @@ export class BCService {
     if (!purchase) {
       throw new NotFoundException("Demande d'achat non trouvee");
     }
+
+    assertIsOwningBuyer(purchase, userId);
 
     if (purchase.currentStep !== PurchaseStep.BC) {
       throw new BadRequestException("La DA n'est pas a l'etape BC");

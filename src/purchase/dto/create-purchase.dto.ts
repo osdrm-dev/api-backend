@@ -7,6 +7,7 @@ import {
   IsArray,
   ValidateNested,
   IsNumber,
+  IsInt,
   MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -189,4 +190,12 @@ export class CreatePurchaseDto {
   @ValidateNested({ each: true })
   @Type(() => AttachmentDto)
   attachments?: AttachmentDto[];
+
+  @ApiProperty({
+    description: "ID de l'acheteur responsable de cette DA",
+    example: 5,
+  })
+  @IsInt()
+  @IsNotEmpty()
+  acheteurId!: number;
 }

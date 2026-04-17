@@ -15,6 +15,7 @@ import {
   AttachmentType,
   DerogationStatus,
 } from '@prisma/client';
+import { assertIsOwningBuyer } from '../../utils/purchase-guards';
 
 @Injectable()
 export class QuotationService {
@@ -85,6 +86,8 @@ export class QuotationService {
       throw new NotFoundException("Demande d'achat non trouvee");
     }
 
+    assertIsOwningBuyer(purchase, userId);
+
     if (purchase.currentStep !== PurchaseStep.QR) {
       throw new BadRequestException("Cette DA n'est pas a l'etape QR");
     }
@@ -130,6 +133,8 @@ export class QuotationService {
     if (!purchase) {
       throw new NotFoundException("Demande d'achat non trouvee");
     }
+
+    assertIsOwningBuyer(purchase, userId);
 
     if (purchase.currentStep !== PurchaseStep.QR) {
       throw new BadRequestException("Cette DA n'est pas a l'etape QR");
@@ -346,6 +351,8 @@ export class QuotationService {
     if (!purchase) {
       throw new NotFoundException("Demande d'achat non trouvee");
     }
+
+    assertIsOwningBuyer(purchase, userId);
 
     if (purchase.currentStep !== PurchaseStep.QR) {
       throw new BadRequestException("Cette DA n'est pas a l'etape QR");

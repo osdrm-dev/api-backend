@@ -5,6 +5,7 @@ import { Purchase, Prisma, PurchaseStatus, PurchaseStep } from '@prisma/client';
 // Type pour Purchase avec toutes les relations
 type PurchaseWithRelations = Purchase & {
   creator: any;
+  acheteur: any;
   items: any[];
   attachments: any[];
   derogation: any;
@@ -29,6 +30,14 @@ export class PurchaseRepository {
         name: true,
         email: true,
         fonction: true,
+        role: true,
+      },
+    },
+    acheteur: {
+      select: {
+        id: true,
+        name: true,
+        email: true,
         role: true,
       },
     },
