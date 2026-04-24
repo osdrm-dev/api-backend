@@ -300,6 +300,9 @@ export class NotificationService {
         };
       }
 
+      case OSDRM_PROCESS_EVENT.VEHICLE_DOCUMENT_EXPIRY_ALERT:
+        return null;
+
       default:
         throw new Error(`Type d'évènement non supporté : ${notif.type}`);
     }
