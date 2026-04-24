@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { seedParcAuto } from './seed-parc-auto';
 
 import {
   Role,
@@ -110,6 +111,9 @@ function daApprovedValidators(
 }
 
 async function cleanup() {
+  await prisma.vehicleAlertLog.deleteMany();
+  await prisma.vehicleDocument.deleteMany();
+  await prisma.vehicle.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.pVSupplierItem.deleteMany();
   await prisma.pVSupplier.deleteMany();
@@ -442,6 +446,8 @@ async function main() {
       details: log.details,
     })),
   });
+
+  await seedParcAuto(prisma);
 
   console.log(
     'Seeding termine: 8 users | 4 fournisseurs | 23 dossiers achat (19 + 4 DAP)',

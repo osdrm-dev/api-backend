@@ -28,6 +28,7 @@ import { PdfSigningModule } from './pdf-signing/pdf-signing.module';
 import { MailerModule } from '@nestjs-modules/mailer';
 import { SatisfactionModule } from './satisfaction/satisfaction.module';
 import { CommentModule } from './comment/comment.module';
+import { LogistiqueModule } from './logistique/logistique.module';
 
 @Module({
   imports: [
@@ -83,6 +84,7 @@ import { CommentModule } from './comment/comment.module';
     SignaturesModule,
     PdfSigningModule,
     CommentModule,
+    LogistiqueModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

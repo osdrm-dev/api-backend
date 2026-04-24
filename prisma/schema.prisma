@@ -43,6 +43,7 @@ model File {
   attachments         Attachment[]
   budgetTables        BudgetTable[]
   signatureSpecimens  SignatureSpecimen[]
+  vehicleDocuments    VehicleDocument[]
 
   @@index([uploadedById])
   @@index([fileType])
@@ -641,4 +642,71 @@ model PurchaseComment {
   @@index([authorId])
   @@index([createdAt])
   @@map("purchase_comments")
+}
+
+enum VehicleStatut {
+  ACTIF
+  ARCHIVE
+}
+
+enum VehicleDocumentType {
+  ASSURANCE
+  VISITE_TECHNIQUE
+  CARTE_GRISE
+}
+
+model Vehicle {
+  id              String            @id @default(cuid())
+  immatriculation String            @unique
+  marque          String
+  modele          String
+  annee           Int
+  statut          VehicleStatut     @default(ACTIF)
+  photoFileIds    Int[]             @default([])
+
+  documents       VehicleDocument[]
+
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([statut])
+  @@index([marque])
+  @@map("lg_vehicles")
+}
+
+model VehicleDocument {
+  id              String               @id @default(cuid())
+  vehicleId       String
+  type            VehicleDocumentType
+  reference       String?
+  dateDebut       DateTime?
+  dateExpiration  DateTime
+  isActive        Boolean              @default(true)
+  fileId          Int?
+
+  vehicle         Vehicle              @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  file            File?                @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  alertLogs       VehicleAlertLog[]
+
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([vehicleId])
+  @@index([type])
+  @@index([isActive])
+  @@index([dateExpiration])
+  @@map("lg_vehicle_documents")
+}
+
+model VehicleAlertLog {
+  id                String           @id @default(cuid())
+  vehicleDocumentId String
+  thresholdDays     Int
+  notifiedAt        DateTime         @default(now())
+
+  vehicleDocument   VehicleDocument  @relation(fields: [vehicleDocumentId], references: [id], onDelete: Cascade)
+
+  @@unique([vehicleDocumentId, thresholdDays])
+  @@index([vehicleDocumentId])
+  @@map("lg_vehicle_alert_logs")
 }
