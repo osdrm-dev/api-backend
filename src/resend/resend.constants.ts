@@ -6,6 +6,8 @@ export const RESEND_TEMPLATES = {
   DAP_CREATED: 'dap-created',
   CONFIRMATION: 'confirmation',
   PURCHASE_COMMENT_ADDED: 'purchase-comment-added',
+  MAINTENANCE_STATUS_CHANGED: 'maintenance-status-changed',
+  IT_DEMANDE_STATUS_CHANGED: 'it-demande-status-changed',
 } as const;
 
 export type ResendTemplate =

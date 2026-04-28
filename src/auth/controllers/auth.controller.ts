@@ -181,6 +181,16 @@ export class AuthController {
     return this.authService.updateUser(parseInt(userId), updateUserDto);
   }
 
+  @Get('users')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Liste tous les utilisateurs (Admin uniquement)' })
+  @ApiResponse({ status: 200, description: 'Liste des utilisateurs' })
+  async getUsers() {
+    return this.authService.getUsers();
+  }
+
   @Get('users/acheteurs')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')

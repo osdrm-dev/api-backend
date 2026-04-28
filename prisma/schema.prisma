@@ -86,6 +86,11 @@ model User {
   files                 File[]
   budgetTables          BudgetTable[]
   signatureSpecimens    SignatureSpecimen[]
+  maintenanceRequests   MaintenanceRequest[] @relation("MaintenanceRequestor")
+  maintenanceComments   MaintenanceComment[] @relation("MaintenanceCommentAuthor")
+  maintenanceAssigned   MaintenanceRequest[] @relation("MaintenanceAssignedTo")
+  itDemands             ItDemand[]           @relation("ItDemandRequestor")
+  itAttributions        ItAttribution[]      @relation("ItAttributionBeneficiary")
 
   @@index([email])
   @@index([role])
@@ -232,6 +237,7 @@ model Purchase {
   currentStep           PurchaseStep        @default(DA)
   observations          String?             @db.Text
   responsible           String?
+  data                  Json?
 
   creatorId             Int?
   creator               User?               @relation("PurchaseCreator", fields: [creatorId], references: [id], onDelete: SetNull)
@@ -248,6 +254,9 @@ model Purchase {
   pv                    PV?
   satisfactionSurvey    SatisfactionSurvey?
   comments              PurchaseComment[]
+  maintenanceRequest    MaintenanceRequest?
+  itAsset               ItAsset?    @relation("ItAssetLinkedPurchase")
+  itDemand              ItDemand?   @relation("ItDemandLinkedPurchase")
 
   @@index([reference])
   @@index([status])
@@ -644,6 +653,47 @@ model PurchaseComment {
   @@map("purchase_comments")
 }
 
+enum ItAssetStatus {
+  NEUF
+  BON
+  USAGE
+  EN_PANNE
+  HORS_SERVICE
+}
+
+enum ItDemandStatus {
+  EN_ATTENTE
+  APPROUVEE
+  REFUSEE
+}
+
+enum ItAttributionStatus {
+  ACTIVE
+  RETOURNE
+}
+
+enum MaintenanceInterventionType {
+  REPARATION
+  ENTRETIEN_PREVENTIF
+  ENTRETIEN_CORRECTIF
+  INSPECTION
+  AUTRE
+}
+
+enum MaintenanceUrgencyLevel {
+  FAIBLE
+  NORMALE
+  URGENTE
+  CRITIQUE
+}
+
+enum MaintenanceStatus {
+  PENDING
+  IN_PROGRESS
+  VALIDATED
+  REJECTED
+}
+
 enum VehicleStatut {
   ACTIF
   ARCHIVE
@@ -709,4 +759,166 @@ model VehicleAlertLog {
   @@unique([vehicleDocumentId, thresholdDays])
   @@index([vehicleDocumentId])
   @@map("lg_vehicle_alert_logs")
+}
+
+model MaintenanceRequest {
+  id                  String                      @id @default(cuid())
+  reference           String                      @unique
+
+  interventionType    MaintenanceInterventionType
+  urgencyLevel        MaintenanceUrgencyLevel     @default(NORMALE)
+  status              MaintenanceStatus           @default(PENDING)
+
+  title               String
+  description         String                      @db.Text
+  location            String?
+  vehicleRef          String?
+
+  requestorId         Int?
+  requestor           User?                       @relation("MaintenanceRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
+
+  assignedToId        Int?
+  assignedTo          User?                       @relation("MaintenanceAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  technicianName      String?
+  scheduledAt         DateTime?
+  completedAt         DateTime?
+
+  observations        String?                     @db.Text
+
+  linkedPurchaseId    String?                     @unique
+  linkedPurchase      Purchase?                   @relation(fields: [linkedPurchaseId], references: [id], onDelete: SetNull)
+
+  data                Json?
+
+  deletedAt           DateTime?
+
+  comments            MaintenanceComment[]
+
+  createdAt           DateTime                    @default(now())
+  updatedAt           DateTime                    @updatedAt
+
+  @@index([status])
+  @@index([urgencyLevel])
+  @@index([interventionType])
+  @@index([requestorId])
+  @@index([assignedToId])
+  @@index([vehicleRef])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@map("lg_maintenance_requests")
+}
+
+model MaintenanceComment {
+  id          String             @id @default(cuid())
+  requestId   String
+  authorId    Int?
+
+  content     String             @db.Text
+
+  request     MaintenanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author      User?              @relation("MaintenanceCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([requestId])
+  @@index([authorId])
+  @@index([createdAt])
+  @@map("lg_maintenance_comments")
+}
+
+// =====================================================
+// PARC INFORMATIQUE
+// =====================================================
+
+model ItCategory {
+  id                String     @id @default(cuid())
+  name              String     @unique
+  description       String?    @db.Text
+  depreciationYears Int        @default(3)
+  isActive          Boolean    @default(true)
+  assets            ItAsset[]
+  demands           ItDemand[]
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([isActive])
+  @@map("lg_it_categories")
+}
+
+model ItAsset {
+  id                        String          @id @default(cuid())
+  categoryId                String
+  designation               String
+  serialNumber              String?         @unique
+  supplierReference         String?
+  status                    ItAssetStatus   @default(NEUF)
+  location                  String?
+  acquisitionDate           DateTime
+  purchasePrice             Decimal         @db.Decimal(15, 2)
+  quantiteTotal             Int             @default(1)
+  quantiteAttribuee         Int             @default(0)
+  seuilAlerte               Int             @default(1)
+  depreciationOverrideYears Int?
+  linkedPurchaseId          String?         @unique
+  linkedPurchase            Purchase?       @relation("ItAssetLinkedPurchase", fields: [linkedPurchaseId], references: [id], onDelete: SetNull)
+  archivedAt                DateTime?
+  category                  ItCategory      @relation(fields: [categoryId], references: [id])
+  attributions              ItAttribution[]
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([location])
+  @@index([archivedAt])
+  @@map("lg_it_assets")
+}
+
+model ItDemand {
+  id               String          @id @default(cuid())
+  reference        String          @unique
+  requestorId      Int?
+  requestor        User?           @relation("ItDemandRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
+  categoryId       String?
+  category         ItCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  desiredType      String
+  quantity         Int
+  justification    String          @db.Text
+  status           ItDemandStatus  @default(EN_ATTENTE)
+  adminNote        String?         @db.Text
+  linkedPurchaseId String?         @unique
+  linkedPurchase   Purchase?       @relation("ItDemandLinkedPurchase", fields: [linkedPurchaseId], references: [id], onDelete: SetNull)
+  attributions     ItAttribution[]
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  @@index([requestorId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("lg_it_demands")
+}
+
+model ItAttribution {
+  id              String               @id @default(cuid())
+  assetId         String
+  asset           ItAsset              @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  beneficiaryId   Int?
+  beneficiary     User?                @relation("ItAttributionBeneficiary", fields: [beneficiaryId], references: [id], onDelete: SetNull)
+  demandId        String?
+  demand          ItDemand?            @relation(fields: [demandId], references: [id], onDelete: SetNull)
+  quantity        Int                  @default(1)
+  attributedAt    DateTime             @default(now())
+  returnedAt      DateTime?
+  returnCondition ItAssetStatus?
+  status          ItAttributionStatus  @default(ACTIVE)
+  notes           String?              @db.Text
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([assetId])
+  @@index([beneficiaryId])
+  @@index([status])
+  @@map("lg_it_attributions")
 }

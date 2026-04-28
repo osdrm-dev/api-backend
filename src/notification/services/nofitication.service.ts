@@ -303,6 +303,46 @@ export class NotificationService {
       case OSDRM_PROCESS_EVENT.VEHICLE_DOCUMENT_EXPIRY_ALERT:
         return null;
 
+      case OSDRM_PROCESS_EVENT.MAINTENANCE_STATUS_CHANGED: {
+        const maintenanceFrontendUrl =
+          this.config.get<string>('FRONTEND_URL') ??
+          this.config.get<string>('RESEND_FRONTEND_URL') ??
+          'http://localhost:5173';
+        return {
+          to,
+          subject: `Mise à jour de votre demande d'entretien ${ref}`,
+          template: RESEND_TEMPLATES.MAINTENANCE_STATUS_CHANGED,
+          variables: {
+            reference: ref,
+            title: data.title,
+            newStatus: data.newStatus,
+            adminNote: data.adminNote ?? null,
+            requestUrl:
+              data.requestUrl ??
+              `${maintenanceFrontendUrl}/logistique/entretien/${notif.resourceId}`,
+          },
+        };
+      }
+
+      case OSDRM_PROCESS_EVENT.IT_DEMANDE_STATUS_CHANGED: {
+        const itFrontendUrl =
+          this.config.get<string>('FRONTEND_URL') ??
+          this.config.get<string>('RESEND_FRONTEND_URL') ??
+          'http://localhost:5173';
+        return {
+          to,
+          subject: `Mise à jour de votre demande informatique ${ref}`,
+          template: RESEND_TEMPLATES.IT_DEMANDE_STATUS_CHANGED,
+          variables: {
+            reference: ref,
+            desiredType: data.desiredType,
+            newStatus: data.newStatus,
+            adminNote: data.adminNote ?? null,
+            requestUrl: `${itFrontendUrl}/logistique/parc-informatique/demandes/${notif.resourceId}`,
+          },
+        };
+      }
+
       default:
         throw new Error(`Type d'évènement non supporté : ${notif.type}`);
     }
