@@ -300,6 +300,13 @@ export class AuthService {
     };
   }
 
+  async getUsers(): Promise<UserWithoutPassword[]> {
+    const users = await this.prisma.user.findMany({
+      orderBy: { name: 'asc' },
+    });
+    return users.map((u) => this.excludePassword(u));
+  }
+
   async getActiveAcheteurs(): Promise<
     { id: number; name: string; email: string }[]
   > {

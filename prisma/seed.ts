@@ -1,5 +1,7 @@
 import 'dotenv/config';
 import { seedParcAuto } from './seed-parc-auto';
+import { seedMaintenance } from './seed-maintenance';
+import { seedParcInformatique } from './seed-parc-informatique';
 
 import {
   Role,
@@ -111,6 +113,12 @@ function daApprovedValidators(
 }
 
 async function cleanup() {
+  await prisma.itAttribution.deleteMany();
+  await prisma.itDemand.deleteMany();
+  await prisma.itAsset.deleteMany();
+  await prisma.itCategory.deleteMany();
+  await prisma.maintenanceComment.deleteMany();
+  await prisma.maintenanceRequest.deleteMany();
   await prisma.vehicleAlertLog.deleteMany();
   await prisma.vehicleDocument.deleteMany();
   await prisma.vehicle.deleteMany();
@@ -448,9 +456,11 @@ async function main() {
   });
 
   await seedParcAuto(prisma);
+  await seedMaintenance(prisma, userMap);
+  await seedParcInformatique(prisma, userMap);
 
   console.log(
-    'Seeding termine: 8 users | 4 fournisseurs | 23 dossiers achat (19 + 4 DAP)',
+    'Seeding termine: 8 users | 4 fournisseurs | 23 dossiers achat (19 + 4 DAP) | 10 demandes entretien | parc informatique',
   );
 }
 
