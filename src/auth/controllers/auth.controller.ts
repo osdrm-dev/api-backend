@@ -180,4 +180,41 @@ export class AuthController {
   ) {
     return this.authService.updateUser(parseInt(userId), updateUserDto);
   }
+
+  @Get('users')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Liste tous les utilisateurs (Admin uniquement)' })
+  @ApiResponse({ status: 200, description: 'Liste des utilisateurs' })
+  async getUsers() {
+    return this.authService.getUsers();
+  }
+
+  @Get('users/acheteurs')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({
+    summary: 'Liste des acheteurs actifs',
+    description:
+      'Retourne tous les utilisateurs avec le rôle ACHETEUR et isActive=true',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des acheteurs',
+    schema: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'number' },
+          name: { type: 'string' },
+          email: { type: 'string' },
+        },
+      },
+    },
+  })
+  async getAcheteurs() {
+    return this.authService.getActiveAcheteurs();
+  }
 }

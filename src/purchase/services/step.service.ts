@@ -15,6 +15,7 @@ import {
   SigningStatus,
 } from '@prisma/client';
 import { RequestSigningDto } from '../dto/request-signing.dto';
+import { assertIsOwningBuyer } from 'src/utils/purchase-guards';
 
 export type DocStep = 'BR' | 'INVOICE' | 'DAP' | 'PROOF_OF_PAYMENT';
 
@@ -98,6 +99,8 @@ export class DocumentStepService {
     });
     if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
 
+    assertIsOwningBuyer(purchase, userId);
+
     if (purchase.currentStep !== cfg.step) {
       throw new BadRequestException(`La DA n'est pas a l'etape ${docStep}`);
     }
@@ -170,6 +173,8 @@ export class DocumentStepService {
       include: { items: true },
     });
     if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+
+    assertIsOwningBuyer(purchase, userId);
 
     if (purchase.currentStep !== cfg.step) {
       throw new BadRequestException(`La DA n'est pas a l'etape ${docStep}`);
@@ -288,6 +293,15 @@ export class DocumentStepService {
       throw new BadRequestException(`Étape inconnue : ${docStep}`);
     }
     const cfg = CFG[docStep];
+
+    // 0. Verify the caller is the owning buyer
+    const purchaseForGuard = await this.prisma.purchase.findUnique({
+      where: { id: purchaseId },
+      select: { acheteurId: true },
+    });
+    if (!purchaseForGuard)
+      throw new NotFoundException("Demande d'achat non trouvee");
+    assertIsOwningBuyer(purchaseForGuard, userId);
 
     // 1. Load attachment + file (for checksum) and verify ownership + step type
     const attachment = await this.prisma.attachment.findUnique({

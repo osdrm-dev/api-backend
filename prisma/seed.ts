@@ -1,4 +1,9 @@
 import 'dotenv/config';
+import { seedParcAuto } from './seed-parc-auto';
+import { seedMaintenance } from './seed-maintenance';
+import { seedParcInformatique } from './seed-parc-informatique';
+import { seedBaux } from './seed-baux';
+import { seedDeplacement } from './seed-deplacement';
 
 import {
   Role,
@@ -110,6 +115,22 @@ function daApprovedValidators(
 }
 
 async function cleanup() {
+  await prisma.lgDeplacementLiquidation.deleteMany();
+  await prisma.lgDeplacementComment.deleteMany();
+  await prisma.lgDeplacement.deleteMany();
+  await prisma.lgBailAlertLog.deleteMany();
+  await prisma.lgBailPaiement.deleteMany();
+  await prisma.lgBailAvenant.deleteMany();
+  await prisma.lgBailContract.deleteMany();
+  await prisma.itAttribution.deleteMany();
+  await prisma.itDemand.deleteMany();
+  await prisma.itAsset.deleteMany();
+  await prisma.itCategory.deleteMany();
+  await prisma.maintenanceComment.deleteMany();
+  await prisma.maintenanceRequest.deleteMany();
+  await prisma.vehicleAlertLog.deleteMany();
+  await prisma.vehicleDocument.deleteMany();
+  await prisma.vehicle.deleteMany();
   await prisma.auditLog.deleteMany();
   await prisma.pVSupplierItem.deleteMany();
   await prisma.pVSupplier.deleteMany();
@@ -203,6 +224,7 @@ async function main() {
         ...(pd.validatedAt && { validatedAt: new Date(pd.validatedAt) }),
         ...(pd.receivedAt && { receivedAt: new Date(pd.receivedAt) }),
         creatorId: userMap[pd.creatorKey].id,
+        acheteurId: userMap['acheteur'].id,
         items: {
           create: pd.items.map((item: any) => ({
             designation: item.designation,
@@ -442,8 +464,14 @@ async function main() {
     })),
   });
 
+  await seedParcAuto(prisma);
+  await seedMaintenance(prisma, userMap);
+  await seedParcInformatique(prisma, userMap);
+  await seedBaux(prisma);
+  await seedDeplacement(prisma, userMap);
+
   console.log(
-    'Seeding termine: 8 users | 4 fournisseurs | 23 dossiers achat (19 + 4 DAP)',
+    'Seeding termine: 11 users | 4 fournisseurs | 23 dossiers achat (19 + 4 DAP) | 10 demandes entretien | parc informatique | 11 baux | 8 déplacements',
   );
 }
 
