@@ -69,6 +69,13 @@
       "name": "Lucie Ralambanirina",
       "fonction": "Chef de File",
       "role": "RFR"
+    },
+    {
+      "key": "gp",
+      "email": "gp@osdrm.mg",
+      "name": "Hery Randria",
+      "fonction": "Gestionnaire du Parc Auto",
+      "role": "GESTIONNAIRE_PARC"
     }
   ],
   "suppliers": [

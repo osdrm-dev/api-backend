@@ -43,6 +43,7 @@ export class SwaggerConfig {
 
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('documentation', app, document, {
+      jsonDocumentUrl: 'documentation-json',
       swaggerOptions: {
         persistAuthorization: true,
         tagsSorter: 'alpha',
