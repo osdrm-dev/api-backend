@@ -176,6 +176,50 @@ export class ParcAutoRepository {
     });
   }
 
+  async findHistory(vehicleId: string) {
+    const vehicle = await this.prisma.vehicle.findUnique({
+      where: { id: vehicleId },
+      select: { immatriculation: true },
+    });
+
+    if (!vehicle) return { entretien: [], carburant: [] };
+
+    const [entretien, carburant] = await Promise.all([
+      this.prisma.maintenanceRequest.findMany({
+        where: { vehicleRef: vehicle.immatriculation, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          reference: true,
+          title: true,
+          status: true,
+          urgencyLevel: true,
+          interventionType: true,
+          scheduledAt: true,
+          completedAt: true,
+          createdAt: true,
+        },
+      }),
+      this.prisma.lgCarburant.findMany({
+        where: { vehicleId, deletedAt: null },
+        orderBy: { dateApprovisionnement: 'desc' },
+        select: {
+          id: true,
+          reference: true,
+          status: true,
+          typeCarburant: true,
+          volumeLitres: true,
+          montantTotal: true,
+          dateApprovisionnement: true,
+          station: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    return { entretien, carburant };
+  }
+
   async findDocumentsExpiringWithin(
     thresholdDays: number,
   ): Promise<(VehicleDocument & { vehicle: Vehicle })[]> {
