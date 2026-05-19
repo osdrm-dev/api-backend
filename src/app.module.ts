@@ -29,6 +29,7 @@ import { MailerModule } from '@nestjs-modules/mailer';
 import { SatisfactionModule } from './satisfaction/satisfaction.module';
 import { CommentModule } from './comment/comment.module';
 import { LogistiqueModule } from './logistique/logistique.module';
+import { UserModule } from './user/user.module';
 
 @Module({
   imports: [
@@ -85,6 +86,7 @@ import { LogistiqueModule } from './logistique/logistique.module';
     PdfSigningModule,
     CommentModule,
     LogistiqueModule,
+    UserModule,
     ScheduleModule.forRoot(),
   ],
   controllers: [AppController],

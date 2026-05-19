@@ -4,6 +4,8 @@ import { seedMaintenance } from './seed-maintenance';
 import { seedParcInformatique } from './seed-parc-informatique';
 import { seedBaux } from './seed-baux';
 import { seedDeplacement } from './seed-deplacement';
+import { seedTrip } from './seed-trip';
+import { seedCarburant } from './seed-carburant';
 
 import {
   Role,
@@ -115,6 +117,10 @@ function daApprovedValidators(
 }
 
 async function cleanup() {
+  await prisma.lgCarburantComment.deleteMany();
+  await prisma.lgCarburant.deleteMany();
+  await prisma.lgTripComment.deleteMany();
+  await prisma.lgTrip.deleteMany();
   await prisma.lgDeplacementLiquidation.deleteMany();
   await prisma.lgDeplacementComment.deleteMany();
   await prisma.lgDeplacement.deleteMany();
@@ -469,9 +475,11 @@ async function main() {
   await seedParcInformatique(prisma, userMap);
   await seedBaux(prisma);
   await seedDeplacement(prisma, userMap);
+  await seedTrip(prisma, userMap);
+  await seedCarburant(prisma, userMap);
 
   console.log(
-    'Seeding termine: 11 users | 4 fournisseurs | 23 dossiers achat (19 + 4 DAP) | 10 demandes entretien | parc informatique | 11 baux | 8 déplacements',
+    'Seeding termine: 11 users | 4 fournisseurs | 23 dossiers achat (19 + 4 DAP) | 10 demandes entretien | parc informatique | 11 baux | 8 déplacements | 9 trajets | 10 carburants',
   );
 }
 

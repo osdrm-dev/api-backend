@@ -4,6 +4,8 @@ import { MaintenanceModule } from 'src/maintenance/maintenance.module';
 import { ParcInformatiqueModule } from './parc-informatique/parc-informatique.module';
 import { BauxModule } from './baux/baux.module';
 import { DeplacementModule } from './deplacement/deplacement.module';
+import { TripModule } from './trip/trip.module';
+import { CarburantModule } from './carburant/carburant.module';
 
 @Module({
   imports: [
@@ -12,6 +14,8 @@ import { DeplacementModule } from './deplacement/deplacement.module';
     ParcInformatiqueModule,
     BauxModule,
     DeplacementModule,
+    TripModule,
+    CarburantModule,
   ],
   exports: [
     ParcAutoModule,
@@ -19,6 +23,8 @@ import { DeplacementModule } from './deplacement/deplacement.module';
     ParcInformatiqueModule,
     BauxModule,
     DeplacementModule,
+    TripModule,
+    CarburantModule,
   ],
 })
 export class LogistiqueModule {}

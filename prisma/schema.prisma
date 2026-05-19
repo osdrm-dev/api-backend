@@ -98,6 +98,10 @@ model User {
   deplacementsGeres     LgDeplacement[]      @relation("DeplacementGestionnaire")
   deplacementComments   LgDeplacementComment[] @relation("DeplacementCommentAuthor")
   liquidationsSubmises  LgDeplacementLiquidation[] @relation("LiquidationSubmitter")
+  trips                 LgTrip[]                   @relation("TripRequestor")
+  tripComments          LgTripComment[]            @relation("TripCommentAuthor")
+  carburants            LgCarburant[]              @relation("CarburantRequestor")
+  carburantComments     LgCarburantComment[]       @relation("CarburantCommentAuthor")
 
   @@index([email])
   @@index([role])
@@ -722,8 +726,11 @@ model Vehicle {
   statut          VehicleStatut     @default(ACTIF)
   photoFileIds    Int[]             @default([])
 
-  documents       VehicleDocument[]
-  deplacements    LgDeplacement[]
+  documents            VehicleDocument[]
+  deplacements         LgDeplacement[]
+  trips                LgTrip[]             @relation("TripVehicle")
+  carburants           LgCarburant[]        @relation("CarburantVehicle")
+  maintenanceRequests  MaintenanceRequest[]
 
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
@@ -782,6 +789,8 @@ model MaintenanceRequest {
   description         String                      @db.Text
   location            String?
   vehicleRef          String?
+  vehicleId           String?
+  vehicle             Vehicle?                    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
 
   requestorId         Int?
   requestor           User?                       @relation("MaintenanceRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
@@ -813,6 +822,7 @@ model MaintenanceRequest {
   @@index([requestorId])
   @@index([assignedToId])
   @@index([vehicleRef])
+  @@index([vehicleId])
   @@index([createdAt])
   @@index([deletedAt])
   @@map("lg_maintenance_requests")
@@ -1139,4 +1149,137 @@ model LgDeplacementComment {
   @@index([authorId])
   @@index([createdAt])
   @@map("lg_deplacement_comments")
+}
+
+// =====================================================
+// GESTION TRAJET
+// =====================================================
+
+enum LgTripStatus {
+  PENDING
+  PROCESSED
+  CANCELLED
+}
+
+enum LgTransportMode {
+  SERVICE_VEHICLE
+  TAXI
+  MOTORCYCLE
+  PUBLIC_TRANSPORT
+  PLANE
+  BOAT
+  OTHER
+}
+
+model LgTrip {
+  id                String          @id @default(cuid())
+  reference         String          @unique
+  status            LgTripStatus    @default(PENDING)
+  departureLocation String          @db.VarChar(255)
+  arrivalLocation   String          @db.VarChar(255)
+  departureDate     DateTime        @db.Date
+  arrivalDate       DateTime?       @db.Date
+  purpose           String          @db.VarChar(500)
+  transportMode     LgTransportMode
+  departureKm       Decimal?        @db.Decimal(10, 1)
+  arrivalKm         Decimal?        @db.Decimal(10, 1)
+  distanceKm        Decimal?        @db.Decimal(10, 1)
+  notes             String?         @db.VarChar(1000)
+  requestorId       Int?
+  vehicleId         String?
+  deletedAt         DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  requestor         User?           @relation("TripRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
+  vehicle           Vehicle?        @relation("TripVehicle", fields: [vehicleId], references: [id], onDelete: SetNull)
+  comments          LgTripComment[]
+
+  @@index([requestorId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([departureDate])
+  @@map("lg_trips")
+}
+
+model LgTripComment {
+  id        String   @id @default(cuid())
+  content   String   @db.VarChar(2000)
+  tripId    String
+  authorId  Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  trip      LgTrip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  author    User?    @relation("TripCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([tripId])
+  @@map("lg_trip_comments")
+}
+
+// =====================================================
+// GESTION CARBURANT
+// =====================================================
+
+enum LgCarburantStatus {
+  PENDING
+  PROCESSED
+  CANCELLED
+}
+
+enum LgTypeCarburant {
+  GASOIL
+  ESSENCE
+  SUPER
+  GNV
+  ELECTRIQUE
+}
+
+model LgCarburant {
+  id                    String             @id @default(cuid())
+  reference             String             @unique
+  status                LgCarburantStatus  @default(PENDING)
+
+  vehicleId             String?
+  vehicle               Vehicle?           @relation("CarburantVehicle", fields: [vehicleId], references: [id], onDelete: SetNull)
+
+  typeCarburant         LgTypeCarburant
+  volumeLitres          Decimal            @db.Decimal(8, 2)
+  prixUnitaire          Decimal?           @db.Decimal(10, 4)
+  montantTotal          Decimal            @db.Decimal(15, 2)
+  kilometrage           Int?
+  station               String?            @db.VarChar(255)
+  notes                 String?            @db.VarChar(1000)
+  dateApprovisionnement DateTime           @db.Date
+
+  requestorId           Int?
+  requestor             User?              @relation("CarburantRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
+
+  comments              LgCarburantComment[]
+
+  deletedAt             DateTime?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+
+  @@index([requestorId])
+  @@index([vehicleId])
+  @@index([status])
+  @@index([dateApprovisionnement])
+  @@map("lg_carburants")
+}
+
+model LgCarburantComment {
+  id          String      @id @default(cuid())
+  content     String      @db.VarChar(2000)
+  carburantId String
+  authorId    Int?
+
+  carburant   LgCarburant @relation(fields: [carburantId], references: [id], onDelete: Cascade)
+  author      User?       @relation("CarburantCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([carburantId])
+  @@map("lg_carburant_comments")
 }
