@@ -157,6 +157,11 @@ export class ParcAutoService {
     });
   }
 
+  async getHistory(vehicleId: string) {
+    await this.getById(vehicleId);
+    return this.repository.findHistory(vehicleId);
+  }
+
   async uploadDocument(
     vehicleId: string,
     file: MulterFile,

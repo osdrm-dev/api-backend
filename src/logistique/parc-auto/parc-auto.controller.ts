@@ -123,6 +123,15 @@ export class ParcAutoController {
     return this.parcAutoService.deletePhoto(id, parseInt(fileId, 10));
   }
 
+  @Get(':id/history')
+  @ApiOperation({
+    summary: "Récupérer l'historique entretien et carburant d'un véhicule",
+  })
+  @ApiParam({ name: 'id', description: 'Identifiant du véhicule' })
+  async getHistory(@Param('id') id: string) {
+    return this.parcAutoService.getHistory(id);
+  }
+
   @Get(':id/documents')
   @ApiOperation({
     summary: "Récupérer les documents d'un véhicule, groupés par type",
