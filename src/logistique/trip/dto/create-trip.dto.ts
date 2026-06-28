@@ -65,10 +65,17 @@ export class CreateTripDto {
 
   @ApiPropertyOptional({
     example: 'cm1abc...',
-    description:
-      'ID du véhicule de service assigné (uniquement pour SERVICE_VEHICLE)',
+    description: 'ID du véhicule de service assigné',
   })
   @IsOptional()
   @IsString()
   vehicleId?: string;
+
+  @ApiPropertyOptional({
+    example: 'AB-123-CD',
+    description: 'Immatriculation du véhicule (alternatif à vehicleId)',
+  })
+  @IsOptional()
+  @IsString()
+  immatriculation?: string;
 }

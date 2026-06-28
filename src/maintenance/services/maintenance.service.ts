@@ -2,8 +2,10 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  UnprocessableEntityException,
 } from '@nestjs/common';
 import { MaintenanceStatus } from '@prisma/client';
+import { PrismaService } from 'prisma/prisma.service';
 import {
   MaintenanceFilters,
   MaintenanceRepository,
@@ -14,13 +16,42 @@ import { UpdateMaintenanceRequestDto } from '../dto/update-maintenance-request.d
 
 @Injectable()
 export class MaintenanceService {
-  constructor(private readonly repository: MaintenanceRepository) {}
+  constructor(
+    private readonly repository: MaintenanceRepository,
+    private readonly prisma: PrismaService,
+  ) {}
 
   async createRequest(dto: CreateMaintenanceRequestDto, requestorId: number) {
+    let vehicleConnect: { connect: { id: string } } | undefined;
+    let vehicleRef: string | undefined;
+
+    if (dto.vehicleId || dto.immatriculation) {
+      const where = dto.vehicleId
+        ? { id: dto.vehicleId }
+        : { immatriculation: dto.immatriculation! };
+
+      const vehicle = await this.prisma.vehicle.findUnique({ where });
+
+      if (!vehicle) {
+        const identifier = dto.vehicleId ?? dto.immatriculation;
+        throw new UnprocessableEntityException(
+          `Véhicule ${identifier} introuvable.`,
+        );
+      }
+
+      if (vehicle.statut !== 'ACTIF') {
+        throw new UnprocessableEntityException(
+          `Le véhicule ${vehicle.immatriculation} n'est pas actif.`,
+        );
+      }
+
+      vehicleConnect = { connect: { id: vehicle.id } };
+      vehicleRef = vehicle.immatriculation;
+    }
+
     const year = new Date().getFullYear();
     let reference: string;
 
-    // Retry on collision (unlikely but defensive)
     for (let attempt = 0; attempt < 5; attempt++) {
       reference = await this.repository.generateReference(year);
       try {
@@ -31,11 +62,11 @@ export class MaintenanceService {
           title: dto.title,
           description: dto.description,
           location: dto.location,
-          vehicleRef: dto.vehicleRef,
-          requestorId,
+          vehicleRef,
+          ...(vehicleConnect && { vehicle: vehicleConnect }),
+          requestor: { connect: { id: requestorId } },
         });
       } catch (err: any) {
-        // P2002 = unique constraint violation on reference
         if (err?.code === 'P2002') {
           continue;
         }
@@ -81,6 +112,7 @@ export class MaintenanceService {
       status: query.status,
       urgencyLevel: query.urgencyLevel,
       interventionType: query.interventionType,
+      vehicleId: query.vehicleId,
       vehicleRef: query.vehicleRef,
       search: query.search,
       dateFrom: query.dateFrom,
@@ -110,6 +142,7 @@ export class MaintenanceService {
       status: query.status,
       urgencyLevel: query.urgencyLevel,
       interventionType: query.interventionType,
+      vehicleId: query.vehicleId,
       vehicleRef: query.vehicleRef,
       search: query.search,
       dateFrom: query.dateFrom,
@@ -154,12 +187,40 @@ export class MaintenanceService {
       throw new ForbiddenException('Cette demande ne peut plus être modifiée.');
     }
 
+    let vehicleId: string | null | undefined;
+    let vehicleRef: string | undefined;
+
+    if (dto.vehicleId || dto.immatriculation) {
+      const where = dto.vehicleId
+        ? { id: dto.vehicleId }
+        : { immatriculation: dto.immatriculation! };
+
+      const vehicle = await this.prisma.vehicle.findUnique({ where });
+
+      if (!vehicle) {
+        const identifier = dto.vehicleId ?? dto.immatriculation;
+        throw new UnprocessableEntityException(
+          `Véhicule ${identifier} introuvable.`,
+        );
+      }
+
+      if (vehicle.statut !== 'ACTIF') {
+        throw new UnprocessableEntityException(
+          `Le véhicule ${vehicle.immatriculation} n'est pas actif.`,
+        );
+      }
+
+      vehicleId = vehicle.id;
+      vehicleRef = vehicle.immatriculation;
+    }
+
     return this.repository.update(id, {
       title: dto.title,
       description: dto.description,
       urgencyLevel: dto.urgencyLevel,
       location: dto.location,
-      vehicleRef: dto.vehicleRef,
+      vehicleId,
+      vehicleRef,
     });
   }
 

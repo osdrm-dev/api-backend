@@ -12,8 +12,11 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
+  ApiQuery,
+  ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { LgLiquidationValidatorRole } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
@@ -31,6 +34,9 @@ import { AssignVehicleDto } from '../dto/assign-vehicle.dto';
 import { ConfirmDeplacementDto } from '../dto/confirm-deplacement.dto';
 import { TriggerDaDeplacementDto } from '../dto/trigger-da-deplacement.dto';
 import { CreateLiquidationDto } from '../dto/create-liquidation.dto';
+import { DecideLiquidationValidationDto } from '../dto/decide-liquidation-validation.dto';
+import { ResubmitLiquidationDto } from '../dto/resubmit-liquidation.dto';
+import { LiquidationValidationService } from '../services/deplacement-liquidation-validation.service';
 
 @ApiTags('Logistique - Déplacements')
 @ApiBearerAuth()
@@ -44,6 +50,7 @@ export class DeplacementController {
     private readonly confirmService: DeplacementConfirmService,
     private readonly triggerDaService: DeplacementTriggerDaService,
     private readonly liquidationService: DeplacementLiquidationService,
+    private readonly liquidationValidationService: LiquidationValidationService,
   ) {}
 
   @Post()
@@ -168,7 +175,9 @@ export class DeplacementController {
   }
 
   @Get(':id/liquidation')
-  @ApiOperation({ summary: "Récupérer la liquidation d'un déplacement" })
+  @ApiOperation({
+    summary: "Récupérer la liquidation d'un déplacement (avec ses validations)",
+  })
   @ApiParam({ name: 'id', description: 'Identifiant du déplacement' })
   async getLiquidation(
     @Param('id') id: string,
@@ -177,6 +186,84 @@ export class DeplacementController {
     // ownership check via findById
     await this.deplacementService.findById(id, user);
     return this.liquidationService.getLiquidation(id);
+  }
+
+  @Get(':id/liquidation/validations')
+  @ApiOperation({
+    summary: 'Détail des 3 validations (DEMANDEUR, OM, CFO) de la liquidation',
+  })
+  @ApiParam({ name: 'id', description: 'Identifiant du déplacement' })
+  @ApiResponse({
+    status: 200,
+    description: 'Liste des 3 lignes de validation.',
+  })
+  @ApiResponse({ status: 404, description: 'Aucune liquidation soumise.' })
+  async getLiquidationValidations(
+    @Param('id') id: string,
+    @CurrentUser() user: { id: number; role: string },
+  ) {
+    // ownership check via findById
+    await this.deplacementService.findById(id, user);
+    return this.liquidationValidationService.getValidationDetail(id);
+  }
+
+  @Post(':id/liquidation/validations/decision')
+  @Roles('DEMANDEUR', 'OM', 'CFO', 'ADMIN')
+  @UseGuards(RolesGuard)
+  @ApiOperation({
+    summary:
+      'Valider ou rejeter la ligne de validation correspondant à son rôle',
+    description:
+      "Le rôle ciblé est déduit du rôle de l'utilisateur courant (DEMANDEUR → sa propre ligne, OM, CFO). " +
+      'Un ADMIN doit préciser le rôle ciblé via le query param `role`.',
+  })
+  @ApiParam({ name: 'id', description: 'Identifiant du déplacement' })
+  @ApiQuery({
+    name: 'role',
+    required: false,
+    enum: LgLiquidationValidatorRole,
+    description: 'Rôle ciblé (obligatoire uniquement pour un ADMIN)',
+  })
+  @ApiResponse({ status: 201, description: 'Décision enregistrée.' })
+  @ApiResponse({ status: 403, description: 'Rôle ou auteur non autorisé.' })
+  @ApiResponse({ status: 409, description: 'Validation déjà traitée.' })
+  async decideLiquidationValidation(
+    @Param('id') id: string,
+    @Body() dto: DecideLiquidationValidationDto,
+    @CurrentUser() user: { id: number; role: string },
+    @Query('role') role?: LgLiquidationValidatorRole,
+  ) {
+    const targetRole = this.liquidationValidationService.resolveTargetRole(
+      user,
+      role,
+    );
+    return this.liquidationValidationService.decide(
+      id,
+      targetRole,
+      dto.decision,
+      dto.commentaire,
+      user,
+    );
+  }
+
+  @Patch(':id/liquidation')
+  @Roles('DEMANDEUR', 'ADMIN')
+  @UseGuards(RolesGuard)
+  @ApiOperation({
+    summary: 'Resoumettre une liquidation rejetée (réinitialise le circuit)',
+  })
+  @ApiParam({ name: 'id', description: 'Identifiant du déplacement' })
+  @ApiResponse({ status: 200, description: 'Liquidation resoumise.' })
+  @ApiResponse({
+    status: 422,
+    description: 'Aucune ligne rejetée : resoumission impossible.',
+  })
+  async resubmitLiquidation(
+    @Param('id') id: string,
+    @Body() dto: ResubmitLiquidationDto,
+    @CurrentUser() user: { id: number; role: string },
+  ) {
+    return this.liquidationService.resubmit(id, dto, user);
   }
 
   @Patch(':id/cancel')

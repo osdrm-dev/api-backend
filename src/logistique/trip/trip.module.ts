@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from 'prisma/prisma.module';
 import { NotificationModule } from 'src/notification/notification.module';
+import { CommentModule } from 'src/comment/comment.module';
 
 import { TripRepository } from 'src/repository/trip/trip.repository';
 import { TripCommentRepository } from 'src/repository/trip/trip-comment.repository';
@@ -13,7 +14,7 @@ import { TripController } from './controllers/trip.controller';
 import { TripCommentController } from './controllers/trip-comment.controller';
 
 @Module({
-  imports: [PrismaModule, NotificationModule],
+  imports: [PrismaModule, NotificationModule, CommentModule],
   controllers: [TripController, TripCommentController],
   providers: [
     TripRepository,

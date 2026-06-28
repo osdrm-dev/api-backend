@@ -4,6 +4,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { ParcAutoRepository } from 'src/repository/parc-auto/parc-auto.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
+import { computeDaysUntilExpiration } from './utils/document-reminder.util';
 
 const ALERT_THRESHOLDS = [30, 15, 7, 0];
 
@@ -41,6 +42,15 @@ export class ParcAutoAlertCron {
 
       for (const doc of expiringDocs) {
         try {
+          // Calcul mutualisé du nombre de jours restants (FR-14) — utilisé
+          // pour la traçabilité, sans modifier le contrat de notification.
+          const daysUntilExpiration = computeDaysUntilExpiration(
+            doc.dateExpiration,
+          );
+          this.logger.debug(
+            `[PARC AUTO] Document ${doc.id} expire dans ${daysUntilExpiration} jour(s) (seuil ${threshold}j).`,
+          );
+
           await this.notificationService.createNotification(
             OSDRM_PROCESS_EVENT.VEHICLE_DOCUMENT_EXPIRY_ALERT,
             recipients,

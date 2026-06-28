@@ -58,12 +58,18 @@ export class CreateMaintenanceRequestDto {
   location?: string;
 
   @ApiPropertyOptional({
-    description:
-      'Référence du véhicule concerné (immatriculation ou ID parc auto)',
-    example: 'AB-123-CD',
+    example: 'clx12345abcde',
+    description: 'ID du véhicule concerné',
   })
   @IsString()
   @IsOptional()
-  @MaxLength(100)
-  vehicleRef?: string;
+  vehicleId?: string;
+
+  @ApiPropertyOptional({
+    example: 'AB-123-CD',
+    description: 'Immatriculation du véhicule (alternatif à vehicleId)',
+  })
+  @IsString()
+  @IsOptional()
+  immatriculation?: string;
 }

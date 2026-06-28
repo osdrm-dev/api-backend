@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from 'prisma/prisma.module';
 import { NotificationModule } from 'src/notification/notification.module';
 import { BudgetModule } from 'src/budget/budget.module';
+import { CommentModule } from 'src/comment/comment.module';
 
 import { MaintenanceRepository } from 'src/repository/maintenance/maintenance.repository';
 import { MaintenanceCommentRepository } from 'src/repository/maintenance/comment.repository';
@@ -15,7 +16,7 @@ import { MaintenanceController } from './controllers/maintenance.controller';
 import { MaintenanceCommentController } from './controllers/maintenance-comment.controller';
 
 @Module({
-  imports: [PrismaModule, NotificationModule, BudgetModule],
+  imports: [PrismaModule, NotificationModule, BudgetModule, CommentModule],
   controllers: [MaintenanceController, MaintenanceCommentController],
   providers: [
     MaintenanceRepository,

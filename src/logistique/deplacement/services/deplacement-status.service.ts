@@ -29,6 +29,10 @@ const TRANSITIONS: Record<LgDeplacementStatus, LgDeplacementStatus[]> = {
   CONFIRMEE: [LgDeplacementStatus.EN_COURS, LgDeplacementStatus.ANNULEE],
   EN_COURS: [LgDeplacementStatus.LIQUIDEE],
   LIQUIDEE: [],
+  // Statuts pilotés par le circuit de validation de liquidation (transitions
+  // automatiques via LiquidationValidationService), pas par l'endpoint manuel.
+  LIQUIDATION_VALIDEE: [],
+  LIQUIDATION_REJETEE: [],
   REFUSEE: [],
   ANNULEE: [],
 };

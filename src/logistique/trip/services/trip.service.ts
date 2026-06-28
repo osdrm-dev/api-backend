@@ -5,6 +5,7 @@ import {
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
+import { PrismaService } from 'prisma/prisma.service';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
 import { TripRepository } from 'src/repository/trip/trip.repository';
@@ -16,6 +17,7 @@ export class TripService {
   constructor(
     private readonly tripRepository: TripRepository,
     private readonly notificationService: NotificationService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async create(dto: CreateTripDto, userId: number) {
@@ -27,6 +29,31 @@ export class TripService {
           "La date d'arrivée doit être postérieure ou égale à la date de départ.",
         );
       }
+    }
+
+    let vehicleConnect: { connect: { id: string } } | undefined;
+
+    if (dto.vehicleId || dto.immatriculation) {
+      const where = dto.vehicleId
+        ? { id: dto.vehicleId }
+        : { immatriculation: dto.immatriculation! };
+
+      const vehicle = await this.prisma.vehicle.findUnique({ where });
+
+      if (!vehicle) {
+        const identifier = dto.vehicleId ?? dto.immatriculation;
+        throw new UnprocessableEntityException(
+          `Véhicule ${identifier} introuvable.`,
+        );
+      }
+
+      if (vehicle.statut !== 'ACTIF') {
+        throw new UnprocessableEntityException(
+          `Le véhicule ${vehicle.immatriculation} n'est pas actif.`,
+        );
+      }
+
+      vehicleConnect = { connect: { id: vehicle.id } };
     }
 
     const year = new Date().getFullYear();
@@ -50,7 +77,7 @@ export class TripService {
       distanceKm,
       notes: dto.notes,
       requestor: { connect: { id: userId } },
-      ...(dto.vehicleId && { vehicle: { connect: { id: dto.vehicleId } } }),
+      ...(vehicleConnect && { vehicle: vehicleConnect }),
     });
 
     try {

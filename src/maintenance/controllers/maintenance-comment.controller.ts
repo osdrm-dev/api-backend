@@ -13,9 +13,10 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { CommentEntityType } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { MaintenanceCommentService } from '../services/maintenance-comment.service';
+import { UnifiedCommentService } from 'src/comment/services/unified-comment.service';
 import { AddMaintenanceCommentDto } from '../dto/add-maintenance-comment.dto';
 
 class GetCommentsQueryDto {
@@ -28,7 +29,7 @@ class GetCommentsQueryDto {
 @Controller('logistique/entretien')
 @UseGuards(JwtAuthGuard)
 export class MaintenanceCommentController {
-  constructor(private readonly commentService: MaintenanceCommentService) {}
+  constructor(private readonly commentService: UnifiedCommentService) {}
 
   @Post(':id/comments')
   @ApiOperation({
@@ -40,7 +41,12 @@ export class MaintenanceCommentController {
     @Body() dto: AddMaintenanceCommentDto,
     @CurrentUser('id') userId: number,
   ) {
-    return this.commentService.addComment(requestId, userId, dto.content);
+    return this.commentService.create(
+      CommentEntityType.MAINTENANCE,
+      requestId,
+      userId,
+      { content: dto.content },
+    );
   }
 
   @Get(':id/comments')
@@ -52,7 +58,8 @@ export class MaintenanceCommentController {
     @Param('id') requestId: string,
     @Query() query: GetCommentsQueryDto,
   ) {
-    return this.commentService.getComments(
+    return this.commentService.findPaginated(
+      CommentEntityType.MAINTENANCE,
       requestId,
       query.page ?? 1,
       query.limit ?? 20,

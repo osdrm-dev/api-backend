@@ -98,10 +98,12 @@ model User {
   deplacementsGeres     LgDeplacement[]      @relation("DeplacementGestionnaire")
   deplacementComments   LgDeplacementComment[] @relation("DeplacementCommentAuthor")
   liquidationsSubmises  LgDeplacementLiquidation[] @relation("LiquidationSubmitter")
+  validatedLiquidations LgLiquidationValidation[]  @relation("ValidatedLiquidations")
   trips                 LgTrip[]                   @relation("TripRequestor")
   tripComments          LgTripComment[]            @relation("TripCommentAuthor")
   carburants            LgCarburant[]              @relation("CarburantRequestor")
   carburantComments     LgCarburantComment[]       @relation("CarburantCommentAuthor")
+  comments              LgComment[]                @relation("CommentAuthor")
 
   @@index([email])
   @@index([role])
@@ -665,6 +667,36 @@ model PurchaseComment {
   @@map("purchase_comments")
 }
 
+enum CommentEntityType {
+  PURCHASE
+  MAINTENANCE
+  DEPLACEMENT
+  TRIP
+  CARBURANT
+}
+
+model LgComment {
+  id          String            @id @default(cuid())
+  entityType  CommentEntityType
+  entityId    String
+
+  content     String            @db.Text
+  currentStep PurchaseStep?
+
+  authorId    Int?
+  author      User?             @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  deletedAt   DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@index([entityType, entityId])
+  @@index([entityType, entityId, createdAt])
+  @@index([authorId])
+  @@index([deletedAt])
+  @@map("lg_comments")
+}
+
 enum ItAssetStatus {
   NEUF
   BON
@@ -1059,8 +1091,22 @@ enum LgDeplacementStatus {
   CONFIRMEE
   EN_COURS
   LIQUIDEE
+  LIQUIDATION_VALIDEE
+  LIQUIDATION_REJETEE
   REFUSEE
   ANNULEE
+}
+
+enum LgLiquidationValidationStatus {
+  EN_ATTENTE
+  VALIDEE
+  REJETEE
+}
+
+enum LgLiquidationValidatorRole {
+  DEMANDEUR
+  OM
+  CFO
 }
 
 enum LgTypeMission {
@@ -1128,11 +1174,33 @@ model LgDeplacementLiquidation {
   submittedById         Int?
   submittedBy           User?           @relation("LiquidationSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
   deplacement           LgDeplacement   @relation(fields: [deplacementId], references: [id], onDelete: Cascade)
+  validations           LgLiquidationValidation[]
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 
   @@index([deplacementId])
   @@map("lg_deplacement_liquidations")
+}
+
+model LgLiquidationValidation {
+  id            String                        @id @default(cuid())
+  liquidationId String
+  role          LgLiquidationValidatorRole
+  status        LgLiquidationValidationStatus @default(EN_ATTENTE)
+  validatorId   Int?
+  commentaire   String?                       @db.Text
+  decidedAt     DateTime?
+
+  liquidation   LgDeplacementLiquidation @relation(fields: [liquidationId], references: [id], onDelete: Cascade)
+  validator     User?                    @relation("ValidatedLiquidations", fields: [validatorId], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([liquidationId, role])
+  @@index([liquidationId])
+  @@index([status])
+  @@map("lg_liquidation_validations")
 }
 
 model LgDeplacementComment {

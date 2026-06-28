@@ -5,9 +5,10 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { CommentEntityType } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { TripCommentService } from '../services/trip-comment.service';
+import { UnifiedCommentService } from 'src/comment/services/unified-comment.service';
 import { AddTripCommentDto } from '../dto/add-trip-comment.dto';
 
 @ApiTags('Logistique - Trajets')
@@ -15,16 +16,13 @@ import { AddTripCommentDto } from '../dto/add-trip-comment.dto';
 @Controller('logistique/trips/:id/comments')
 @UseGuards(JwtAuthGuard)
 export class TripCommentController {
-  constructor(private readonly commentService: TripCommentService) {}
+  constructor(private readonly commentService: UnifiedCommentService) {}
 
   @Get()
   @ApiOperation({ summary: "Lister les commentaires d'un trajet" })
   @ApiParam({ name: 'id', description: 'Identifiant du trajet' })
-  async getComments(
-    @Param('id') id: string,
-    @CurrentUser() user: { id: number; role: string },
-  ) {
-    return this.commentService.getComments(id, user);
+  async getComments(@Param('id') id: string) {
+    return this.commentService.findPaginated(CommentEntityType.TRIP, id, 1, 20);
   }
 
   @Post()
@@ -33,8 +31,10 @@ export class TripCommentController {
   async addComment(
     @Param('id') id: string,
     @Body() dto: AddTripCommentDto,
-    @CurrentUser() user: { id: number; role: string },
+    @CurrentUser('id') userId: number,
   ) {
-    return this.commentService.addComment(id, dto.content, user);
+    return this.commentService.create(CommentEntityType.TRIP, id, userId, {
+      content: dto.content,
+    });
   }
 }

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { PrismaModule } from 'prisma/prisma.module';
 import { NotificationModule } from 'src/notification/notification.module';
+import { CommentModule } from 'src/comment/comment.module';
 
 import { CarburantRepository } from 'src/repository/carburant/carburant.repository';
 import { CarburantCommentRepository } from 'src/repository/carburant/carburant-comment.repository';
@@ -13,7 +14,7 @@ import { CarburantController } from './controllers/carburant.controller';
 import { CarburantCommentController } from './controllers/carburant-comment.controller';
 
 @Module({
-  imports: [PrismaModule, NotificationModule],
+  imports: [PrismaModule, NotificationModule, CommentModule],
   controllers: [CarburantController, CarburantCommentController],
   providers: [
     CarburantRepository,
