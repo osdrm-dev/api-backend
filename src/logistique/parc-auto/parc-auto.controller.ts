@@ -19,14 +19,17 @@ import {
   ApiConsumes,
   ApiBody,
   ApiParam,
+  ApiOkResponse,
 } from '@nestjs/swagger';
 import { FilesInterceptor, FileInterceptor } from '@nestjs/platform-express';
 import type { File as MulterFile } from 'multer';
 import { ParcAutoService } from './parc-auto.service';
+import { MyVehiclesService } from './services/my-vehicles.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { ListVehiclesQueryDto } from './dto/list-vehicles-query.dto';
+import { VehicleWithRemindersDto } from './dto/return-vehicle-with-reminders.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { Roles } from 'src/auth/decorators/roles.decorator';
@@ -37,7 +40,39 @@ import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
 @Controller('logistique/parc-auto')
 @UseGuards(JwtAuthGuard)
 export class ParcAutoController {
-  constructor(private readonly parcAutoService: ParcAutoService) {}
+  constructor(
+    private readonly parcAutoService: ParcAutoService,
+    private readonly myVehiclesService: MyVehiclesService,
+  ) {}
+
+  // Déclarées avant la route /:id pour éviter qu'Express ne capture
+  // 'my-vehicles' / 'users' comme un identifiant de véhicule.
+  @Get('my-vehicles')
+  @ApiOperation({
+    summary:
+      "Lister les véhicules utilisés par l'utilisateur courant, enrichis des rappels documentaires",
+  })
+  @ApiOkResponse({ type: [VehicleWithRemindersDto] })
+  async getMyVehicles(
+    @CurrentUser() user: { id: number },
+  ): Promise<VehicleWithRemindersDto[]> {
+    return this.myVehiclesService.getMyVehicles(user.id);
+  }
+
+  @Get('users/:userId/vehicles')
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
+  @ApiOperation({
+    summary:
+      'Lister les véhicules utilisés par un utilisateur donné (ADMIN, support/diagnostic)',
+  })
+  @ApiParam({ name: 'userId', description: "Identifiant de l'utilisateur" })
+  @ApiOkResponse({ type: [VehicleWithRemindersDto] })
+  async getVehiclesForUser(
+    @Param('userId') userId: string,
+  ): Promise<VehicleWithRemindersDto[]> {
+    return this.myVehiclesService.getVehiclesForUser(parseInt(userId, 10));
+  }
 
   @Get()
   @ApiOperation({ summary: 'Lister les véhicules du parc auto' })

@@ -1,14 +1,20 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
   ConflictException,
+  ForbiddenException,
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { DeplacementLiquidationService } from './deplacement-liquidation.service';
+import { LiquidationValidationService } from './deplacement-liquidation-validation.service';
 import { DeplacementRepository } from 'src/repository/deplacement/deplacement.repository';
 import { PrismaService } from 'prisma/prisma.service';
 import { NotificationService } from 'src/notification/services/nofitication.service';
-import { LgDeplacementStatus, LgTypeMission } from '@prisma/client';
+import {
+  LgDeplacementStatus,
+  LgLiquidationValidationStatus,
+  LgTypeMission,
+} from '@prisma/client';
 
 const mockRepository = {
   findById: jest.fn(),
@@ -17,12 +23,18 @@ const mockRepository = {
 const mockPrisma = {
   user: { findMany: jest.fn() },
   $transaction: jest.fn(),
-  lgDeplacementLiquidation: { create: jest.fn() },
+  lgDeplacementLiquidation: { create: jest.fn(), update: jest.fn() },
   lgDeplacement: { update: jest.fn() },
 };
 
 const mockNotification = {
   createNotification: jest.fn(),
+};
+
+const mockValidationService = {
+  createValidationRows: jest.fn(),
+  resubmitReset: jest.fn(),
+  notifyValidationRequired: jest.fn(),
 };
 
 const BASE_DEP = {
@@ -46,6 +58,10 @@ describe('DeplacementLiquidationService', () => {
         { provide: DeplacementRepository, useValue: mockRepository },
         { provide: PrismaService, useValue: mockPrisma },
         { provide: NotificationService, useValue: mockNotification },
+        {
+          provide: LiquidationValidationService,
+          useValue: mockValidationService,
+        },
       ],
     }).compile();
 
@@ -93,12 +109,18 @@ describe('DeplacementLiquidationService', () => {
     ).rejects.toThrow(ConflictException);
   });
 
-  it('computes totalLiquidation correctly', async () => {
+  it('computes totalLiquidation and creates validation rows', async () => {
     mockRepository.findById.mockResolvedValue(BASE_DEP);
     mockPrisma.user.findMany.mockResolvedValue([]);
 
     const expectedLiquidation = { id: 'liq-new', totalLiquidation: 70000 };
-    mockPrisma.$transaction.mockResolvedValue([expectedLiquidation, {}]);
+    const tx = {
+      lgDeplacementLiquidation: {
+        create: jest.fn().mockResolvedValue(expectedLiquidation),
+      },
+      lgDeplacement: { update: jest.fn().mockResolvedValue({}) },
+    };
+    mockPrisma.$transaction.mockImplementation(async (cb) => cb(tx));
 
     const result = await service.submit(
       'dep-1',
@@ -111,6 +133,15 @@ describe('DeplacementLiquidationService', () => {
       1,
     );
     expect(result).toEqual(expectedLiquidation);
+    expect(mockValidationService.createValidationRows).toHaveBeenCalledWith(
+      tx,
+      'liq-new',
+    );
+    expect(tx.lgDeplacement.update).toHaveBeenCalledWith({
+      where: { id: 'dep-1' },
+      data: { status: LgDeplacementStatus.LIQUIDEE },
+    });
+    expect(mockValidationService.notifyValidationRequired).toHaveBeenCalled();
   });
 
   it('allows liquidation when status is EN_COURS', async () => {
@@ -121,7 +152,13 @@ describe('DeplacementLiquidationService', () => {
     mockPrisma.user.findMany.mockResolvedValue([]);
 
     const expectedLiquidation = { id: 'liq-new' };
-    mockPrisma.$transaction.mockResolvedValue([expectedLiquidation, {}]);
+    const tx = {
+      lgDeplacementLiquidation: {
+        create: jest.fn().mockResolvedValue(expectedLiquidation),
+      },
+      lgDeplacement: { update: jest.fn().mockResolvedValue({}) },
+    };
+    mockPrisma.$transaction.mockImplementation(async (cb) => cb(tx));
 
     const result = await service.submit(
       'dep-1',
@@ -140,5 +177,86 @@ describe('DeplacementLiquidationService', () => {
     await expect(service.getLiquidation('dep-1')).rejects.toThrow(
       NotFoundException,
     );
+  });
+
+  describe('resubmit', () => {
+    const USER = { id: 10, role: 'DEMANDEUR' };
+    const DTO = {
+      fraisTransport: 1000,
+      fraisHebergement: 2000,
+      fraisRestauration: 3000,
+    };
+
+    it('throws 404 when no liquidation exists', async () => {
+      mockRepository.findById.mockResolvedValue(BASE_DEP);
+      await expect(service.resubmit('dep-1', DTO, USER)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('throws 403 when current user is not the requestor', async () => {
+      mockRepository.findById.mockResolvedValue({
+        ...BASE_DEP,
+        status: LgDeplacementStatus.LIQUIDATION_REJETEE,
+        liquidation: {
+          id: 'liq-1',
+          validations: [
+            { role: 'OM', status: LgLiquidationValidationStatus.REJETEE },
+          ],
+        },
+      });
+      await expect(
+        service.resubmit('dep-1', DTO, { id: 99, role: 'DEMANDEUR' }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('throws 422 when no validation row is REJETEE', async () => {
+      mockRepository.findById.mockResolvedValue({
+        ...BASE_DEP,
+        status: LgDeplacementStatus.LIQUIDEE,
+        liquidation: {
+          id: 'liq-1',
+          validations: [
+            { role: 'OM', status: LgLiquidationValidationStatus.EN_ATTENTE },
+            { role: 'CFO', status: LgLiquidationValidationStatus.VALIDEE },
+          ],
+        },
+      });
+      await expect(service.resubmit('dep-1', DTO, USER)).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+    });
+
+    it('resets validations and sets status back to LIQUIDEE', async () => {
+      mockRepository.findById.mockResolvedValue({
+        ...BASE_DEP,
+        status: LgDeplacementStatus.LIQUIDATION_REJETEE,
+        liquidation: {
+          id: 'liq-1',
+          validations: [
+            { role: 'OM', status: LgLiquidationValidationStatus.REJETEE },
+          ],
+        },
+      });
+      const updated = { id: 'liq-1', totalLiquidation: 6000 };
+      const tx = {
+        lgDeplacementLiquidation: {
+          update: jest.fn().mockResolvedValue(updated),
+        },
+        lgDeplacement: { update: jest.fn().mockResolvedValue({}) },
+      };
+      mockPrisma.$transaction.mockImplementation(async (cb) => cb(tx));
+
+      const result = await service.resubmit('dep-1', DTO, USER);
+      expect(result).toEqual(updated);
+      expect(mockValidationService.resubmitReset).toHaveBeenCalledWith(
+        tx,
+        'liq-1',
+      );
+      expect(tx.lgDeplacement.update).toHaveBeenCalledWith({
+        where: { id: 'dep-1' },
+        data: { status: LgDeplacementStatus.LIQUIDEE },
+      });
+    });
   });
 });

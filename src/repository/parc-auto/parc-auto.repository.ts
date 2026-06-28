@@ -6,6 +6,9 @@ import {
   VehicleDocument,
   VehicleStatut,
   VehicleDocumentType,
+  LgDeplacementStatus,
+  LgTripStatus,
+  LgCarburantStatus,
 } from '@prisma/client';
 
 export type VehicleWithRelations = Vehicle & {
@@ -13,6 +16,39 @@ export type VehicleWithRelations = Vehicle & {
     file: { id: number; url: string; originalName: string } | null;
   })[];
 };
+
+export type VehicleUsageSource = 'TRIP' | 'DEPLACEMENT' | 'CARBURANT';
+
+/**
+ * Métadonnées d'usage agrégées par véhicule pour un utilisateur (FR-4).
+ */
+export interface VehicleUsageAggregate {
+  vehicleId: string;
+  lastUsedAt: Date;
+  usageCount: number;
+  sources: VehicleUsageSource[];
+}
+
+/**
+ * Véhicule dérivé enrichi de ses métadonnées d'usage et de ses documents actifs.
+ */
+export type VehicleUsedByUser = VehicleWithRelations & {
+  usage: VehicleUsageAggregate;
+};
+
+/**
+ * Statuts de déplacement considérés comme "validés" (FR-2) : tous sauf
+ * EN_ATTENTE (en attente de validation), REFUSEE et ANNULEE.
+ */
+const VALIDATED_DEPLACEMENT_STATUSES: LgDeplacementStatus[] = [
+  LgDeplacementStatus.VEHICULE_ATTRIBUE,
+  LgDeplacementStatus.EN_ATTENTE_LOCATION,
+  LgDeplacementStatus.CONFIRMEE,
+  LgDeplacementStatus.EN_COURS,
+  LgDeplacementStatus.LIQUIDEE,
+  LgDeplacementStatus.LIQUIDATION_VALIDEE,
+  LgDeplacementStatus.LIQUIDATION_REJETEE,
+];
 
 export interface FindAllFilters {
   statut?: VehicleStatut;
@@ -218,6 +254,113 @@ export class ParcAutoRepository {
     ]);
 
     return { entretien, carburant };
+  }
+
+  /**
+   * Dérive les véhicules utilisés par un utilisateur en tant que `requestor`
+   * (FR-1…FR-5). Interroge les trois sources (trajets, déplacements, carburant)
+   * avec les exclusions FR-2, agrège par véhicule en mémoire (faible
+   * cardinalité), puis charge les véhicules correspondants avec leurs documents
+   * actifs. Retourne la liste triée par `lastUsedAt` décroissant.
+   */
+  async findVehiclesUsedByUser(userId: number): Promise<VehicleUsedByUser[]> {
+    const [trips, deplacements, carburants] = await Promise.all([
+      this.prisma.lgTrip.findMany({
+        where: {
+          requestorId: userId,
+          vehicleId: { not: null },
+          deletedAt: null,
+          status: { not: LgTripStatus.CANCELLED },
+        },
+        select: { vehicleId: true, departureDate: true },
+      }),
+      this.prisma.lgDeplacement.findMany({
+        where: {
+          requestorId: userId,
+          vehicleId: { not: null },
+          deletedAt: null,
+          status: { in: VALIDATED_DEPLACEMENT_STATUSES },
+        },
+        select: { vehicleId: true, dateDepart: true },
+      }),
+      this.prisma.lgCarburant.findMany({
+        where: {
+          requestorId: userId,
+          vehicleId: { not: null },
+          deletedAt: null,
+          status: { not: LgCarburantStatus.CANCELLED },
+        },
+        select: { vehicleId: true, dateApprovisionnement: true },
+      }),
+    ]);
+
+    const aggregates = new Map<string, VehicleUsageAggregate>();
+
+    const accumulate = (
+      vehicleId: string | null,
+      usedAt: Date,
+      source: VehicleUsageSource,
+    ): void => {
+      if (!vehicleId) return;
+
+      const existing = aggregates.get(vehicleId);
+      if (!existing) {
+        aggregates.set(vehicleId, {
+          vehicleId,
+          lastUsedAt: usedAt,
+          usageCount: 1,
+          sources: [source],
+        });
+        return;
+      }
+
+      existing.usageCount += 1;
+      if (usedAt > existing.lastUsedAt) {
+        existing.lastUsedAt = usedAt;
+      }
+      if (!existing.sources.includes(source)) {
+        existing.sources.push(source);
+      }
+    };
+
+    for (const trip of trips) {
+      accumulate(trip.vehicleId, trip.departureDate, 'TRIP');
+    }
+    for (const deplacement of deplacements) {
+      accumulate(deplacement.vehicleId, deplacement.dateDepart, 'DEPLACEMENT');
+    }
+    for (const carburant of carburants) {
+      accumulate(
+        carburant.vehicleId,
+        carburant.dateApprovisionnement,
+        'CARBURANT',
+      );
+    }
+
+    if (aggregates.size === 0) {
+      return [];
+    }
+
+    const vehicleIds = [...aggregates.keys()];
+
+    const vehicles = (await this.prisma.vehicle.findMany({
+      where: { id: { in: vehicleIds } },
+      include: {
+        documents: {
+          where: { isActive: true },
+          include: { file: true },
+        },
+      },
+    })) as VehicleWithRelations[];
+
+    return vehicles
+      .map((vehicle) => ({
+        ...vehicle,
+        usage: aggregates.get(vehicle.id)!,
+      }))
+      .sort(
+        (a, b) => b.usage.lastUsedAt.getTime() - a.usage.lastUsedAt.getTime(),
+      );
   }
 
   async findDocumentsExpiringWithin(

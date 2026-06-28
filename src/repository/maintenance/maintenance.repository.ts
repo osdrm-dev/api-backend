@@ -11,6 +11,7 @@ export interface MaintenanceFilters {
   status?: MaintenanceStatus;
   urgencyLevel?: MaintenanceUrgencyLevel;
   interventionType?: MaintenanceInterventionType;
+  vehicleId?: string;
   vehicleRef?: string;
   search?: string;
   dateFrom?: Date;
@@ -33,6 +34,9 @@ export class MaintenanceRepository {
     assignedTo: {
       select: { id: true, name: true, email: true },
     },
+    vehicle: {
+      select: { id: true, immatriculation: true, marque: true, modele: true },
+    },
     linkedPurchase: {
       select: { id: true, reference: true, status: true },
     },
@@ -41,16 +45,7 @@ export class MaintenanceRepository {
     },
   };
 
-  async create(data: {
-    reference: string;
-    interventionType: MaintenanceInterventionType;
-    urgencyLevel?: MaintenanceUrgencyLevel;
-    title: string;
-    description: string;
-    location?: string;
-    vehicleRef?: string;
-    requestorId?: number;
-  }) {
+  async create(data: Prisma.MaintenanceRequestCreateInput) {
     return this.prisma.maintenanceRequest.create({
       data,
       include: this.standardInclude,
@@ -217,6 +212,7 @@ export class MaintenanceRepository {
       urgencyLevel?: MaintenanceUrgencyLevel;
       location?: string;
       vehicleRef?: string;
+      vehicleId?: string | null;
     },
   ) {
     return this.prisma.maintenanceRequest.update({
@@ -265,6 +261,10 @@ export class MaintenanceRepository {
 
     if (filters.interventionType) {
       where.interventionType = filters.interventionType;
+    }
+
+    if (filters.vehicleId) {
+      where.vehicleId = filters.vehicleId;
     }
 
     if (filters.vehicleRef) {

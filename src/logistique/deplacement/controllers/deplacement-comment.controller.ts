@@ -5,9 +5,10 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { CommentEntityType } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { DeplacementCommentService } from '../services/deplacement-comment.service';
+import { UnifiedCommentService } from 'src/comment/services/unified-comment.service';
 import { AddDeplacementCommentDto } from '../dto/add-deplacement-comment.dto';
 
 @ApiTags('Logistique - Déplacements')
@@ -15,7 +16,7 @@ import { AddDeplacementCommentDto } from '../dto/add-deplacement-comment.dto';
 @Controller('logistique/deplacements/:id/comments')
 @UseGuards(JwtAuthGuard)
 export class DeplacementCommentController {
-  constructor(private readonly commentService: DeplacementCommentService) {}
+  constructor(private readonly commentService: UnifiedCommentService) {}
 
   @Post()
   @ApiOperation({ summary: 'Ajouter un commentaire sur une demande' })
@@ -23,15 +24,25 @@ export class DeplacementCommentController {
   async addComment(
     @Param('id') id: string,
     @Body() dto: AddDeplacementCommentDto,
-    @CurrentUser() user: { id: number },
+    @CurrentUser('id') userId: number,
   ) {
-    return this.commentService.addComment(id, dto, user.id);
+    return this.commentService.create(
+      CommentEntityType.DEPLACEMENT,
+      id,
+      userId,
+      { content: dto.content },
+    );
   }
 
   @Get()
   @ApiOperation({ summary: "Lister les commentaires d'une demande" })
   @ApiParam({ name: 'id', description: 'Identifiant du déplacement' })
   async getComments(@Param('id') id: string) {
-    return this.commentService.getComments(id);
+    return this.commentService.findPaginated(
+      CommentEntityType.DEPLACEMENT,
+      id,
+      1,
+      20,
+    );
   }
 }

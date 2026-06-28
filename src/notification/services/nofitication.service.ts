@@ -303,6 +303,13 @@ export class NotificationService {
       case OSDRM_PROCESS_EVENT.VEHICLE_DOCUMENT_EXPIRY_ALERT:
         return null;
 
+      // Validation liquidation : pas de template email dédié en V1
+      // (notification in-app uniquement). Retour null pour éviter le throw du default.
+      case OSDRM_PROCESS_EVENT.LIQUIDATION_VALIDATION_REQUISE:
+      case OSDRM_PROCESS_EVENT.LIQUIDATION_REJETEE:
+      case OSDRM_PROCESS_EVENT.LIQUIDATION_VALIDEE_COMPLETE:
+        return null;
+
       case OSDRM_PROCESS_EVENT.MAINTENANCE_STATUS_CHANGED: {
         const maintenanceFrontendUrl =
           this.config.get<string>('FRONTEND_URL') ??

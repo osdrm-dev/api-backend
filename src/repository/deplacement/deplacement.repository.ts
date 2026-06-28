@@ -23,7 +23,18 @@ const DEPLACEMENT_INCLUDE = {
   vehicle: {
     select: { id: true, immatriculation: true, marque: true, modele: true },
   },
-  liquidation: true,
+  liquidation: {
+    include: {
+      validations: {
+        orderBy: { role: 'asc' as const },
+        include: {
+          validator: {
+            select: { id: true, name: true, email: true, role: true },
+          },
+        },
+      },
+    },
+  },
   _count: { select: { comments: true } },
 } satisfies Prisma.LgDeplacementInclude;
 

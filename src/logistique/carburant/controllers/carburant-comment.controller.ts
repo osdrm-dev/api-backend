@@ -5,9 +5,10 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { CommentEntityType } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { CarburantCommentService } from '../carburant-comment.service';
+import { UnifiedCommentService } from 'src/comment/services/unified-comment.service';
 import { AddCarburantCommentDto } from '../dto/add-carburant-comment.dto';
 
 @ApiTags('Logistique - Carburant')
@@ -15,18 +16,18 @@ import { AddCarburantCommentDto } from '../dto/add-carburant-comment.dto';
 @Controller('logistique/carburants/:id/comments')
 @UseGuards(JwtAuthGuard)
 export class CarburantCommentController {
-  constructor(
-    private readonly carburantCommentService: CarburantCommentService,
-  ) {}
+  constructor(private readonly commentService: UnifiedCommentService) {}
 
   @Get()
   @ApiOperation({ summary: "Lister les commentaires d'un approvisionnement" })
   @ApiParam({ name: 'id', description: "Identifiant de l'approvisionnement" })
-  async getComments(
-    @Param('id') id: string,
-    @CurrentUser() user: { id: number; role: string },
-  ) {
-    return this.carburantCommentService.getComments(id, user);
+  async getComments(@Param('id') id: string) {
+    return this.commentService.findPaginated(
+      CommentEntityType.CARBURANT,
+      id,
+      1,
+      20,
+    );
   }
 
   @Post()
@@ -35,8 +36,10 @@ export class CarburantCommentController {
   async addComment(
     @Param('id') id: string,
     @Body() dto: AddCarburantCommentDto,
-    @CurrentUser() user: { id: number; role: string },
+    @CurrentUser('id') userId: number,
   ) {
-    return this.carburantCommentService.addComment(id, dto.content, user);
+    return this.commentService.create(CommentEntityType.CARBURANT, id, userId, {
+      content: dto.content,
+    });
   }
 }

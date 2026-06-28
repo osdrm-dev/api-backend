@@ -13,9 +13,10 @@ import {
   ApiBearerAuth,
   ApiResponse,
 } from '@nestjs/swagger';
+import { CommentEntityType } from '@prisma/client';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { CommentService } from '../services/comment.service';
+import { UnifiedCommentService } from '../services/unified-comment.service';
 import { CreateCommentDto } from '../dto/create-comment.dto';
 import { GetCommentsQueryDto } from '../dto/get-comments-query.dto';
 
@@ -24,7 +25,7 @@ import { GetCommentsQueryDto } from '../dto/get-comments-query.dto';
 @UseGuards(JwtAuthGuard)
 @Controller('purchases/:id/comments')
 export class CommentController {
-  constructor(private readonly commentService: CommentService) {}
+  constructor(private readonly commentService: UnifiedCommentService) {}
 
   @Get()
   @ApiOperation({ summary: "Récupérer les commentaires d'un achat" })
@@ -34,7 +35,8 @@ export class CommentController {
     @Param('id') purchaseId: string,
     @Query() query: GetCommentsQueryDto,
   ) {
-    return this.commentService.findByPurchase(
+    return this.commentService.findPaginated(
+      CommentEntityType.PURCHASE,
       purchaseId,
       query.page ?? 1,
       query.limit ?? 10,
@@ -54,6 +56,11 @@ export class CommentController {
     @Body() dto: CreateCommentDto,
     @CurrentUser('id') authorId: number,
   ) {
-    return this.commentService.create(purchaseId, authorId, dto);
+    return this.commentService.create(
+      CommentEntityType.PURCHASE,
+      purchaseId,
+      authorId,
+      dto,
+    );
   }
 }

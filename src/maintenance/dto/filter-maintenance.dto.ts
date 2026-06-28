@@ -32,7 +32,14 @@ export class FilterMaintenanceDto {
   @IsOptional()
   interventionType?: MaintenanceInterventionType;
 
-  @ApiPropertyOptional({ description: 'Filtrer par référence véhicule' })
+  @ApiPropertyOptional({ description: 'Filtrer par ID véhicule' })
+  @IsString()
+  @IsOptional()
+  vehicleId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Filtrer par référence véhicule (immatriculation)',
+  })
   @IsString()
   @IsOptional()
   vehicleRef?: string;
