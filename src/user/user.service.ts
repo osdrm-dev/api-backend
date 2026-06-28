@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'prisma/prisma.service';
 import { MailService } from 'src/mail/mail.service';
 import { UserRepository } from 'src/repository/user/user.repository';
@@ -21,6 +22,7 @@ export class UserService {
     private readonly userRepository: UserRepository,
     private readonly prisma: PrismaService,
     private readonly mailService: MailService,
+    private readonly configService: ConfigService,
   ) {}
 
   async findAll(query: QueryUsersDto) {
@@ -79,7 +81,7 @@ export class UserService {
       );
     }
 
-    const plainPassword = this.generatePassword();
+    const plainPassword = this.resolvePassword();
     const hashedPassword = await bcrypt.hash(plainPassword, 12);
 
     const user = await this.userRepository.create({
@@ -159,7 +161,7 @@ export class UserService {
       throw new NotFoundException('Utilisateur introuvable.');
     }
 
-    const plainPassword = this.generatePassword();
+    const plainPassword = this.resolvePassword();
     const hashedPassword = await bcrypt.hash(plainPassword, 12);
 
     await this.userRepository.update({
@@ -175,6 +177,14 @@ export class UserService {
       message:
         'Mot de passe réinitialisé. Les nouveaux identifiants ont été envoyés par email.',
     };
+  }
+
+  private resolvePassword(): string {
+    const configured = this.configService
+      .get<string>('DEFAULT_USER_PASSWORD')
+      ?.trim();
+
+    return configured ? configured : this.generatePassword();
   }
 
   private generatePassword(length = 12): string {
