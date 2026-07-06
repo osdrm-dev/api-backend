@@ -92,13 +92,15 @@ export class BudgetTableController {
     return this.budgetService.getActiveProjects();
   }
 
-  @Get('active/projects/:projectCode')
+  @Get('active/projects/:activityCode')
   @ApiOperation({
     summary:
-      'Get imputation fields for a project from the active table (any authenticated user)',
+      'Get imputation fields for a project from the active table, by activity code (any authenticated user)',
   })
-  async getActiveProjectByCode(@Param('projectCode') projectCode: string) {
-    return this.budgetService.getActiveProjectByCode(projectCode);
+  async getActiveProjectByActivityCode(
+    @Param('activityCode') activityCode: string,
+  ) {
+    return this.budgetService.getActiveProjectByActivityCode(activityCode);
   }
 
   @Get(':id')

@@ -113,7 +113,7 @@ describe('TriggerDaService', () => {
       mockBudgetService.getActiveProjectInternal.mockResolvedValue(mockProject);
 
       const result = await service.triggerDA('req-1', 99, {
-        projectCode: 'PROJ-001',
+        activityCode: 'ACT001',
         acheteurId: 5,
       });
 
@@ -147,7 +147,7 @@ describe('TriggerDaService', () => {
 
       await expect(
         service.triggerDA('req-1', 99, {
-          projectCode: 'PROJ-001',
+          activityCode: 'ACT001',
           acheteurId: 5,
         }),
       ).rejects.toThrow(ConflictException);
@@ -158,7 +158,7 @@ describe('TriggerDaService', () => {
 
       await expect(
         service.triggerDA('nonexistent', 99, {
-          projectCode: 'PROJ-001',
+          activityCode: 'ACT001',
           acheteurId: 5,
         }),
       ).rejects.toThrow(NotFoundException);
@@ -176,7 +176,7 @@ describe('TriggerDaService', () => {
 
       await expect(
         service.triggerDA('req-1', 99, {
-          projectCode: 'PROJ-001',
+          activityCode: 'ACT001',
           acheteurId: 5,
         }),
       ).rejects.toThrow('DB error');

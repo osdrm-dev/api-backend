@@ -46,7 +46,7 @@ export class UpdatePurchaseDto {
 
   @ApiPropertyOptional({
     description:
-      'Code projet issu du tableau budgetaire actif (optionnel a la mise a jour)',
+      'Code projet (informatif, resolu cote serveur depuis le tableau budgetaire)',
     example: 'PROJ-2024-001',
   })
   @IsString()
@@ -71,7 +71,8 @@ export class UpdatePurchaseDto {
 
   @ApiPropertyOptional({
     description:
-      'Code activite (informatif, resolu cote serveur depuis le tableau budgetaire)',
+      'Code activite issu du tableau budgetaire actif (optionnel a la mise a jour)',
+    example: 'ACT-2024-001',
   })
   @IsString()
   @IsOptional()

@@ -607,7 +607,7 @@ model BudgetProject {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
-  @@unique([budgetTableId, projectCode])
+  @@unique([budgetTableId, activityCode])
   @@index([budgetTableId])
   @@index([projectCode])
   @@map("budget_projects")

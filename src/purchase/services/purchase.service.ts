@@ -74,9 +74,9 @@ export class PurchaseService {
     await this.resolveAcheteur(createDto.acheteurId);
 
     // Resolve imputation fields from the active budget table server-side.
-    // Throws 503 if no active table, 404 if projectCode is unknown.
+    // Throws 503 if no active table, 404 if activityCode is unknown.
     const project = await this.budgetTableService.getActiveProjectInternal(
-      createDto.projectCode,
+      createDto.activityCode,
     );
 
     const year = new Date().getFullYear();
@@ -88,6 +88,7 @@ export class PurchaseService {
     const {
       attachments,
       projectCode: _pc,
+      activityCode: _ac,
       region: regionInput,
       site: siteInput,
       ...purchaseData
@@ -169,9 +170,9 @@ export class PurchaseService {
       throw new BadRequestException('Cette DA ne peut plus etre modifiee');
 
     // Budget threshold enforcement at item-addition time.
-    if (purchase.projectCode) {
+    if (purchase.activityCode) {
       const project = await this.budgetTableService.getActiveProjectInternal(
-        purchase.projectCode,
+        purchase.activityCode,
       );
       const total = itemsDto.items.reduce(
         (sum, item) => sum + item.quantity * item.unitPrice,
@@ -482,15 +483,15 @@ export class PurchaseService {
     // Project imputation fields are resolved from the active budget table,
     // not from user input. Strip any freeform values.
     delete updateData.project;
+    delete updateData.projectCode;
     delete updateData.grantCode;
-    delete updateData.activityCode;
     delete updateData.costCenter;
 
-    // If the caller changes the projectCode, re-resolve imputation from the
+    // If the caller changes the activityCode, re-resolve imputation from the
     // active budget table.
-    if (updateData.projectCode) {
+    if (updateData.activityCode) {
       const project = await this.budgetTableService.getActiveProjectInternal(
-        updateData.projectCode,
+        updateData.activityCode,
       );
 
       updateData.project = project.projectName;
@@ -596,13 +597,13 @@ export class PurchaseService {
 
     // Project imputation fields are resolved from the active budget table.
     delete updateData.project;
+    delete updateData.projectCode;
     delete updateData.grantCode;
-    delete updateData.activityCode;
     delete updateData.costCenter;
 
-    if (updateData.projectCode) {
+    if (updateData.activityCode) {
       const project = await this.budgetTableService.getActiveProjectInternal(
-        updateData.projectCode,
+        updateData.activityCode,
       );
       updateData.project = project.projectName;
       updateData.projectCode = project.projectCode;

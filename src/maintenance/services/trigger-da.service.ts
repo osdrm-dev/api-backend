@@ -53,7 +53,7 @@ export class TriggerDaService {
 
     // Resolve project from active budget table
     const project = await this.budgetTableService.getActiveProjectInternal(
-      dto.projectCode,
+      dto.activityCode,
     );
 
     const year = new Date().getFullYear();

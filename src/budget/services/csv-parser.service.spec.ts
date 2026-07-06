@@ -31,13 +31,23 @@ describe('CsvParserService', () => {
     );
   });
 
-  it('throws on duplicate project codes', () => {
+  it('throws on duplicate activity codes', () => {
     const csv = [
       header,
-      'Foo,PROJ-001,G,A,C,R,S,1000',
-      'Bar,PROJ-001,G,A,C,R,S,2000',
+      'Foo,PROJ-001,G,ACT-1,C,R,S,1000',
+      'Bar,PROJ-002,G,ACT-1,C,R,S,2000',
     ].join('\n');
     expect(() => service.parseBudgetCsv(Buffer.from(csv))).toThrow(/doublon/i);
+  });
+
+  it('allows the same project code with different activity codes', () => {
+    const csv = [
+      header,
+      'Foo,PROJ-001,G,ACT-1,C,R,S,1000',
+      'Foo,PROJ-001,G,ACT-2,C,R,S,2000',
+    ].join('\n');
+    const result = service.parseBudgetCsv(Buffer.from(csv));
+    expect(result).toHaveLength(2);
   });
 
   it('throws on invalid threshold', () => {
@@ -50,9 +60,9 @@ describe('CsvParserService', () => {
   it('skips empty rows silently', () => {
     const csv = [
       header,
-      'Foo,PROJ-001,G,A,C,R,S,1000',
+      'Foo,PROJ-001,G,ACT-1,C,R,S,1000',
       ',,,,,,,',
-      'Bar,PROJ-002,G,A,C,R,S,2000',
+      'Bar,PROJ-002,G,ACT-2,C,R,S,2000',
     ].join('\n');
     const result = service.parseBudgetCsv(Buffer.from(csv));
     expect(result).toHaveLength(2);

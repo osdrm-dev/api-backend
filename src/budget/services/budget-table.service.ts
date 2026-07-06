@@ -62,13 +62,13 @@ export class BudgetTableService {
     // Missing-project guard vs. current active table.
     const active = await this.repo.findActiveProjects();
     if (active && active.projects.length > 0) {
-      const incomingCodes = new Set(rows.map((r) => r.projectCode));
+      const incomingActivityCodes = new Set(rows.map((r) => r.activityCode));
       const missing = active.projects
-        .filter((p) => !incomingCodes.has(p.projectCode))
-        .map((p) => p.projectCode);
+        .filter((p) => !incomingActivityCodes.has(p.activityCode))
+        .map((p) => p.activityCode);
       if (missing.length > 0) {
         throw new BadRequestException(
-          `Le nouveau tableau budgetaire omet des codes projet presents dans le tableau actif: ${missing.join(
+          `Le nouveau tableau budgetaire omet des codes activite presents dans le tableau actif: ${missing.join(
             ', ',
           )}`,
         );
@@ -188,19 +188,23 @@ export class BudgetTableService {
       projects: active.projects.map((p) => ({
         projectCode: p.projectCode,
         projectName: p.projectName,
+        grantCode: p.grantCode,
+        activityCode: p.activityCode,
       })),
     };
   }
 
-  async getActiveProjectByCode(
-    projectCode: string,
+  async getActiveProjectByActivityCode(
+    activityCode: string,
   ): Promise<ActiveProjectImputation> {
     const active = await this.repo.findActiveProjects();
     if (!active) throw new NotFoundException('Aucun tableau budgetaire actif.');
-    const project = active.projects.find((p) => p.projectCode === projectCode);
+    const project = active.projects.find(
+      (p) => p.activityCode === activityCode,
+    );
     if (!project)
       throw new NotFoundException(
-        'Code projet introuvable dans le tableau budgetaire actif.',
+        'Code activite introuvable dans le tableau budgetaire actif.',
       );
     return {
       projectCode: project.projectCode,
@@ -217,7 +221,7 @@ export class BudgetTableService {
    * Used by PurchaseService to resolve imputation fields (including threshold)
    * at create/publish time. Non-admin callers must NOT receive the threshold.
    */
-  async getActiveProjectInternal(projectCode: string): Promise<{
+  async getActiveProjectInternal(activityCode: string): Promise<{
     projectCode: string;
     projectName: string;
     grantCode: string;
@@ -233,10 +237,12 @@ export class BudgetTableService {
         'Aucun tableau budgetaire actif. La creation de DA est temporairement indisponible.',
       );
     }
-    const project = active.projects.find((p) => p.projectCode === projectCode);
+    const project = active.projects.find(
+      (p) => p.activityCode === activityCode,
+    );
     if (!project)
       throw new NotFoundException(
-        'Code projet introuvable dans le tableau budgetaire actif.',
+        'Code activite introuvable dans le tableau budgetaire actif.',
       );
     return {
       projectCode: project.projectCode,

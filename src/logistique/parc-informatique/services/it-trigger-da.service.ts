@@ -48,7 +48,7 @@ export class ItTriggerDaService {
     }
 
     const project = await this.budgetTableService.getActiveProjectInternal(
-      dto.projectCode,
+      dto.activityCode,
     );
 
     const year = new Date().getFullYear();
@@ -118,7 +118,7 @@ export class ItTriggerDaService {
     }
 
     const project = await this.budgetTableService.getActiveProjectInternal(
-      dto.projectCode,
+      dto.activityCode,
     );
 
     const year = new Date().getFullYear();

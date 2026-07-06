@@ -9,12 +9,12 @@ import {
 
 export class TriggerDaDto {
   @ApiProperty({
-    description: 'Code projet issu du tableau budgétaire actif',
-    example: 'PROJ-2024-001',
+    description: 'Code activite issu du tableau budgétaire actif',
+    example: 'ACT-2024-001',
   })
   @IsString()
   @IsNotEmpty()
-  projectCode!: string;
+  activityCode!: string;
 
   @ApiProperty({
     description: "ID de l'acheteur responsable de la DA générée",

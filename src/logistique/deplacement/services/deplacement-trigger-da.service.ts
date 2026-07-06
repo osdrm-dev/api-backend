@@ -45,7 +45,7 @@ export class DeplacementTriggerDaService {
     }
 
     const project = await this.budgetTableService.getActiveProjectInternal(
-      dto.projectCode,
+      dto.activityCode,
     );
     const year = new Date().getFullYear();
 
