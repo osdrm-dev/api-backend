@@ -72,7 +72,7 @@ describe('DeplacementTriggerDaService', () => {
   it('throws 404 when deplacement not found', async () => {
     mockRepository.findById.mockResolvedValue(null);
     await expect(
-      service.triggerDA('dep-999', { projectCode: 'P', acheteurId: 5 }, 1),
+      service.triggerDA('dep-999', { activityCode: 'ACT', acheteurId: 5 }, 1),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -82,7 +82,7 @@ describe('DeplacementTriggerDaService', () => {
       linkedPurchaseId: 'purchase-1',
     });
     await expect(
-      service.triggerDA('dep-1', { projectCode: 'P', acheteurId: 5 }, 1),
+      service.triggerDA('dep-1', { activityCode: 'ACT', acheteurId: 5 }, 1),
     ).rejects.toThrow(ConflictException);
   });
 
@@ -94,7 +94,7 @@ describe('DeplacementTriggerDaService', () => {
       isActive: true,
     });
     await expect(
-      service.triggerDA('dep-1', { projectCode: 'P', acheteurId: 5 }, 1),
+      service.triggerDA('dep-1', { activityCode: 'ACT', acheteurId: 5 }, 1),
     ).rejects.toThrow(NotFoundException);
   });
 
@@ -120,7 +120,7 @@ describe('DeplacementTriggerDaService', () => {
 
     const result = await service.triggerDA(
       'dep-1',
-      { projectCode: 'PROJ-001', acheteurId: 5 },
+      { activityCode: 'ACT', acheteurId: 5 },
       1,
     );
     expect(result.reference).toBe('DA-2026-0001');

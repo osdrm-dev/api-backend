@@ -30,8 +30,8 @@ type ExistingProject = {
 
 const COMPARED_FIELDS: Array<keyof ParsedBudgetRow> = [
   'projectName',
+  'projectCode',
   'grantCode',
-  'activityCode',
   'costCenter',
   'region',
   'site',
@@ -49,10 +49,10 @@ export class BudgetDiffService {
     incoming: ParsedBudgetRow[],
   ): BudgetDiff {
     const currentMap = new Map<string, ExistingProject>();
-    for (const p of current ?? []) currentMap.set(p.projectCode, p);
+    for (const p of current ?? []) currentMap.set(p.activityCode, p);
 
     const incomingMap = new Map<string, ParsedBudgetRow>();
-    for (const p of incoming) incomingMap.set(p.projectCode, p);
+    for (const p of incoming) incomingMap.set(p.activityCode, p);
 
     const diff: BudgetDiff = {
       added: [],

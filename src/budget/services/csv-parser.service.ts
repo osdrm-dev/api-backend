@@ -27,7 +27,7 @@ const REQUIRED_COLUMNS = [
 export class CsvParserService {
   /**
    * Parse a CSV buffer for a Budget Table upload.
-   * Validates required columns, numeric threshold, and uniqueness of project codes.
+   * Validates required columns, numeric threshold, and uniqueness of activity codes.
    */
   parseBudgetCsv(buffer: Buffer): ParsedBudgetRow[] {
     let records: Record<string, string>[];
@@ -58,7 +58,7 @@ export class CsvParserService {
     }
 
     const rows: ParsedBudgetRow[] = [];
-    const seenCodes = new Set<string>();
+    const seenActivityCodes = new Set<string>();
     const duplicates = new Set<string>();
 
     for (let i = 0; i < records.length; i++) {
@@ -85,10 +85,17 @@ export class CsvParserService {
         );
       }
 
-      if (seenCodes.has(projectCode)) {
-        duplicates.add(projectCode);
+      const activityCode = String(raw['code_activite'] ?? '').trim();
+      if (!activityCode) {
+        throw new BadRequestException(
+          `Ligne ${lineNumber}: le code_activite est obligatoire.`,
+        );
+      }
+
+      if (seenActivityCodes.has(activityCode)) {
+        duplicates.add(activityCode);
       } else {
-        seenCodes.add(projectCode);
+        seenActivityCodes.add(activityCode);
       }
 
       const rawThreshold = String(raw['seuil_budgetaire'] ?? '')
@@ -110,7 +117,7 @@ export class CsvParserService {
         projectCode,
         projectName,
         grantCode: String(raw['code_subvention'] ?? '').trim(),
-        activityCode: String(raw['code_activite'] ?? '').trim(),
+        activityCode,
         costCenter: String(raw['centre_cout'] ?? '').trim(),
         region: String(raw['region'] ?? '').trim(),
         site: String(raw['site'] ?? '').trim(),
@@ -120,9 +127,9 @@ export class CsvParserService {
 
     if (duplicates.size > 0) {
       throw new BadRequestException(
-        `Codes projet en doublon dans le fichier: ${Array.from(duplicates).join(
-          ', ',
-        )}`,
+        `Codes activite en doublon dans le fichier: ${Array.from(
+          duplicates,
+        ).join(', ')}`,
       );
     }
 

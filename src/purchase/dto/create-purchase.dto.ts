@@ -99,14 +99,14 @@ export class CreatePurchaseDto {
   @IsNotEmpty()
   justification!: string;
 
-  @ApiProperty({
+  @ApiPropertyOptional({
     description:
-      "Code projet issu du tableau budgetaire actif (les champs d'imputation sont resolus cote serveur)",
+      'Code projet (informatif, resolu cote serveur depuis le tableau budgetaire)',
     example: 'PROJ-2024-001',
   })
   @IsString()
-  @IsNotEmpty()
-  projectCode!: string;
+  @IsOptional()
+  projectCode?: string;
 
   @ApiPropertyOptional({
     description:
@@ -124,13 +124,14 @@ export class CreatePurchaseDto {
   @IsOptional()
   grantCode?: string;
 
-  @ApiPropertyOptional({
+  @ApiProperty({
     description:
-      'Code activite (informatif, resolu cote serveur depuis le tableau budgetaire)',
+      "Code activite issu du tableau budgetaire actif (les champs d'imputation sont resolus cote serveur)",
+    example: 'ACT-2024-001',
   })
   @IsString()
-  @IsOptional()
-  activityCode?: string;
+  @IsNotEmpty()
+  activityCode!: string;
 
   @ApiPropertyOptional({
     description:
