@@ -1,22 +1,28 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bullmq';
 import { MailerService } from '@nestjs-modules/mailer';
 import { Logger } from '@nestjs/common';
+import { Queue } from 'bullmq';
+import { MAIL_QUEUE, SEND_MAIL_JOB } from './constants/mail.constants';
 
 @Injectable()
 export class MailService {
-  constructor(private readonly mailer: MailerService) {}
+  constructor(
+    private readonly mailer: MailerService,
+    @InjectQueue(MAIL_QUEUE) private readonly mailQueue: Queue,
+  ) {}
   private readonly logger = new Logger(MailService.name);
 
   async sendSimpleMail(to: string, subject: string, content: string) {
     try {
-      await this.mailer.sendMail({
+      await this.mailQueue.add(SEND_MAIL_JOB, {
         to,
         subject,
         html: content,
       });
-      this.logger.log('Email envoyé');
+      this.logger.log(`Email mis en file d'attente pour ${to}`);
     } catch (error) {
-      this.logger.error('Error sending email:', (error as Error).stack);
+      this.logger.error('Error queueing email:', (error as Error).stack);
 
       throw new InternalServerErrorException();
     }
