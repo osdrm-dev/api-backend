@@ -19,7 +19,7 @@ jobs:
           RESEND_FROM: ${{ vars.RESEND_FROM }}
           RESEND_FRONTEND_URL: ${{ vars.RESEND_FRONTEND_URL }}
           RESEND_ENABLED_EVENTS: ${{ vars.RESEND_ENABLED_EVENTS }}
-          DEFAULT_USER_PASSWORD: ${{ vars.DEFAULT_USER_PASSWORD }}
+          DEFAULT_USER_PASSWORD: ${{ secrets.DEFAULT_USER_PASSWORD }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
