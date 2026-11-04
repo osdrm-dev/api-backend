@@ -52,21 +52,3 @@ MAIL_PORT=1025
 MAIL_SECURE=false
 MAIL_FROM="Dev <dev@test.com>"
 
-## how to use
-
-in the mail.controller.ts
-put the decorator @POST('') and call the function you wanna use , sendSimpleMail()/ sendWithAttachement()
-
-    for exemple:
-
-    @Post('send-simple')
-    async sendSimple() {
-        return this.mailService.sendSimpleMail(
-        'test@test.com',               // destinataire
-        'Test Email',                  // sujet
-        '<h1>Bonjour !</h1><p>Ceci est un email de test.</p>' // contenu HTML
-        );
-    }
-
-    then the terminal you launch the command :
-    => curl -X POST http://localhost:3000/mail/send-simple
