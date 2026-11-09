@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
+  BadRequestException,
   ForbiddenException,
   NotFoundException,
   UnprocessableEntityException,
@@ -27,6 +28,7 @@ const mockRepository = {
 const mockPrisma = {
   vehicle: { findUnique: jest.fn() },
   user: { findMany: jest.fn() },
+  file: { count: jest.fn() },
 };
 
 const mockNotification = {
@@ -108,6 +110,33 @@ describe('CarburantService', () => {
       expect(result.reference).toBe('CAR-2026-0001');
       expect(mockRepository.generateNextReference).toHaveBeenCalled();
       expect(mockRepository.create).toHaveBeenCalled();
+    });
+
+    it('links the requester uploaded receipts', async () => {
+      mockPrisma.vehicle.findUnique.mockResolvedValue(BASE_VEHICLE);
+      mockRepository.generateNextReference.mockResolvedValue('CAR-2026-0001');
+      mockRepository.create.mockResolvedValue(BASE_CARBURANT);
+      mockPrisma.user.findMany.mockResolvedValue([]);
+      mockPrisma.file.count.mockResolvedValue(1);
+
+      await service.create({ ...dto, fileIds: [5] }, 10);
+
+      expect(mockPrisma.file.count).toHaveBeenCalledWith({
+        where: { id: { in: [5] }, uploadedById: 10 },
+      });
+      expect(mockRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ files: { connect: [{ id: 5 }] } }),
+      );
+    });
+
+    it('rejects files uploaded by someone else', async () => {
+      mockPrisma.vehicle.findUnique.mockResolvedValue(BASE_VEHICLE);
+      mockPrisma.file.count.mockResolvedValue(0);
+
+      await expect(
+        service.create({ ...dto, fileIds: [5] }, 10),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockRepository.create).not.toHaveBeenCalled();
     });
 
     it('throws 422 when vehicle does not exist', async () => {

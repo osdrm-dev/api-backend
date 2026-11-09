@@ -11,7 +11,15 @@ import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { ListVehiclesQueryDto } from './dto/list-vehicles-query.dto';
-import { VehicleDocumentType, VehicleStatut } from '@prisma/client';
+import { CreateAssignmentDto } from './dto/create-assignment.dto';
+import { EndAssignmentDto } from './dto/end-assignment.dto';
+import { UserRepository } from 'src/repository/user/user.repository';
+import {
+  Role,
+  VehicleAssignmentStatus,
+  VehicleDocumentType,
+  VehicleStatut,
+} from '@prisma/client';
 
 const ALLOWED_PHOTO_TYPES = [
   'image/jpeg',
@@ -32,7 +40,112 @@ export class ParcAutoService {
   constructor(
     private readonly repository: ParcAutoRepository,
     private readonly fileStorage: FileStorageService,
+    private readonly userRepository: UserRepository,
   ) {}
+
+  async getDrivers() {
+    return this.repository.findDrivers();
+  }
+
+  async getAssignments(vehicleId: string) {
+    await this.getById(vehicleId);
+    return this.repository.findAssignmentsByVehicle(vehicleId);
+  }
+
+  async createAssignment(
+    vehicleId: string,
+    file: MulterFile,
+    dto: CreateAssignmentDto,
+    userId: number,
+  ) {
+    if (!file) {
+      throw new BadRequestException("La fiche d'attribution est obligatoire.");
+    }
+    if (!ALLOWED_DOCUMENT_TYPES.includes(file.mimetype)) {
+      throw new BadRequestException(
+        `Type de fichier non autorisé : ${file.mimetype}.`,
+      );
+    }
+
+    const vehicle = await this.getById(vehicleId);
+    if (vehicle.statut === VehicleStatut.ARCHIVE) {
+      throw new BadRequestException(
+        "Impossible d'affecter un véhicule archivé.",
+      );
+    }
+
+    const driver = await this.userRepository.findById(dto.driverId);
+    if (!driver || driver.role !== Role.DRIVER || !driver.isActive) {
+      throw new BadRequestException(
+        "L'utilisateur sélectionné n'est pas un chauffeur actif.",
+      );
+    }
+
+    const startDate = dto.startDate ? new Date(dto.startDate) : new Date();
+    if (startDate.getTime() > Date.now()) {
+      throw new BadRequestException(
+        'La date de début ne peut pas être dans le futur.',
+      );
+    }
+
+    const conflict = await this.repository.findConflictingAssignment(
+      vehicleId,
+      dto.driverId,
+      startDate,
+    );
+    if (conflict) {
+      throw new BadRequestException(
+        'La date de début chevauche une affectation existante du véhicule ou du chauffeur.',
+      );
+    }
+
+    const savedFile = await this.fileStorage.upload(file, {
+      userId,
+      allowedTypes: ALLOWED_DOCUMENT_TYPES,
+    });
+
+    try {
+      return await this.repository.createAssignmentClosingPrevious({
+        vehicleId,
+        driverId: dto.driverId,
+        fileId: savedFile.id,
+        startDate,
+        notes: dto.notes,
+        createdById: userId,
+      });
+    } catch (e) {
+      // P2034 : conflit de sérialisation (affectation concurrente).
+      if ((e as { code?: string })?.code === 'P2034') {
+        throw new ConflictException(
+          'Une autre affectation vient d’être enregistrée. Rechargez et réessayez.',
+        );
+      }
+      throw e;
+    }
+  }
+
+  async endAssignment(
+    vehicleId: string,
+    assignmentId: string,
+    dto: EndAssignmentDto,
+  ) {
+    const assignment = await this.repository.findAssignmentById(assignmentId);
+    if (!assignment || assignment.vehicleId !== vehicleId) {
+      throw new NotFoundException('Affectation introuvable.');
+    }
+    if (assignment.status !== VehicleAssignmentStatus.ACTIVE) {
+      throw new BadRequestException('Cette affectation est déjà terminée.');
+    }
+
+    const endDate = dto.endDate ? new Date(dto.endDate) : new Date();
+    if (endDate < assignment.startDate) {
+      throw new BadRequestException(
+        'La date de fin doit être postérieure à la date de début.',
+      );
+    }
+
+    return this.repository.endAssignment(assignmentId, endDate);
+  }
 
   async getAll(query: ListVehiclesQueryDto) {
     const page = query.page ?? 1;

@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import { seedParcAuto } from './seed-parc-auto';
 import { seedMaintenance } from './seed-maintenance';
-import { seedParcInformatique } from './seed-parc-informatique';
+import { seedInventory } from './seed-inventory';
 import { seedBaux } from './seed-baux';
 import { seedDeplacement } from './seed-deplacement';
 import { seedTrip } from './seed-trip';
@@ -128,10 +128,10 @@ async function cleanup() {
   await prisma.lgBailPaiement.deleteMany();
   await prisma.lgBailAvenant.deleteMany();
   await prisma.lgBailContract.deleteMany();
-  await prisma.itAttribution.deleteMany();
-  await prisma.itDemand.deleteMany();
-  await prisma.itAsset.deleteMany();
-  await prisma.itCategory.deleteMany();
+  await prisma.equipmentAttribution.deleteMany();
+  await prisma.equipmentDemand.deleteMany();
+  await prisma.equipment.deleteMany();
+  await prisma.equipmentCategory.deleteMany();
   await prisma.maintenanceComment.deleteMany();
   await prisma.maintenanceRequest.deleteMany();
   await prisma.vehicleAlertLog.deleteMany();
@@ -472,7 +472,7 @@ async function main() {
 
   await seedParcAuto(prisma);
   await seedMaintenance(prisma, userMap);
-  await seedParcInformatique(prisma, userMap);
+  await seedInventory(prisma, userMap);
   await seedBaux(prisma);
   await seedDeplacement(prisma, userMap);
   await seedTrip(prisma, userMap);

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Supplier, SupplierActiveStatus } from '@prisma/client';
+import { Prisma, Supplier, SupplierActiveStatus } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { CreateSupplierDto } from 'src/supplier/dto/create-supplier.dto';
 import { UpdateSupplierDto } from 'src/supplier/dto/update-supplier.dto';
@@ -10,6 +10,15 @@ export class SupplierRepository {
 
   async create(data: CreateSupplierDto): Promise<Supplier> {
     return this.prisma.supplier.create({ data });
+  }
+
+  /** Noms et NIF de tous les fournisseurs, pour détecter les doublons à l'import. */
+  async findAllIdentities() {
+    return this.prisma.supplier.findMany({ select: { name: true, nif: true } });
+  }
+
+  async createMany(data: Prisma.SupplierCreateManyInput[]) {
+    return this.prisma.supplier.createMany({ data });
   }
 
   async findAll(filters: any) {

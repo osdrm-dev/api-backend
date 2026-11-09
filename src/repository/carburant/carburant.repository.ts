@@ -31,6 +31,15 @@ const CARBURANT_INCLUDE_FULL = {
       author: { select: { id: true, name: true, role: true } },
     },
   },
+  files: {
+    select: {
+      id: true,
+      originalName: true,
+      mimeType: true,
+      size: true,
+      url: true,
+    },
+  },
 } satisfies Prisma.LgCarburantInclude;
 
 @Injectable()
