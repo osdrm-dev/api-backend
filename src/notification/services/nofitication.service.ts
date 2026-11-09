@@ -345,7 +345,7 @@ export class NotificationService {
             desiredType: data.desiredType,
             newStatus: data.newStatus,
             adminNote: data.adminNote ?? null,
-            requestUrl: `${itFrontendUrl}/logistique/parc-informatique/demandes/${notif.resourceId}`,
+            requestUrl: `${itFrontendUrl}/logistique/inventaire/demandes`,
           },
         };
       }

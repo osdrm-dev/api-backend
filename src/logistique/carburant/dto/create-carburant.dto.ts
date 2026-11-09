@@ -1,5 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsDateString,
   IsEnum,
   IsInt,
@@ -83,4 +85,15 @@ export class CreateCarburantDto {
   @IsString()
   @MaxLength(1000)
   notes?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'IDs des justificatifs (ticket, facture), téléversés via POST /files/upload (max 5)',
+    type: [Number],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsInt({ each: true })
+  fileIds?: number[];
 }

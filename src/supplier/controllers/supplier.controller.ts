@@ -8,7 +8,11 @@ import {
   Query,
   UseGuards,
   BadRequestException,
+  UploadedFile,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { File as MulterFile } from 'multer';
 import { SupplierActiveStatus } from '@prisma/client';
 import {
   ApiTags,
@@ -17,10 +21,13 @@ import {
   ApiParam,
   ApiQuery,
   ApiBody,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { SupplierService } from 'src/supplier/services/supplier.service';
 import { CreateSupplierDto } from 'src/supplier/dto/create-supplier.dto';
 import { UpdateSupplierDto } from 'src/supplier/dto/update-supplier.dto';
+import { ImportSupplierDto } from 'src/supplier/dto/import-supplier.dto';
+import { SupplierImportService } from 'src/supplier/services/supplier-import.service';
 import { Roles } from 'src/auth/decorators/roles.decorator';
 import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -29,7 +36,40 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 @Controller('suppliers')
 @UseGuards(JwtAuthGuard)
 export class SupplierController {
-  constructor(private readonly supplierService: SupplierService) {}
+  constructor(
+    private readonly supplierService: SupplierService,
+    private readonly supplierImportService: SupplierImportService,
+  ) {}
+
+  @Post('import')
+  @Roles('ADMIN', 'ACHETEUR')
+  @UseGuards(RolesGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({
+    summary:
+      'Importer des fournisseurs depuis le CSV du modèle « Liste des fournisseurs » (doublons ignorés)',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        potential: { type: 'boolean' },
+        dryRun: { type: 'boolean' },
+      },
+    },
+  })
+  async import(
+    @UploadedFile() file: MulterFile,
+    @Body() dto: ImportSupplierDto,
+  ) {
+    return this.supplierImportService.importCsv(file, {
+      potential: dto.potential ?? false,
+      dryRun: dto.dryRun ?? false,
+    });
+  }
 
   @Post()
   @Roles('ADMIN', 'ACHETEUR')
@@ -78,7 +118,8 @@ export class SupplierController {
     name: 'activeStatus',
     required: false,
     enum: SupplierActiveStatus,
-    description: 'Filter by active status (ACTIVE, INACTIVE, BLACK_LIST)',
+    description:
+      'Filter by active status (ACTIVE, INACTIVE, BLACK_LIST, POTENTIAL)',
   })
   @ApiResponse({ status: 200, description: 'List of suppliers returned.' })
   async findAll(@Query() filters: any) {

@@ -9,6 +9,8 @@ import {
   LgDeplacementStatus,
   LgTripStatus,
   LgCarburantStatus,
+  Role,
+  VehicleAssignmentStatus,
 } from '@prisma/client';
 
 export type VehicleWithRelations = Vehicle & {
@@ -98,6 +100,12 @@ export class ParcAutoRepository {
           orderBy: { createdAt: 'desc' },
           include: { file: true },
         },
+        assignments: {
+          where: { status: VehicleAssignmentStatus.ACTIVE },
+          include: {
+            driver: { select: { id: true, name: true, email: true } },
+          },
+        },
       },
     }) as Promise<VehicleWithRelations | null>;
   }
@@ -141,9 +149,120 @@ export class ParcAutoRepository {
   }
 
   async archive(id: string): Promise<Vehicle> {
-    return this.prisma.vehicle.update({
+    return this.prisma.$transaction(async (tx) => {
+      await tx.lgVehicleAssignment.updateMany({
+        where: { vehicleId: id, status: VehicleAssignmentStatus.ACTIVE },
+        data: { status: VehicleAssignmentStatus.TERMINEE, endDate: new Date() },
+      });
+      return tx.vehicle.update({
+        where: { id },
+        data: { statut: VehicleStatut.ARCHIVE },
+      });
+    });
+  }
+
+  async findAssignmentsByVehicle(vehicleId: string) {
+    return this.prisma.lgVehicleAssignment.findMany({
+      where: { vehicleId },
+      orderBy: { startDate: 'desc' },
+      include: {
+        driver: { select: { id: true, name: true, email: true } },
+        file: true,
+      },
+    });
+  }
+
+  async findAssignmentById(id: string) {
+    return this.prisma.lgVehicleAssignment.findUnique({ where: { id } });
+  }
+
+  async createAssignmentClosingPrevious(params: {
+    vehicleId: string;
+    driverId: number;
+    fileId: number;
+    startDate: Date;
+    notes?: string;
+    createdById: number;
+  }) {
+    const { vehicleId, driverId, startDate } = params;
+    return this.prisma.$transaction(
+      async (tx) => {
+        // Un véhicule ↔ un chauffeur : clôture l'actif des deux côtés, sans chevauchement.
+        await tx.lgVehicleAssignment.updateMany({
+          where: {
+            status: VehicleAssignmentStatus.ACTIVE,
+            OR: [{ vehicleId }, { driverId }],
+          },
+          data: {
+            status: VehicleAssignmentStatus.TERMINEE,
+            endDate: startDate,
+          },
+        });
+        return tx.lgVehicleAssignment.create({ data: params });
+      },
+      // Serializable : deux affectations concurrentes ne peuvent pas rester ACTIVE toutes les deux.
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
+  /** Affectation (véhicule ou chauffeur) qui commence ou finit après `startDate` → chevauchement. */
+  async findConflictingAssignment(
+    vehicleId: string,
+    driverId: number,
+    startDate: Date,
+  ) {
+    return this.prisma.lgVehicleAssignment.findFirst({
+      where: {
+        OR: [{ vehicleId }, { driverId }],
+        AND: [
+          {
+            OR: [
+              { startDate: { gt: startDate } },
+              { endDate: { gt: startDate } },
+            ],
+          },
+        ],
+      },
+    });
+  }
+
+  async endAssignment(id: string, endDate: Date) {
+    return this.prisma.lgVehicleAssignment.update({
       where: { id },
-      data: { statut: VehicleStatut.ARCHIVE },
+      data: { status: VehicleAssignmentStatus.TERMINEE, endDate },
+    });
+  }
+
+  async findDrivers() {
+    return this.prisma.user.findMany({
+      where: { role: Role.DRIVER },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        fonction: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        lastLoginAt: true,
+        vehicleAssignments: {
+          where: { status: VehicleAssignmentStatus.ACTIVE },
+          select: {
+            id: true,
+            startDate: true,
+            vehicle: {
+              select: {
+                id: true,
+                immatriculation: true,
+                marque: true,
+                modele: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 

@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   MaintenanceInterventionType,
   MaintenanceStatus,
@@ -7,6 +11,7 @@ import {
 } from '@prisma/client';
 import { MaintenanceService } from './maintenance.service';
 import { MaintenanceRepository } from 'src/repository/maintenance/maintenance.repository';
+import { PrismaService } from 'prisma/prisma.service';
 
 const makeRequest = (overrides: Record<string, unknown> = {}) => ({
   id: 'req-1',
@@ -34,6 +39,7 @@ describe('MaintenanceService - Reference Generation', () => {
     update: jest.fn(),
     softDelete: jest.fn(),
   };
+  const mockPrisma = { file: { count: jest.fn() } };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -42,6 +48,7 @@ describe('MaintenanceService - Reference Generation', () => {
       providers: [
         MaintenanceService,
         { provide: MaintenanceRepository, useValue: mockRepository },
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
@@ -81,6 +88,36 @@ describe('MaintenanceService - Reference Generation', () => {
       const result = await service.createRequest(baseDto as any, 42);
 
       expect(result.reference).toBe(ref);
+    });
+
+    it('stores the requester uploaded attachments', async () => {
+      mockRepository.generateReference.mockResolvedValue('ENT-2026-0003');
+      mockRepository.create.mockResolvedValue(makeRequest());
+      mockPrisma.file.count.mockResolvedValue(2);
+
+      await service.createRequest(
+        { ...baseDto, data: { attachmentIds: [7, 8] } } as any,
+        42,
+      );
+
+      expect(mockPrisma.file.count).toHaveBeenCalledWith({
+        where: { id: { in: [7, 8] }, uploadedById: 42 },
+      });
+      expect(mockRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { attachmentIds: [7, 8] } }),
+      );
+    });
+
+    it('rejects attachments uploaded by someone else', async () => {
+      mockPrisma.file.count.mockResolvedValue(0);
+
+      await expect(
+        service.createRequest(
+          { ...baseDto, data: { attachmentIds: [7] } } as any,
+          42,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(mockRepository.create).not.toHaveBeenCalled();
     });
 
     it('should retry on P2002 collision and succeed on second attempt', async () => {

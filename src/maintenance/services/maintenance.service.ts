@@ -13,6 +13,7 @@ import {
 import { CreateMaintenanceRequestDto } from '../dto/create-maintenance-request.dto';
 import { FilterMaintenanceDto } from '../dto/filter-maintenance.dto';
 import { UpdateMaintenanceRequestDto } from '../dto/update-maintenance-request.dto';
+import { assertOwnFiles } from 'src/storage/utils/assert-own-files.util';
 
 @Injectable()
 export class MaintenanceService {
@@ -21,7 +22,12 @@ export class MaintenanceService {
     private readonly prisma: PrismaService,
   ) {}
 
-  async createRequest(dto: CreateMaintenanceRequestDto, requestorId: number) {
+  /** `equipmentId` : réservé au module inventaire (vérifie l'attribution avant). */
+  async createRequest(
+    dto: CreateMaintenanceRequestDto,
+    requestorId: number,
+    equipmentId?: string,
+  ) {
     let vehicleConnect: { connect: { id: string } } | undefined;
     let vehicleRef: string | undefined;
 
@@ -49,6 +55,12 @@ export class MaintenanceService {
       vehicleRef = vehicle.immatriculation;
     }
 
+    const attachmentIds = await assertOwnFiles(
+      this.prisma,
+      dto.data?.attachmentIds,
+      requestorId,
+    );
+
     const year = new Date().getFullYear();
     let reference: string;
 
@@ -65,6 +77,8 @@ export class MaintenanceService {
           vehicleRef,
           ...(vehicleConnect && { vehicle: vehicleConnect }),
           requestor: { connect: { id: requestorId } },
+          ...(equipmentId && { equipment: { connect: { id: equipmentId } } }),
+          ...(attachmentIds.length && { data: { attachmentIds } }),
         });
       } catch (err: any) {
         if (err?.code === 'P2002') {
@@ -103,7 +117,10 @@ export class MaintenanceService {
     return request;
   }
 
-  async getAllAdmin(query: FilterMaintenanceDto) {
+  async getAllAdmin(
+    query: FilterMaintenanceDto,
+    scope: MaintenanceFilters['scope'] = 'VEHICLE_ONLY',
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -114,6 +131,7 @@ export class MaintenanceService {
       interventionType: query.interventionType,
       vehicleId: query.vehicleId,
       vehicleRef: query.vehicleRef,
+      scope,
       search: query.search,
       dateFrom: query.dateFrom,
       dateTo: query.dateTo,
@@ -133,7 +151,11 @@ export class MaintenanceService {
     };
   }
 
-  async getAllForRequestor(requestorId: number, query: FilterMaintenanceDto) {
+  async getAllForRequestor(
+    requestorId: number,
+    query: FilterMaintenanceDto,
+    scope: MaintenanceFilters['scope'] = 'VEHICLE_ONLY',
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -144,6 +166,7 @@ export class MaintenanceService {
       interventionType: query.interventionType,
       vehicleId: query.vehicleId,
       vehicleRef: query.vehicleRef,
+      scope,
       search: query.search,
       dateFrom: query.dateFrom,
       dateTo: query.dateTo,

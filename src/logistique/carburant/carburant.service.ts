@@ -11,6 +11,7 @@ import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.con
 import { CarburantRepository } from 'src/repository/carburant/carburant.repository';
 import { CreateCarburantDto } from './dto/create-carburant.dto';
 import { FilterCarburantDto } from './dto/filter-carburant.dto';
+import { assertOwnFiles } from 'src/storage/utils/assert-own-files.util';
 
 @Injectable()
 export class CarburantService {
@@ -40,6 +41,8 @@ export class CarburantService {
       );
     }
 
+    const fileIds = await assertOwnFiles(this.prisma, dto.fileIds, requestorId);
+
     const year = new Date().getFullYear();
     const reference =
       await this.carburantRepository.generateNextReference(year);
@@ -56,6 +59,9 @@ export class CarburantService {
       dateApprovisionnement: new Date(dto.dateApprovisionnement),
       vehicle: { connect: { id: vehicle.id } },
       requestor: { connect: { id: requestorId } },
+      ...(fileIds.length && {
+        files: { connect: fileIds.map((id) => ({ id })) },
+      }),
     });
 
     try {
