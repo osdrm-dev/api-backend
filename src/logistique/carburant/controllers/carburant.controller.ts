@@ -55,6 +55,14 @@ export class CarburantController {
     return this.carburantService.getStats();
   }
 
+  @Get('consumption')
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Consommation (L/100 km) par véhicule' })
+  async getConsumption(@Query() query: FilterCarburantDto) {
+    return this.carburantService.getConsumption(query);
+  }
+
   // Must be declared before /:id to avoid Express matching 'my-appros' as an id param
   @Get('my-appros')
   @Roles('DEMANDEUR', 'ADMIN')

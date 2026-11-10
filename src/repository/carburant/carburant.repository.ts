@@ -176,6 +176,31 @@ export class CarburantRepository {
     };
   }
 
+  async findForConsumption(
+    filters: Pick<
+      FindAllCarburantFilters,
+      'vehicleId' | 'typeCarburant' | 'dateFrom' | 'dateTo'
+    >,
+  ) {
+    return this.prisma.lgCarburant.findMany({
+      where: {
+        ...this.buildWhereClause(filters),
+        status: { not: LgCarburantStatus.CANCELLED },
+        vehicleId: filters.vehicleId ?? { not: null },
+      },
+      select: {
+        vehicleId: true,
+        volumeLitres: true,
+        montantTotal: true,
+        kilometrage: true,
+        dateApprovisionnement: true,
+        vehicle: {
+          select: { immatriculation: true, marque: true, modele: true },
+        },
+      },
+    });
+  }
+
   async softDelete(id: string) {
     return this.prisma.lgCarburant.update({
       where: { id },

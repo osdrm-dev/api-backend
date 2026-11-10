@@ -184,4 +184,56 @@ export class CarburantService {
   async getStats() {
     return this.carburantRepository.aggregateStats();
   }
+
+  async getConsumption(query: FilterCarburantDto = {}) {
+    const rows = await this.carburantRepository.findForConsumption({
+      vehicleId: query.vehicleId,
+      typeCarburant: query.typeCarburant,
+      dateFrom: query.dateFrom ? new Date(query.dateFrom) : undefined,
+      dateTo: query.dateTo ? new Date(query.dateTo) : undefined,
+    });
+    const byVehicle = new Map<string, typeof rows>();
+    for (const r of rows) {
+      const list = byVehicle.get(r.vehicleId!) ?? [];
+      list.push(r);
+      byVehicle.set(r.vehicleId!, list);
+    }
+    return [...byVehicle.entries()]
+      .map(([id, list]) => ({
+        vehicleId: id,
+        ...list[0].vehicle!,
+        refuelCount: list.length,
+        totalLitres: list.reduce((s, r) => s + Number(r.volumeLitres), 0),
+        totalAmount: list.reduce((s, r) => s + Number(r.montantTotal), 0),
+        lastRefuelDate: list.reduce(
+          (d, r) => (r.dateApprovisionnement > d ? r.dateApprovisionnement : d),
+          list[0].dateApprovisionnement,
+        ),
+        ...computeConsumption(list),
+      }))
+      .sort((a, b) => a.immatriculation.localeCompare(b.immatriculation));
+  }
+}
+
+/**
+ * Full-to-full method: litres of every refuel except the first, over the odometer span.
+ * Entries without kilometrage are ignored. Assumes a full tank at each refuel.
+ */
+export function computeConsumption(
+  entries: { kilometrage: number | null; volumeLitres: unknown }[],
+): { distanceKm: number; litresPer100Km: number | null } {
+  const withKm = entries
+    .filter((e) => e.kilometrage != null)
+    .sort((a, b) => a.kilometrage! - b.kilometrage!);
+  if (withKm.length < 2) return { distanceKm: 0, litresPer100Km: null };
+  const distanceKm =
+    withKm[withKm.length - 1].kilometrage! - withKm[0].kilometrage!;
+  if (distanceKm <= 0) return { distanceKm: 0, litresPer100Km: null };
+  const litres = withKm
+    .slice(1)
+    .reduce((s, e) => s + Number(e.volumeLitres), 0);
+  return {
+    distanceKm,
+    litresPer100Km: Math.round((litres / distanceKm) * 10000) / 100,
+  };
 }

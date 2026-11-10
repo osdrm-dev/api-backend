@@ -10,7 +10,7 @@ import {
   LgTypeCarburant,
   VehicleStatut,
 } from '@prisma/client';
-import { CarburantService } from './carburant.service';
+import { CarburantService, computeConsumption } from './carburant.service';
 import { CarburantRepository } from 'src/repository/carburant/carburant.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { PrismaService } from 'prisma/prisma.service';
@@ -23,6 +23,7 @@ const mockRepository = {
   findManyByRequestor: jest.fn(),
   updateStatus: jest.fn(),
   aggregateStats: jest.fn(),
+  findForConsumption: jest.fn(),
 };
 
 const mockPrisma = {
@@ -277,6 +278,74 @@ describe('CarburantService', () => {
 
       const result = await service.getStats();
       expect(result).toEqual(stats);
+    });
+  });
+
+  describe('computeConsumption', () => {
+    it('uses litres of all refuels but the first over the km span', () => {
+      expect(
+        computeConsumption([
+          { kilometrage: 10800, volumeLitres: 42 },
+          { kilometrage: 10000, volumeLitres: 50 },
+          { kilometrage: null, volumeLitres: 30 },
+          { kilometrage: 10400, volumeLitres: 40 },
+        ]),
+      ).toEqual({ distanceKm: 800, litresPer100Km: 10.25 });
+    });
+
+    it('returns null with fewer than 2 km readings', () => {
+      expect(
+        computeConsumption([{ kilometrage: 10000, volumeLitres: 50 }]),
+      ).toEqual({ distanceKm: 0, litresPer100Km: null });
+    });
+  });
+
+  describe('getConsumption', () => {
+    it('groups by vehicle with totals', async () => {
+      const vehicle = {
+        immatriculation: 'IM-001-T',
+        marque: 'Toyota',
+        modele: 'Hilux',
+      };
+      mockRepository.findForConsumption.mockResolvedValue([
+        {
+          vehicleId: 'v1',
+          volumeLitres: 50,
+          montantTotal: 1000,
+          kilometrage: 1000,
+          dateApprovisionnement: new Date('2026-01-01'),
+          vehicle,
+        },
+        {
+          vehicleId: 'v1',
+          volumeLitres: 20,
+          montantTotal: 400,
+          kilometrage: 1200,
+          dateApprovisionnement: new Date('2026-02-01'),
+          vehicle,
+        },
+      ]);
+
+      const [row] = await service.getConsumption({
+        typeCarburant: LgTypeCarburant.GASOIL,
+        dateFrom: '2026-01-01',
+      });
+      expect(mockRepository.findForConsumption).toHaveBeenCalledWith({
+        vehicleId: undefined,
+        typeCarburant: LgTypeCarburant.GASOIL,
+        dateFrom: new Date('2026-01-01'),
+        dateTo: undefined,
+      });
+      expect(row).toMatchObject({
+        vehicleId: 'v1',
+        immatriculation: 'IM-001-T',
+        refuelCount: 2,
+        totalLitres: 70,
+        totalAmount: 1400,
+        distanceKm: 200,
+        litresPer100Km: 10,
+        lastRefuelDate: new Date('2026-02-01'),
+      });
     });
   });
 });
