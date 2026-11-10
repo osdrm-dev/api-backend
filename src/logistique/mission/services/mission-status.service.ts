@@ -54,15 +54,15 @@ export class MissionStatusService {
   async updateStatus(
     id: string,
     dto: UpdateMissionStatusDto,
-    gestionnaireId: number,
+    managerId: number,
   ) {
-    const dep = await this.repository.findById(id);
-    if (!dep) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    const mission = await this.repository.findById(id);
+    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
 
-    const allowed = TRANSITIONS[dep.status];
+    const allowed = TRANSITIONS[mission.status];
     if (!allowed.includes(dto.status)) {
       throw new UnprocessableEntityException(
-        `Transition invalide : ${dep.status} → ${dto.status}.`,
+        `Transition invalide : ${mission.status} → ${dto.status}.`,
       );
     }
 
@@ -74,18 +74,18 @@ export class MissionStatusService {
 
     const updated = await this.repository.updateStatus(id, dto.status, {
       ...(dto.rejectionReason ? { rejectionReason: dto.rejectionReason } : {}),
-      manager: { connect: { id: gestionnaireId } },
+      manager: { connect: { id: managerId } },
     });
 
     const event = STATUS_NOTIFICATION_EVENTS[dto.status];
-    if (event && dep.requestor?.email) {
+    if (event && mission.requestor?.email) {
       try {
         await this.notificationService.createNotification(
           event,
-          [dep.requestor.email],
+          [mission.requestor.email],
           id,
           {
-            reference: dep.reference,
+            reference: mission.reference,
             newStatus: dto.status,
             rejectionReason: dto.rejectionReason ?? null,
           },

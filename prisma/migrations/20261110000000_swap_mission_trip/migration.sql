@@ -1,3 +1,10 @@
+-- !!! APPLY MANUALLY !!!
+--   npx prisma db execute --file prisma/migrations/20261110000000_swap_mission_trip/migration.sql
+--   then, if the DB is baselined with Prisma Migrate:
+--   npx prisma migrate resolve --applied 20261110000000_swap_mission_trip
+-- NEVER run `prisma db push` on this schema before applying this file:
+-- db push would DROP and recreate the lg_deplacement* tables (data loss).
+--
 -- Swap: LgDeplacement (mission request, UI "Trajet") -> LgMission; LgTrip now requires a mission.
 -- RENAME-based: zero data loss on lg_missions*. Only trip data is purged.
 

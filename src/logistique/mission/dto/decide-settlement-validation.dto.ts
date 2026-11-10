@@ -3,10 +3,10 @@ import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { LgSettlementValidationStatus } from '@prisma/client';
 
 /**
- * Décision d'un valideur sur une ligne de validation de settlement.
+ * Décision d'un valideur sur une ligne de validation de liquidation.
  * Seules les valeurs APPROVED et REJECTED sont acceptées (pas de retour à PENDING
  * via cet endpoint).
- * Le comment est OPTIONNEL dans tous les cas (décision actée n°4).
+ * Le commentaire est OPTIONNEL dans tous les cas (décision actée n°4).
  */
 export class DecideSettlementValidationDto {
   @ApiProperty({

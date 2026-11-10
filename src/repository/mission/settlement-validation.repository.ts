@@ -21,7 +21,7 @@ export class SettlementValidationRepository {
   /**
    * Crée les 3 lignes de validation (DEMANDEUR, OM, CFO) à PENDING.
    * Doit être appelée dans une transaction existante (tx) pour rester cohérent
-   * avec la création de la settlement.
+   * avec la création de la liquidation.
    */
   createValidationRows(tx: PrismaTx, settlementId: string) {
     const roles: LgSettlementValidatorRole[] = [

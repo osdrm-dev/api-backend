@@ -40,7 +40,7 @@ export type VehicleUsedByUser = VehicleWithRelations & {
 
 /**
  * Statuts de mission (trajet) considérés comme "validés" (FR-2) : tous sauf
- * EN_ATTENTE (en attente de validation), REJECTED et CANCELLED.
+ * PENDING (en attente de validation), REJECTED et CANCELLED.
  */
 const VALIDATED_MISSION_STATUSES: LgMissionStatus[] = [
   LgMissionStatus.VEHICLE_ASSIGNED,

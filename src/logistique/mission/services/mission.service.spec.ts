@@ -30,7 +30,7 @@ const mockNotification = {
 };
 
 const BASE_MISSION = {
-  id: 'dep-1',
+  id: 'mission-1',
   reference: 'TRJ-2026-0001',
   purpose: 'Mission terrain',
   destination: 'Fianarantsoa',
@@ -84,7 +84,7 @@ describe('MissionService', () => {
       expect(mockNotification.createNotification).toHaveBeenCalledWith(
         'MISSION_CREATED',
         ['gp@test.com'],
-        'dep-1',
+        'mission-1',
         expect.any(Object),
         false,
       );
@@ -117,7 +117,7 @@ describe('MissionService', () => {
   describe('findById', () => {
     it('returns mission to its requestor', async () => {
       mockRepository.findById.mockResolvedValue(BASE_MISSION);
-      const result = await service.findById('dep-1', {
+      const result = await service.findById('mission-1', {
         id: 10,
         role: 'DEMANDEUR',
       });
@@ -127,20 +127,20 @@ describe('MissionService', () => {
     it('throws 404 when not found', async () => {
       mockRepository.findById.mockResolvedValue(null);
       await expect(
-        service.findById('dep-999', { id: 10, role: 'DEMANDEUR' }),
+        service.findById('mission-999', { id: 10, role: 'DEMANDEUR' }),
       ).rejects.toThrow(NotFoundException);
     });
 
     it("throws 403 when DEMANDEUR accesses another user's request", async () => {
       mockRepository.findById.mockResolvedValue(BASE_MISSION);
       await expect(
-        service.findById('dep-1', { id: 99, role: 'DEMANDEUR' }),
+        service.findById('mission-1', { id: 99, role: 'DEMANDEUR' }),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('allows GESTIONNAIRE_PARC to access any request', async () => {
       mockRepository.findById.mockResolvedValue(BASE_MISSION);
-      const result = await service.findById('dep-1', {
+      const result = await service.findById('mission-1', {
         id: 99,
         role: 'GESTIONNAIRE_PARC',
       });
@@ -157,7 +157,7 @@ describe('MissionService', () => {
       });
       mockNotification.createNotification.mockResolvedValue({});
 
-      const result = await service.cancel('dep-1', {
+      const result = await service.cancel('mission-1', {
         id: 10,
         role: 'DEMANDEUR',
       });
@@ -167,7 +167,7 @@ describe('MissionService', () => {
     it("throws 403 when DEMANDEUR tries to cancel another user's request", async () => {
       mockRepository.findById.mockResolvedValue(BASE_MISSION);
       await expect(
-        service.cancel('dep-1', { id: 99, role: 'DEMANDEUR' }),
+        service.cancel('mission-1', { id: 99, role: 'DEMANDEUR' }),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -177,7 +177,7 @@ describe('MissionService', () => {
         status: 'SETTLED',
       });
       await expect(
-        service.cancel('dep-1', { id: 10, role: 'DEMANDEUR' }),
+        service.cancel('mission-1', { id: 10, role: 'DEMANDEUR' }),
       ).rejects.toThrow(UnprocessableEntityException);
     });
 
@@ -187,7 +187,7 @@ describe('MissionService', () => {
         status: 'CONFIRMED',
       });
       await expect(
-        service.cancel('dep-1', { id: 10, role: 'DEMANDEUR' }),
+        service.cancel('mission-1', { id: 10, role: 'DEMANDEUR' }),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -202,7 +202,10 @@ describe('MissionService', () => {
       });
       mockNotification.createNotification.mockResolvedValue({});
 
-      const result = await service.cancel('dep-1', { id: 1, role: 'ADMIN' });
+      const result = await service.cancel('mission-1', {
+        id: 1,
+        role: 'ADMIN',
+      });
       expect(result.status).toBe('CANCELLED');
     });
   });

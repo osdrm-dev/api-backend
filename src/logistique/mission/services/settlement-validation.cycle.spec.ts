@@ -11,7 +11,7 @@ import { SettlementValidationRepository } from 'src/repository/mission/settlemen
 import { NotificationService } from 'src/notification/services/nofitication.service';
 
 /**
- * Test d'intégration "cycle complet" du circuit de validation de settlement.
+ * Test d'intégration "cycle complet" du circuit de validation de liquidation.
  *
  * Note : l'infrastructure e2e du projet (test/jest-e2e.json) démarre AppModule
  * complet (PostgreSQL + Redis + queues), indisponible hors environnement de CI
@@ -53,7 +53,7 @@ describe('Settlement validation - cycle complet (intégration)', () => {
 
   const missionRepository = {
     findById: jest.fn(async () => ({
-      id: 'dep-1',
+      id: 'mission-1',
       reference: 'TRJ-2026-0001',
       status: state.missionStatus,
       requestorId: 10,
@@ -131,7 +131,7 @@ describe('Settlement validation - cycle complet (intégration)', () => {
   it('runs the full submit -> reject -> resubmit -> full validation cycle', async () => {
     // OM valide
     await service.decide(
-      'dep-1',
+      'mission-1',
       LgSettlementValidatorRole.OM,
       LgSettlementValidationStatus.APPROVED,
       undefined,
@@ -141,7 +141,7 @@ describe('Settlement validation - cycle complet (intégration)', () => {
 
     // DEMANDEUR (requestor) valide
     await service.decide(
-      'dep-1',
+      'mission-1',
       LgSettlementValidatorRole.DEMANDEUR,
       LgSettlementValidationStatus.APPROVED,
       undefined,
@@ -151,7 +151,7 @@ describe('Settlement validation - cycle complet (intégration)', () => {
 
     // CFO rejette -> SETTLEMENT_REJECTED
     await service.decide(
-      'dep-1',
+      'mission-1',
       LgSettlementValidatorRole.CFO,
       LgSettlementValidationStatus.REJECTED,
       'Justificatifs manquants',
@@ -170,21 +170,21 @@ describe('Settlement validation - cycle complet (intégration)', () => {
 
     // Les 3 valident -> SETTLEMENT_APPROVED au dernier
     await service.decide(
-      'dep-1',
+      'mission-1',
       LgSettlementValidatorRole.DEMANDEUR,
       LgSettlementValidationStatus.APPROVED,
       undefined,
       { id: 10, role: 'DEMANDEUR' },
     );
     await service.decide(
-      'dep-1',
+      'mission-1',
       LgSettlementValidatorRole.OM,
       LgSettlementValidationStatus.APPROVED,
       undefined,
       { id: 2, role: 'OM' },
     );
     const final = await service.decide(
-      'dep-1',
+      'mission-1',
       LgSettlementValidatorRole.CFO,
       LgSettlementValidationStatus.APPROVED,
       undefined,
@@ -196,7 +196,7 @@ describe('Settlement validation - cycle complet (intégration)', () => {
     expect(notification.createNotification).toHaveBeenCalledWith(
       expect.stringContaining('SETTLEMENT_APPROVED'),
       expect.any(Array),
-      'dep-1',
+      'mission-1',
       expect.any(Object),
       false,
     );

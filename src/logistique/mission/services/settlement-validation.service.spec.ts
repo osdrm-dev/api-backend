@@ -36,7 +36,7 @@ const mockNotification = {
 };
 
 const DEP = {
-  id: 'dep-1',
+  id: 'mission-1',
   reference: 'TRJ-2026-0001',
   status: LgMissionStatus.SETTLED,
   requestorId: 10,
@@ -128,7 +128,7 @@ describe('SettlementValidationService', () => {
       mockMissionRepository.findById.mockResolvedValue(null);
       await expect(
         service.decide(
-          'dep-x',
+          'mission-x',
           LgSettlementValidatorRole.OM,
           LgSettlementValidationStatus.APPROVED,
           undefined,
@@ -144,7 +144,7 @@ describe('SettlementValidationService', () => {
       });
       await expect(
         service.decide(
-          'dep-1',
+          'mission-1',
           LgSettlementValidatorRole.OM,
           LgSettlementValidationStatus.APPROVED,
           undefined,
@@ -160,7 +160,7 @@ describe('SettlementValidationService', () => {
       });
       await expect(
         service.decide(
-          'dep-1',
+          'mission-1',
           LgSettlementValidatorRole.OM,
           LgSettlementValidationStatus.APPROVED,
           undefined,
@@ -173,7 +173,7 @@ describe('SettlementValidationService', () => {
       mockMissionRepository.findById.mockResolvedValue(DEP);
       await expect(
         service.decide(
-          'dep-1',
+          'mission-1',
           LgSettlementValidatorRole.DEMANDEUR,
           LgSettlementValidationStatus.APPROVED,
           undefined,
@@ -190,7 +190,7 @@ describe('SettlementValidationService', () => {
       });
       await expect(
         service.decide(
-          'dep-1',
+          'mission-1',
           LgSettlementValidatorRole.DEMANDEUR,
           LgSettlementValidationStatus.APPROVED,
           undefined,
@@ -211,7 +211,7 @@ describe('SettlementValidationService', () => {
       );
       await expect(
         service.decide(
-          'dep-1',
+          'mission-1',
           LgSettlementValidatorRole.OM,
           LgSettlementValidationStatus.APPROVED,
           undefined,
@@ -225,19 +225,19 @@ describe('SettlementValidationService', () => {
       mockValidationRepository.findValidationsForUpdate.mockResolvedValue(
         rows(),
       );
-      const depUpdate = jest.fn().mockResolvedValue({});
+      const missionUpdate = jest.fn().mockResolvedValue({});
       mockPrisma.$transaction.mockImplementation(async (cb) =>
-        cb({ lgMission: { update: depUpdate } }),
+        cb({ lgMission: { update: missionUpdate } }),
       );
 
       const res = await service.decide(
-        'dep-1',
+        'mission-1',
         LgSettlementValidatorRole.OM,
         LgSettlementValidationStatus.APPROVED,
         undefined,
         { id: 1, role: 'OM' },
       );
-      expect(depUpdate).not.toHaveBeenCalled();
+      expect(missionUpdate).not.toHaveBeenCalled();
       expect(res.missionStatus).toBe(LgMissionStatus.SETTLED);
     });
 
@@ -249,20 +249,20 @@ describe('SettlementValidationService', () => {
           OM: LgSettlementValidationStatus.APPROVED,
         }),
       );
-      const depUpdate = jest.fn().mockResolvedValue({});
+      const missionUpdate = jest.fn().mockResolvedValue({});
       mockPrisma.$transaction.mockImplementation(async (cb) =>
-        cb({ lgMission: { update: depUpdate } }),
+        cb({ lgMission: { update: missionUpdate } }),
       );
 
       const res = await service.decide(
-        'dep-1',
+        'mission-1',
         LgSettlementValidatorRole.CFO,
         LgSettlementValidationStatus.APPROVED,
         undefined,
         { id: 1, role: 'CFO' },
       );
-      expect(depUpdate).toHaveBeenCalledWith({
-        where: { id: 'dep-1' },
+      expect(missionUpdate).toHaveBeenCalledWith({
+        where: { id: 'mission-1' },
         data: { status: LgMissionStatus.SETTLEMENT_APPROVED },
       });
       expect(res.missionStatus).toBe(LgMissionStatus.SETTLEMENT_APPROVED);
@@ -273,20 +273,20 @@ describe('SettlementValidationService', () => {
       mockValidationRepository.findValidationsForUpdate.mockResolvedValue(
         rows(),
       );
-      const depUpdate = jest.fn().mockResolvedValue({});
+      const missionUpdate = jest.fn().mockResolvedValue({});
       mockPrisma.$transaction.mockImplementation(async (cb) =>
-        cb({ lgMission: { update: depUpdate } }),
+        cb({ lgMission: { update: missionUpdate } }),
       );
 
       const res = await service.decide(
-        'dep-1',
+        'mission-1',
         LgSettlementValidatorRole.OM,
         LgSettlementValidationStatus.REJECTED,
         'Montant incorrect',
         { id: 1, role: 'OM' },
       );
-      expect(depUpdate).toHaveBeenCalledWith({
-        where: { id: 'dep-1' },
+      expect(missionUpdate).toHaveBeenCalledWith({
+        where: { id: 'mission-1' },
         data: { status: LgMissionStatus.SETTLEMENT_REJECTED },
       });
       expect(res.missionStatus).toBe(LgMissionStatus.SETTLEMENT_REJECTED);

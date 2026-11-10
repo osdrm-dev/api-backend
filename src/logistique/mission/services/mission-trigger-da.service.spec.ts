@@ -28,8 +28,8 @@ const mockBudgetService = {
   getActiveProjectInternal: jest.fn(),
 };
 
-const BASE_DEP = {
-  id: 'dep-1',
+const BASE_MISSION = {
+  id: 'mission-1',
   reference: 'TRJ-2026-0001',
   status: LgMissionStatus.PENDING,
   purpose: 'Mission terrain',
@@ -70,34 +70,38 @@ describe('MissionTriggerDaService', () => {
   it('throws 404 when mission not found', async () => {
     mockRepository.findById.mockResolvedValue(null);
     await expect(
-      service.triggerDA('dep-999', { activityCode: 'ACT', acheteurId: 5 }, 1),
+      service.triggerDA(
+        'mission-999',
+        { activityCode: 'ACT', acheteurId: 5 },
+        1,
+      ),
     ).rejects.toThrow(NotFoundException);
   });
 
   it('throws 409 when DA already linked', async () => {
     mockRepository.findById.mockResolvedValue({
-      ...BASE_DEP,
+      ...BASE_MISSION,
       linkedPurchaseId: 'purchase-1',
     });
     await expect(
-      service.triggerDA('dep-1', { activityCode: 'ACT', acheteurId: 5 }, 1),
+      service.triggerDA('mission-1', { activityCode: 'ACT', acheteurId: 5 }, 1),
     ).rejects.toThrow(ConflictException);
   });
 
   it('throws 404 when acheteur is inactive or wrong role', async () => {
-    mockRepository.findById.mockResolvedValue(BASE_DEP);
+    mockRepository.findById.mockResolvedValue(BASE_MISSION);
     mockPrisma.user.findUnique.mockResolvedValue({
       id: 5,
       role: 'DEMANDEUR',
       isActive: true,
     });
     await expect(
-      service.triggerDA('dep-1', { activityCode: 'ACT', acheteurId: 5 }, 1),
+      service.triggerDA('mission-1', { activityCode: 'ACT', acheteurId: 5 }, 1),
     ).rejects.toThrow(NotFoundException);
   });
 
   it('creates Purchase and updates mission in a transaction', async () => {
-    mockRepository.findById.mockResolvedValue(BASE_DEP);
+    mockRepository.findById.mockResolvedValue(BASE_MISSION);
     mockPrisma.user.findUnique.mockResolvedValue(ACTIVE_ACHETEUR);
     mockBudgetService.getActiveProjectInternal.mockResolvedValue(PROJECT);
 
@@ -117,7 +121,7 @@ describe('MissionTriggerDaService', () => {
     );
 
     const result = await service.triggerDA(
-      'dep-1',
+      'mission-1',
       { activityCode: 'ACT', acheteurId: 5 },
       1,
     );

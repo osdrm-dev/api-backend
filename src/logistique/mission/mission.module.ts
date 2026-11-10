@@ -36,6 +36,6 @@ import { MissionCommentController } from './controllers/mission-comment.controll
     SettlementValidationService,
     MissionCommentService,
   ],
-  exports: [MissionService],
+  exports: [MissionService, MissionRepository],
 })
 export class MissionModule {}

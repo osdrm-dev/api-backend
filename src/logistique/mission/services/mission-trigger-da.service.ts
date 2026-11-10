@@ -22,15 +22,11 @@ export class MissionTriggerDaService {
     private readonly budgetTableService: BudgetTableService,
   ) {}
 
-  async triggerDA(
-    id: string,
-    dto: TriggerDaMissionDto,
-    gestionnaireId: number,
-  ) {
-    const dep = await this.repository.findById(id);
-    if (!dep) throw new NotFoundException(`Trajet ${id} introuvable.`);
+  async triggerDA(id: string, dto: TriggerDaMissionDto, managerId: number) {
+    const mission = await this.repository.findById(id);
+    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
 
-    if (dep.linkedPurchaseId) {
+    if (mission.linkedPurchaseId) {
       throw new ConflictException('Une DA est déjà liée à ce trajet.');
     }
 
@@ -60,11 +56,11 @@ export class MissionTriggerDaService {
           year,
           sequentialNumber,
           operationType: OperationType.OPERATION,
-          title: dto.title ?? `Location véhicule - ${dep.reference}`,
+          title: dto.title ?? `Location véhicule - ${mission.reference}`,
           description:
             dto.description ??
-            `Trajet ${dep.reference} : ${dep.purpose} vers ${dep.destination}`,
-          justification: `Trajet ${dep.reference}`,
+            `Trajet ${mission.reference} : ${mission.purpose} vers ${mission.destination}`,
+          justification: `Trajet ${mission.reference}`,
           project: project.projectName,
           projectCode: project.projectCode,
           grantCode: project.grantCode,
@@ -74,7 +70,7 @@ export class MissionTriggerDaService {
           site: project.site,
           status: PurchaseStatus.DRAFT,
           currentStep: PurchaseStep.DA,
-          creatorId: gestionnaireId,
+          creatorId: managerId,
           acheteurId: dto.acheteurId,
           data: { missionId: id },
         },

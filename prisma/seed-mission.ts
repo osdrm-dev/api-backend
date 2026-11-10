@@ -43,7 +43,7 @@ export async function seedMission(
   });
 
   // 2. VEHICLE_ASSIGNED — Julie Fara, réunion Toamasina
-  const dep2 = await prisma.lgMission.create({
+  const mission2 = await prisma.lgMission.create({
     data: {
       reference: `TRJ-${year}-0002`,
       purpose: 'Réunion de coordination partenaires UNICEF',
@@ -61,7 +61,7 @@ export async function seedMission(
 
   await prisma.lgMissionComment.create({
     data: {
-      missionId: dep2.id,
+      missionId: mission2.id,
       authorId: gp.id,
       content:
         'Véhicule 1234 TAA 101 attribué. Départ prévu à 06h00 depuis le siège.',
@@ -91,7 +91,7 @@ export async function seedMission(
   });
 
   // 4. IN_PROGRESS — Julie Fara, mission terrain Tuléar
-  const dep4 = await prisma.lgMission.create({
+  const mission4 = await prisma.lgMission.create({
     data: {
       reference: `TRJ-${year}-0004`,
       purpose: 'Suivi activités terrain — District Atsimo-Andrefana',
@@ -111,7 +111,7 @@ export async function seedMission(
 
   await prisma.lgMissionComment.create({
     data: {
-      missionId: dep4.id,
+      missionId: mission4.id,
       authorId: d2.id,
       content:
         'Mission démarrée. Arrivée à Tuléar à 14h30, hébergement confirmé.',
@@ -183,7 +183,7 @@ export async function seedMission(
   });
 
   // 8. PENDING_RENTAL — Julie Fara, conférence internationale Nairobi
-  const dep8 = await prisma.lgMission.create({
+  const mission8 = await prisma.lgMission.create({
     data: {
       reference: `TRJ-${year}-0008`,
       purpose: 'Conférence régionale INGO — East Africa Nutrition Summit',
@@ -202,7 +202,7 @@ export async function seedMission(
 
   await prisma.lgMissionComment.create({
     data: {
-      missionId: dep8.id,
+      missionId: mission8.id,
       authorId: gp.id,
       content:
         'Mission internationale — DA en cours de traitement pour le vol et hébergement.',

@@ -16,37 +16,37 @@ export class MissionConfirmService {
     private readonly notificationService: NotificationService,
   ) {}
 
-  async confirm(id: string, dto: ConfirmMissionDto, gestionnaireId: number) {
-    const dep = await this.repository.findById(id);
-    if (!dep) throw new NotFoundException(`Trajet ${id} introuvable.`);
+  async confirm(id: string, dto: ConfirmMissionDto, managerId: number) {
+    const mission = await this.repository.findById(id);
+    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
 
-    if (dep.status !== LgMissionStatus.VEHICLE_ASSIGNED) {
+    if (mission.status !== LgMissionStatus.VEHICLE_ASSIGNED) {
       throw new UnprocessableEntityException(
-        `Impossible de confirmer un trajet en statut ${dep.status}. Le véhicule doit d'abord être attribué.`,
+        `Impossible de confirmer un trajet en statut ${mission.status}. Le véhicule doit d'abord être attribué.`,
       );
     }
 
     const updated = await this.repository.confirm(
       id,
-      gestionnaireId,
+      managerId,
       new Prisma.Decimal(dto.perDiemAmount),
       dto.additionalInstructions,
     );
 
     try {
-      if (dep.requestor?.email) {
+      if (mission.requestor?.email) {
         const expiredAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
         await this.notificationService.createNotification(
           OSDRM_PROCESS_EVENT.MISSION_CONFIRMED,
-          [dep.requestor.email],
+          [mission.requestor.email],
           id,
           {
-            reference: dep.reference,
-            destination: dep.destination,
-            departureDate: dep.departureDate,
-            returnDate: dep.returnDate,
+            reference: mission.reference,
+            destination: mission.destination,
+            departureDate: mission.departureDate,
+            returnDate: mission.returnDate,
             perDiemAmount: dto.perDiemAmount,
-            vehicleImmatriculation: dep.vehicle?.immatriculation ?? null,
+            vehicleImmatriculation: mission.vehicle?.immatriculation ?? null,
           },
           false,
           expiredAt,

@@ -37,8 +37,8 @@ const mockValidationService = {
   notifyValidationRequired: jest.fn(),
 };
 
-const BASE_DEP = {
-  id: 'dep-1',
+const BASE_MISSION = {
+  id: 'mission-1',
   reference: 'TRJ-2026-0001',
   status: LgMissionStatus.CONFIRMED,
   requestorId: 10,
@@ -72,7 +72,7 @@ describe('MissionSettlementService', () => {
     mockRepository.findById.mockResolvedValue(null);
     await expect(
       service.submit(
-        'dep-999',
+        'mission-999',
         { transportCost: 0, accommodationCost: 0, mealCost: 0 },
         1,
       ),
@@ -81,12 +81,12 @@ describe('MissionSettlementService', () => {
 
   it('throws 422 when status is PENDING', async () => {
     mockRepository.findById.mockResolvedValue({
-      ...BASE_DEP,
+      ...BASE_MISSION,
       status: LgMissionStatus.PENDING,
     });
     await expect(
       service.submit(
-        'dep-1',
+        'mission-1',
         { transportCost: 0, accommodationCost: 0, mealCost: 0 },
         1,
       ),
@@ -95,12 +95,12 @@ describe('MissionSettlementService', () => {
 
   it('throws 409 when settlement already exists', async () => {
     mockRepository.findById.mockResolvedValue({
-      ...BASE_DEP,
+      ...BASE_MISSION,
       settlement: { id: 'liq-1' },
     });
     await expect(
       service.submit(
-        'dep-1',
+        'mission-1',
         { transportCost: 0, accommodationCost: 0, mealCost: 0 },
         1,
       ),
@@ -108,7 +108,7 @@ describe('MissionSettlementService', () => {
   });
 
   it('computes totalAmount and creates validation rows', async () => {
-    mockRepository.findById.mockResolvedValue(BASE_DEP);
+    mockRepository.findById.mockResolvedValue(BASE_MISSION);
     mockPrisma.user.findMany.mockResolvedValue([]);
 
     const expectedSettlement = { id: 'liq-new', totalAmount: 70000 };
@@ -121,7 +121,7 @@ describe('MissionSettlementService', () => {
     mockPrisma.$transaction.mockImplementation(async (cb) => cb(tx));
 
     const result = await service.submit(
-      'dep-1',
+      'mission-1',
       {
         transportCost: 15000,
         accommodationCost: 30000,
@@ -136,7 +136,7 @@ describe('MissionSettlementService', () => {
       'liq-new',
     );
     expect(tx.lgMission.update).toHaveBeenCalledWith({
-      where: { id: 'dep-1' },
+      where: { id: 'mission-1' },
       data: { status: LgMissionStatus.SETTLED },
     });
     expect(mockValidationService.notifyValidationRequired).toHaveBeenCalled();
@@ -144,7 +144,7 @@ describe('MissionSettlementService', () => {
 
   it('allows settlement when status is IN_PROGRESS', async () => {
     mockRepository.findById.mockResolvedValue({
-      ...BASE_DEP,
+      ...BASE_MISSION,
       status: LgMissionStatus.IN_PROGRESS,
     });
     mockPrisma.user.findMany.mockResolvedValue([]);
@@ -159,7 +159,7 @@ describe('MissionSettlementService', () => {
     mockPrisma.$transaction.mockImplementation(async (cb) => cb(tx));
 
     const result = await service.submit(
-      'dep-1',
+      'mission-1',
       {
         transportCost: 10000,
         accommodationCost: 10000,
@@ -171,8 +171,8 @@ describe('MissionSettlementService', () => {
   });
 
   it('throws 404 when getting settlement on mission without one', async () => {
-    mockRepository.findById.mockResolvedValue(BASE_DEP); // settlement: null
-    await expect(service.getSettlement('dep-1')).rejects.toThrow(
+    mockRepository.findById.mockResolvedValue(BASE_MISSION); // settlement: null
+    await expect(service.getSettlement('mission-1')).rejects.toThrow(
       NotFoundException,
     );
   });
@@ -186,15 +186,15 @@ describe('MissionSettlementService', () => {
     };
 
     it('throws 404 when no settlement exists', async () => {
-      mockRepository.findById.mockResolvedValue(BASE_DEP);
-      await expect(service.resubmit('dep-1', DTO, USER)).rejects.toThrow(
+      mockRepository.findById.mockResolvedValue(BASE_MISSION);
+      await expect(service.resubmit('mission-1', DTO, USER)).rejects.toThrow(
         NotFoundException,
       );
     });
 
     it('throws 403 when current user is not the requestor', async () => {
       mockRepository.findById.mockResolvedValue({
-        ...BASE_DEP,
+        ...BASE_MISSION,
         status: LgMissionStatus.SETTLEMENT_REJECTED,
         settlement: {
           id: 'liq-1',
@@ -204,13 +204,13 @@ describe('MissionSettlementService', () => {
         },
       });
       await expect(
-        service.resubmit('dep-1', DTO, { id: 99, role: 'DEMANDEUR' }),
+        service.resubmit('mission-1', DTO, { id: 99, role: 'DEMANDEUR' }),
       ).rejects.toThrow(ForbiddenException);
     });
 
     it('throws 422 when no validation row is REJECTED', async () => {
       mockRepository.findById.mockResolvedValue({
-        ...BASE_DEP,
+        ...BASE_MISSION,
         status: LgMissionStatus.SETTLED,
         settlement: {
           id: 'liq-1',
@@ -220,14 +220,14 @@ describe('MissionSettlementService', () => {
           ],
         },
       });
-      await expect(service.resubmit('dep-1', DTO, USER)).rejects.toThrow(
+      await expect(service.resubmit('mission-1', DTO, USER)).rejects.toThrow(
         UnprocessableEntityException,
       );
     });
 
     it('resets validations and sets status back to SETTLED', async () => {
       mockRepository.findById.mockResolvedValue({
-        ...BASE_DEP,
+        ...BASE_MISSION,
         status: LgMissionStatus.SETTLEMENT_REJECTED,
         settlement: {
           id: 'liq-1',
@@ -245,14 +245,14 @@ describe('MissionSettlementService', () => {
       };
       mockPrisma.$transaction.mockImplementation(async (cb) => cb(tx));
 
-      const result = await service.resubmit('dep-1', DTO, USER);
+      const result = await service.resubmit('mission-1', DTO, USER);
       expect(result).toEqual(updated);
       expect(mockValidationService.resubmitReset).toHaveBeenCalledWith(
         tx,
         'liq-1',
       );
       expect(tx.lgMission.update).toHaveBeenCalledWith({
-        where: { id: 'dep-1' },
+        where: { id: 'mission-1' },
         data: { status: LgMissionStatus.SETTLED },
       });
     });

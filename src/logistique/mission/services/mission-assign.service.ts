@@ -18,13 +18,9 @@ export class MissionAssignService {
     private readonly notificationService: NotificationService,
   ) {}
 
-  async assignVehicle(
-    id: string,
-    dto: AssignVehicleDto,
-    gestionnaireId: number,
-  ) {
-    const dep = await this.repository.findById(id);
-    if (!dep) throw new NotFoundException(`Trajet ${id} introuvable.`);
+  async assignVehicle(id: string, dto: AssignVehicleDto, managerId: number) {
+    const mission = await this.repository.findById(id);
+    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
 
     const vehicle = await this.prisma.vehicle.findUnique({
       where: { id: dto.vehicleId },
@@ -37,8 +33,8 @@ export class MissionAssignService {
 
     const conflict = await this.repository.findVehicleConflict(
       dto.vehicleId,
-      dep.departureDate,
-      dep.returnDate,
+      mission.departureDate,
+      mission.returnDate,
       id,
     );
     if (conflict) {
@@ -50,17 +46,17 @@ export class MissionAssignService {
     const updated = await this.repository.assignVehicle(
       id,
       dto.vehicleId,
-      gestionnaireId,
+      managerId,
     );
 
     try {
-      if (dep.requestor?.email) {
+      if (mission.requestor?.email) {
         await this.notificationService.createNotification(
           OSDRM_PROCESS_EVENT.MISSION_STATUS_CHANGED,
-          [dep.requestor.email],
+          [mission.requestor.email],
           id,
           {
-            reference: dep.reference,
+            reference: mission.reference,
             newStatus: 'VEHICLE_ASSIGNED',
             vehicleImmatriculation: vehicle.immatriculation,
           },

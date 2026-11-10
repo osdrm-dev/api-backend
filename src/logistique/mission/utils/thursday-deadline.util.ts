@@ -18,11 +18,11 @@ function getISOWeek(d: Date): { year: number; week: number } {
 }
 
 /**
- * Returns Thursday 23:59:59 UTC of the ISO week preceding dateDepart's ISO week,
+ * Returns Thursday 23:59:59 UTC of the ISO week preceding departureDate's ISO week,
  * adjusted for UTC+3 comparison (i.e., Thursday 20:59:59 UTC = Thursday 23:59:59 UTC+3).
  */
-export function getThursdayCutoff(dateDepart: Date): Date {
-  const local = toLocalDate(dateDepart);
+export function getThursdayCutoff(departureDate: Date): Date {
+  const local = toLocalDate(departureDate);
   const { year, week } = getISOWeek(local);
 
   // Find Thursday of the preceding ISO week
@@ -44,9 +44,9 @@ export function getThursdayCutoff(dateDepart: Date): Date {
 }
 
 export function isAfterDeadline(
-  dateDepart: Date,
+  departureDate: Date,
   now: Date = new Date(),
 ): boolean {
-  const cutoff = getThursdayCutoff(dateDepart);
+  const cutoff = getThursdayCutoff(departureDate);
   return now.getTime() > cutoff.getTime();
 }

@@ -19,7 +19,7 @@ export class MissionCommentController {
   constructor(private readonly commentService: UnifiedCommentService) {}
 
   @Post()
-  @ApiOperation({ summary: 'Ajouter un comment sur une demande' })
+  @ApiOperation({ summary: 'Ajouter un commentaire sur une demande' })
   @ApiParam({ name: 'id', description: 'Identifiant du trajet' })
   async addComment(
     @Param('id') id: string,

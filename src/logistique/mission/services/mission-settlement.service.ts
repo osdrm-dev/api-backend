@@ -37,16 +37,16 @@ export class MissionSettlementService {
   ) {}
 
   async submit(id: string, dto: CreateSettlementDto, submittedById: number) {
-    const dep = await this.repository.findById(id);
-    if (!dep) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    const mission = await this.repository.findById(id);
+    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
 
-    if (!SETTLEMENT_ALLOWED_STATUSES.includes(dep.status)) {
+    if (!SETTLEMENT_ALLOWED_STATUSES.includes(mission.status)) {
       throw new UnprocessableEntityException(
-        `La liquidation n'est possible que pour les trajets en statut CONFIRMED ou IN_PROGRESS (statut actuel : ${dep.status}).`,
+        `La liquidation n'est possible que pour les trajets en statut CONFIRMED ou IN_PROGRESS (statut actuel : ${mission.status}).`,
       );
     }
 
-    if (dep.settlement) {
+    if (mission.settlement) {
       throw new ConflictException(
         'Une liquidation a déjà été soumise pour ce trajet.',
       );
@@ -88,18 +88,18 @@ export class MissionSettlementService {
     });
 
     try {
-      const gestionnaires = await this.prisma.user.findMany({
+      const managers = await this.prisma.user.findMany({
         where: { role: Role.GESTIONNAIRE_PARC, isActive: true },
         select: { email: true },
       });
-      const emails = gestionnaires.map((u) => u.email).filter(Boolean);
+      const emails = managers.map((u) => u.email).filter(Boolean);
       if (emails.length) {
         await this.notificationService.createNotification(
           OSDRM_PROCESS_EVENT.MISSION_SETTLED,
           emails,
           id,
           {
-            reference: dep.reference,
+            reference: mission.reference,
             totalAmount: totalAmount.toNumber(),
           },
           false,
@@ -110,7 +110,7 @@ export class MissionSettlementService {
     }
 
     // T3.5 : notifier les valideurs (OM/CFO + demandeur) — non bloquant
-    await this.validationService.notifyValidationRequired(dep);
+    await this.validationService.notifyValidationRequired(mission);
 
     return settlement;
   }
@@ -118,7 +118,7 @@ export class MissionSettlementService {
   /**
    * Resoumission d'une liquidation rejetée par le DEMANDEUR (auteur).
    * - Exige au moins une ligne REJECTED (FR-16).
-   * - Met à jour les montants/remarks.
+   * - Met à jour les montants/observations.
    * - Réinitialise les 3 lignes à PENDING (reset complet, FR-15) et repasse
    *   le trajet à SETTLED, le tout dans une transaction.
    */
@@ -127,21 +127,24 @@ export class MissionSettlementService {
     dto: ResubmitSettlementDto,
     currentUser: CurrentUser,
   ) {
-    const dep = await this.repository.findById(id);
-    if (!dep) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    const mission = await this.repository.findById(id);
+    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
 
-    if (!dep.settlement) {
+    if (!mission.settlement) {
       throw new NotFoundException('Aucune liquidation soumise pour ce trajet.');
     }
 
     // Seul l'auteur (requestor) ou un ADMIN peut resoumettre.
-    if (currentUser.role !== Role.ADMIN && dep.requestorId !== currentUser.id) {
+    if (
+      currentUser.role !== Role.ADMIN &&
+      mission.requestorId !== currentUser.id
+    ) {
       throw new ForbiddenException(
-        'Seul le demandeur peut resoumettre sa settlement.',
+        'Seul le demandeur peut resoumettre sa liquidation.',
       );
     }
 
-    const validations = dep.settlement.validations ?? [];
+    const validations = mission.settlement.validations ?? [];
     const hasRejection = validations.some(
       (v) => v.status === LgSettlementValidationStatus.REJECTED,
     );
@@ -160,7 +163,7 @@ export class MissionSettlementService {
       .add(mealCost)
       .add(otherCosts);
 
-    const settlementId = dep.settlement.id;
+    const settlementId = mission.settlement.id;
 
     const settlement = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.lgMissionSettlement.update({
@@ -190,16 +193,16 @@ export class MissionSettlementService {
     });
 
     // T3.5 : re-notifier les valideurs — non bloquant
-    await this.validationService.notifyValidationRequired(dep);
+    await this.validationService.notifyValidationRequired(mission);
 
     return settlement;
   }
 
   async getSettlement(id: string) {
-    const dep = await this.repository.findById(id);
-    if (!dep) throw new NotFoundException(`Trajet ${id} introuvable.`);
-    if (!dep.settlement)
+    const mission = await this.repository.findById(id);
+    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    if (!mission.settlement)
       throw new NotFoundException('Aucune liquidation soumise pour ce trajet.');
-    return dep.settlement;
+    return mission.settlement;
   }
 }

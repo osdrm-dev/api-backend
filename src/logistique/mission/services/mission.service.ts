@@ -58,11 +58,11 @@ export class MissionService {
     });
 
     try {
-      const gestionnaires = await this.prisma.user.findMany({
+      const managers = await this.prisma.user.findMany({
         where: { role: Role.GESTIONNAIRE_PARC, isActive: true },
         select: { email: true },
       });
-      const emails = gestionnaires.map((u) => u.email).filter(Boolean);
+      const emails = managers.map((u) => u.email).filter(Boolean);
       if (emails.length) {
         await this.notificationService.createNotification(
           OSDRM_PROCESS_EVENT.MISSION_CREATED,
@@ -116,32 +116,32 @@ export class MissionService {
   }
 
   async findById(id: string, currentUser: { id: number; role: string }) {
-    const dep = await this.repository.findById(id);
-    if (!dep) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    const mission = await this.repository.findById(id);
+    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
 
     if (
       currentUser.role !== Role.ADMIN &&
       currentUser.role !== Role.GESTIONNAIRE_PARC &&
-      dep.requestorId !== currentUser.id
+      mission.requestorId !== currentUser.id
     ) {
       throw new ForbiddenException('Accès refusé à ce dossier de trajet.');
     }
 
-    return dep;
+    return mission;
   }
 
   async cancel(id: string, currentUser: { id: number; role: string }) {
-    const dep = await this.repository.findById(id);
-    if (!dep) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    const mission = await this.repository.findById(id);
+    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
 
     const TERMINAL = ['REJECTED', 'SETTLED', 'CANCELLED'];
-    if (TERMINAL.includes(dep.status)) {
+    if (TERMINAL.includes(mission.status)) {
       throw new UnprocessableEntityException(
-        `Impossible d'annuler un dossier en statut ${dep.status}.`,
+        `Impossible d'annuler un dossier en statut ${mission.status}.`,
       );
     }
 
-    if (dep.status === 'CONFIRMED' || dep.status === 'IN_PROGRESS') {
+    if (mission.status === 'CONFIRMED' || mission.status === 'IN_PROGRESS') {
       if (currentUser.role !== Role.ADMIN) {
         throw new ForbiddenException(
           'Seul un administrateur peut annuler un trajet confirmé ou en cours.',
@@ -150,7 +150,7 @@ export class MissionService {
     } else if (
       currentUser.role !== Role.ADMIN &&
       currentUser.role !== Role.GESTIONNAIRE_PARC &&
-      dep.requestorId !== currentUser.id
+      mission.requestorId !== currentUser.id
     ) {
       throw new ForbiddenException(
         'Vous ne pouvez annuler que vos propres demandes.',
@@ -160,12 +160,12 @@ export class MissionService {
     const updated = await this.repository.updateStatus(id, 'CANCELLED');
 
     try {
-      if (dep.requestor?.email) {
+      if (mission.requestor?.email) {
         await this.notificationService.createNotification(
           OSDRM_PROCESS_EVENT.MISSION_STATUS_CHANGED,
-          [dep.requestor.email],
+          [mission.requestor.email],
           id,
-          { reference: dep.reference, newStatus: 'CANCELLED' },
+          { reference: mission.reference, newStatus: 'CANCELLED' },
           false,
         );
       }

@@ -15,8 +15,9 @@ export class MissionCommentService {
     dto: AddMissionCommentDto,
     authorId: number,
   ) {
-    const dep = await this.missionRepository.findById(missionId);
-    if (!dep) throw new NotFoundException(`Trajet ${missionId} introuvable.`);
+    const mission = await this.missionRepository.findById(missionId);
+    if (!mission)
+      throw new NotFoundException(`Trajet ${missionId} introuvable.`);
 
     return this.commentRepository.create({
       content: dto.content,
@@ -26,8 +27,9 @@ export class MissionCommentService {
   }
 
   async getComments(missionId: string) {
-    const dep = await this.missionRepository.findById(missionId);
-    if (!dep) throw new NotFoundException(`Trajet ${missionId} introuvable.`);
+    const mission = await this.missionRepository.findById(missionId);
+    if (!mission)
+      throw new NotFoundException(`Trajet ${missionId} introuvable.`);
 
     return this.commentRepository.findByMissionId(missionId);
   }

@@ -115,12 +115,12 @@ export class MissionRepository {
     });
   }
 
-  async assignVehicle(id: string, vehicleId: string, gestionnaireId: number) {
+  async assignVehicle(id: string, vehicleId: string, managerId: number) {
     return this.prisma.lgMission.update({
       where: { id },
       data: {
         vehicleId,
-        managerId: gestionnaireId,
+        managerId: managerId,
         status: LgMissionStatus.VEHICLE_ASSIGNED,
       },
       include: MISSION_INCLUDE,
@@ -129,7 +129,7 @@ export class MissionRepository {
 
   async confirm(
     id: string,
-    gestionnaireId: number,
+    managerId: number,
     perDiemAmount: Prisma.Decimal,
     additionalInstructions?: string,
   ) {
@@ -137,7 +137,7 @@ export class MissionRepository {
       where: { id },
       data: {
         status: LgMissionStatus.CONFIRMED,
-        managerId: gestionnaireId,
+        managerId: managerId,
         perDiemAmount,
         additionalInstructions,
         confirmedAt: new Date(),

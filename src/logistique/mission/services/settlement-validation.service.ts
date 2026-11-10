@@ -64,12 +64,13 @@ export class SettlementValidationService {
    * Détail des 3 validations d'une liquidation (FR-17).
    */
   async getValidationDetail(missionId: string) {
-    const dep = await this.missionRepository.findById(missionId);
-    if (!dep) throw new NotFoundException(`Trajet ${missionId} introuvable.`);
-    if (!dep.settlement)
+    const mission = await this.missionRepository.findById(missionId);
+    if (!mission)
+      throw new NotFoundException(`Trajet ${missionId} introuvable.`);
+    if (!mission.settlement)
       throw new NotFoundException('Aucune liquidation soumise pour ce trajet.');
     return this.validationRepository.findValidationsBySettlementId(
-      dep.settlement.id,
+      mission.settlement.id,
     );
   }
 
@@ -99,7 +100,7 @@ export class SettlementValidationService {
         return LgSettlementValidatorRole.CFO;
       default:
         throw new ForbiddenException(
-          'Votre rôle ne vous autorise pas à valider une settlement.',
+          'Votre rôle ne vous autorise pas à valider une liquidation.',
         );
     }
   }
@@ -166,22 +167,23 @@ export class SettlementValidationService {
       );
     }
 
-    const dep = await this.missionRepository.findById(missionId);
-    if (!dep) throw new NotFoundException(`Trajet ${missionId} introuvable.`);
+    const mission = await this.missionRepository.findById(missionId);
+    if (!mission)
+      throw new NotFoundException(`Trajet ${missionId} introuvable.`);
 
-    if (BLOCKED_MISSION_STATUSES.includes(dep.status)) {
+    if (BLOCKED_MISSION_STATUSES.includes(mission.status)) {
       throw new UnprocessableEntityException(
-        `Aucune validation possible : le trajet est en statut ${dep.status}.`,
+        `Aucune validation possible : le trajet est en statut ${mission.status}.`,
       );
     }
 
-    if (!dep.settlement) {
+    if (!mission.settlement) {
       throw new NotFoundException('Aucune liquidation soumise pour ce trajet.');
     }
 
-    this.assertCanDecide(role, currentUser, dep);
+    this.assertCanDecide(role, currentUser, mission);
 
-    const settlementId = dep.settlement.id;
+    const settlementId = mission.settlement.id;
 
     const result = await this.prisma.$transaction(async (tx) => {
       // Relecture de l'état dans la transaction (concurrence)
@@ -192,7 +194,7 @@ export class SettlementValidationService {
       const target = rows.find((r) => r.role === role);
       if (!target) {
         throw new NotFoundException(
-          `Ligne de validation ${role} introuvable pour cette settlement.`,
+          `Ligne de validation ${role} introuvable pour cette liquidation.`,
         );
       }
       if (target.status !== LgSettlementValidationStatus.PENDING) {
@@ -219,7 +221,10 @@ export class SettlementValidationService {
         (r) => r.status === LgSettlementValidationStatus.APPROVED,
       );
 
-      if (hasRejection && dep.status !== LgMissionStatus.SETTLEMENT_REJECTED) {
+      if (
+        hasRejection &&
+        mission.status !== LgMissionStatus.SETTLEMENT_REJECTED
+      ) {
         newMissionStatus = LgMissionStatus.SETTLEMENT_REJECTED;
       } else if (allValidated) {
         newMissionStatus = LgMissionStatus.SETTLEMENT_APPROVED;
@@ -235,13 +240,13 @@ export class SettlementValidationService {
       return {
         decision,
         role,
-        missionStatus: newMissionStatus ?? dep.status,
+        missionStatus: newMissionStatus ?? mission.status,
         allValidated,
         hasRejection,
       };
     });
 
-    await this.dispatchDecisionNotifications(dep, result);
+    await this.dispatchDecisionNotifications(mission, result);
 
     return {
       validations:
@@ -256,7 +261,7 @@ export class SettlementValidationService {
    * Notifications non bloquantes après une décision.
    */
   private async dispatchDecisionNotifications(
-    dep: {
+    mission: {
       id: string;
       reference: string;
       requestor?: { email: string | null } | null;
@@ -270,12 +275,12 @@ export class SettlementValidationService {
     try {
       if (result.hasRejection) {
         // Rejet -> notifier le demandeur pour resoumission
-        if (dep.requestor?.email) {
+        if (mission.requestor?.email) {
           await this.notificationService.createNotification(
             OSDRM_PROCESS_EVENT.SETTLEMENT_REJECTED,
-            [dep.requestor.email],
-            dep.id,
-            { reference: dep.reference, role: result.role },
+            [mission.requestor.email],
+            mission.id,
+            { reference: mission.reference, role: result.role },
             false,
           );
         }
@@ -284,22 +289,22 @@ export class SettlementValidationService {
 
       if (result.allValidated) {
         // Validation complète -> gestionnaires/admin + demandeur
-        const gestionnaires = await this.prisma.user.findMany({
+        const managers = await this.prisma.user.findMany({
           where: {
             role: { in: [Role.GESTIONNAIRE_PARC, Role.ADMIN] },
             isActive: true,
           },
           select: { email: true },
         });
-        const emails = gestionnaires.map((u) => u.email).filter(Boolean);
-        if (dep.requestor?.email) emails.push(dep.requestor.email);
+        const emails = managers.map((u) => u.email).filter(Boolean);
+        if (mission.requestor?.email) emails.push(mission.requestor.email);
         const unique = [...new Set(emails)];
         if (unique.length) {
           await this.notificationService.createNotification(
             OSDRM_PROCESS_EVENT.SETTLEMENT_APPROVED,
             unique,
-            dep.id,
-            { reference: dep.reference },
+            mission.id,
+            { reference: mission.reference },
             false,
           );
         }
@@ -313,7 +318,7 @@ export class SettlementValidationService {
    * Notifie les valideurs concernés à la soumission / resoumission (non bloquant).
    * Appelée par MissionSettlementService après commit.
    */
-  async notifyValidationRequired(dep: {
+  async notifyValidationRequired(mission: {
     id: string;
     reference: string;
     requestorId: number | null;
@@ -325,14 +330,14 @@ export class SettlementValidationService {
         select: { email: true },
       });
       const emails = validators.map((u) => u.email).filter(Boolean);
-      if (dep.requestor?.email) emails.push(dep.requestor.email);
+      if (mission.requestor?.email) emails.push(mission.requestor.email);
       const unique = [...new Set(emails)];
       if (unique.length) {
         await this.notificationService.createNotification(
           OSDRM_PROCESS_EVENT.SETTLEMENT_VALIDATION_REQUIRED,
           unique,
-          dep.id,
-          { reference: dep.reference },
+          mission.id,
+          { reference: mission.reference },
           false,
         );
       }
