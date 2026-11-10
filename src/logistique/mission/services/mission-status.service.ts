@@ -1,8 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { LgMissionStatus } from '@prisma/client';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
@@ -57,18 +54,35 @@ export class MissionStatusService {
     managerId: number,
   ) {
     const mission = await this.repository.findById(id);
-    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    if (!mission)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Mission ${id} not found`,
+      );
 
     const allowed = TRANSITIONS[mission.status];
     if (!allowed.includes(dto.status)) {
-      throw new UnprocessableEntityException(
-        `Transition invalide : ${mission.status} → ${dto.status}.`,
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.MISSION_STATUS_TRANSITION_INVALID,
+        `Invalid transition: ${mission.status} -> ${dto.status}`,
       );
     }
 
     if (dto.status === LgMissionStatus.REJECTED && !dto.rejectionReason) {
-      throw new UnprocessableEntityException(
-        'Un motif de refus est requis pour rejeter une demande.',
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.MISSION_REJECTION_REASON_REQUIRED,
+        'A rejection reason is required to reject a request',
+        {
+          fields: [
+            {
+              field: 'rejectionReason',
+              code: ErrorCode.MISSION_REJECTION_REASON_REQUIRED,
+            },
+          ],
+        },
       );
     }
 

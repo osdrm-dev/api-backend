@@ -1,12 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { LgCarburantStatus, LgTypeCarburant } from '@prisma/client';
 import { CarburantStatusService } from './carburant-status.service';
 import { CarburantRepository } from 'src/repository/carburant/carburant.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
+import { ErrorCode } from 'src/common/errors';
 
 const mockRepository = {
   findById: jest.fn(),
@@ -93,7 +91,7 @@ describe('CarburantStatusService', () => {
 
       await expect(
         service.updateStatus('car-1', LgCarburantStatus.CANCELLED),
-      ).rejects.toThrow(UnprocessableEntityException);
+      ).rejects.toMatchObject({ code: ErrorCode.CARBURANT_STATUS_TERMINAL });
     });
 
     it('throws 422 when status is already CANCELLED (terminal)', async () => {
@@ -104,7 +102,7 @@ describe('CarburantStatusService', () => {
 
       await expect(
         service.updateStatus('car-1', LgCarburantStatus.PROCESSED),
-      ).rejects.toThrow(UnprocessableEntityException);
+      ).rejects.toMatchObject({ code: ErrorCode.CARBURANT_STATUS_TERMINAL });
     });
 
     it('throws NotFoundException when carburant does not exist', async () => {
@@ -112,7 +110,7 @@ describe('CarburantStatusService', () => {
 
       await expect(
         service.updateStatus('car-999', LgCarburantStatus.PROCESSED),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
 
     it('does not throw when notification fails after status change', async () => {

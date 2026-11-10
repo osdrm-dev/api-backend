@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
 import { VehicleDocumentType, VehicleStatut } from '@prisma/client';
 import { MyVehiclesService } from './my-vehicles.service';
 import { ParcAutoRepository } from 'src/repository/parc-auto/parc-auto.repository';
 import { UserRepository } from 'src/repository/user/user.repository';
+import { ErrorCode } from 'src/common/errors';
 
 const mockParcAutoRepository = {
   findVehiclesUsedByUser: jest.fn(),
@@ -181,9 +181,9 @@ describe('MyVehiclesService', () => {
     it('AC-9: 404 si utilisateur introuvable', async () => {
       mockUserRepository.findById.mockResolvedValue(null);
 
-      await expect(service.getVehiclesForUser(999)).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(service.getVehiclesForUser(999)).rejects.toMatchObject({
+        code: ErrorCode.NOT_FOUND,
+      });
       expect(
         mockParcAutoRepository.findVehiclesUsedByUser,
       ).not.toHaveBeenCalled();

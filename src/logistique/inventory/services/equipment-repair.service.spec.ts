@@ -1,9 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { EquipmentStatus, MaintenanceInterventionType } from '@prisma/client';
 import { EquipmentRepairService } from './equipment-repair.service';
 import { MaintenanceService } from 'src/maintenance/services/maintenance.service';
 import { PrismaService } from 'prisma/prisma.service';
+import { ErrorCode } from 'src/common/errors';
 
 const maintenance = {
   createRequest: jest.fn(),
@@ -79,7 +79,7 @@ describe('EquipmentRepairService', () => {
         { id: 99, role: 'DEMANDEUR' },
         { equipmentId: 'e1', description: 'x' },
       ),
-    ).rejects.toThrow(ForbiddenException);
+    ).rejects.toMatchObject({ code: ErrorCode.EQUIPMENT_REPAIR_NOT_HOLDER });
     expect(maintenance.createRequest).not.toHaveBeenCalled();
     expect(prisma.equipment.update).not.toHaveBeenCalled();
   });
@@ -102,7 +102,7 @@ describe('EquipmentRepairService', () => {
         { id: 3, role: 'DEMANDEUR' },
         { equipmentId: 'e1', description: 'x' },
       ),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
   });
 
   it('lists only equipment repairs of the requestor', async () => {

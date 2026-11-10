@@ -1,11 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import {
-  ConflictException,
-  ForbiddenException,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
-import {
   LgMissionStatus,
   LgSettlementValidationStatus,
   LgSettlementValidatorRole,
@@ -15,6 +9,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { MissionRepository } from 'src/repository/mission/mission.repository';
 import { SettlementValidationRepository } from 'src/repository/mission/settlement-validation.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
+import { ErrorCode } from 'src/common/errors';
 
 const mockMissionRepository = {
   findById: jest.fn(),
@@ -106,7 +101,9 @@ describe('SettlementValidationService', () => {
 
     it('requires an explicit role for ADMIN', () => {
       expect(() => service.resolveTargetRole({ id: 1, role: 'ADMIN' })).toThrow(
-        UnprocessableEntityException,
+        expect.objectContaining({
+          code: ErrorCode.SETTLEMENT_VALIDATION_ROLE_REQUIRED,
+        }),
       );
       expect(
         service.resolveTargetRole(
@@ -119,7 +116,11 @@ describe('SettlementValidationService', () => {
     it('rejects an unrelated global role', () => {
       expect(() =>
         service.resolveTargetRole({ id: 1, role: 'GESTIONNAIRE_PARC' }),
-      ).toThrow(ForbiddenException);
+      ).toThrow(
+        expect.objectContaining({
+          code: ErrorCode.SETTLEMENT_VALIDATION_ROLE_NOT_ALLOWED,
+        }),
+      );
     });
   });
 
@@ -134,7 +135,7 @@ describe('SettlementValidationService', () => {
           undefined,
           { id: 1, role: 'OM' },
         ),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
 
     it('throws 404 when no settlement submitted', async () => {
@@ -150,7 +151,9 @@ describe('SettlementValidationService', () => {
           undefined,
           { id: 1, role: 'OM' },
         ),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.MISSION_SETTLEMENT_NOT_SUBMITTED,
+      });
     });
 
     it('blocks decision on a cancelled mission', async () => {
@@ -166,7 +169,7 @@ describe('SettlementValidationService', () => {
           undefined,
           { id: 1, role: 'OM' },
         ),
-      ).rejects.toThrow(UnprocessableEntityException);
+      ).rejects.toMatchObject({ code: ErrorCode.SETTLEMENT_MISSION_BLOCKED });
     });
 
     it('forbids DEMANDEUR line decision by a non-requestor', async () => {
@@ -179,7 +182,9 @@ describe('SettlementValidationService', () => {
           undefined,
           { id: 99, role: 'DEMANDEUR' },
         ),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.SETTLEMENT_VALIDATE_REQUESTOR_ONLY,
+      });
     });
 
     it('blocks DEMANDEUR line when requestorId is null', async () => {
@@ -196,7 +201,9 @@ describe('SettlementValidationService', () => {
           undefined,
           { id: 10, role: 'ADMIN' },
         ),
-      ).rejects.toThrow(UnprocessableEntityException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.SETTLEMENT_REQUESTOR_INACTIVE,
+      });
     });
   });
 
@@ -217,7 +224,9 @@ describe('SettlementValidationService', () => {
           undefined,
           { id: 1, role: 'OM' },
         ),
-      ).rejects.toThrow(ConflictException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.SETTLEMENT_VALIDATION_ALREADY_PROCESSED,
+      });
     });
 
     it('does NOT change mission status when not all are validated', async () => {

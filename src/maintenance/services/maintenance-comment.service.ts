@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { MaintenanceCommentRepository } from 'src/repository/maintenance/comment.repository';
 import { MaintenanceRepository } from 'src/repository/maintenance/maintenance.repository';
 
@@ -13,7 +14,11 @@ export class MaintenanceCommentService {
     const request = await this.maintenanceRepository.findById(requestId);
 
     if (!request || request.deletedAt !== null) {
-      throw new NotFoundException('Demande de maintenance introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Maintenance request not found',
+      );
     }
 
     return this.commentRepository.create({
@@ -27,7 +32,11 @@ export class MaintenanceCommentService {
     const request = await this.maintenanceRepository.findById(requestId);
 
     if (!request || request.deletedAt !== null) {
-      throw new NotFoundException('Demande de maintenance introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Maintenance request not found',
+      );
     }
 
     const { data, total } = await this.commentRepository.findByRequestId(

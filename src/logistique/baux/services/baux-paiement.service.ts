@@ -1,8 +1,5 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { BauxRepository } from 'src/repository/baux/baux.repository';
 import { CreatePaiementDto } from '../dto/create-paiement.dto';
 
@@ -13,14 +10,22 @@ export class BauxPaiementService {
   async listPaiements(contractId: string) {
     const contract = await this.repository.findById(contractId);
     if (!contract)
-      throw new NotFoundException(`Bail ${contractId} introuvable.`);
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Lease ${contractId} not found`,
+      );
     return this.repository.findPaiementsByContract(contractId);
   }
 
   async addPaiement(contractId: string, dto: CreatePaiementDto) {
     const contract = await this.repository.findById(contractId);
     if (!contract)
-      throw new NotFoundException(`Bail ${contractId} introuvable.`);
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Lease ${contractId} not found`,
+      );
 
     const exists = await this.repository.existsPaiement(
       contractId,
@@ -28,8 +33,10 @@ export class BauxPaiementService {
       dto.typePaiement,
     );
     if (exists) {
-      throw new ConflictException(
-        'Un paiement de ce type existe déjà pour cette période.',
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.LEASE_PAYMENT_ALREADY_EXISTS,
+        'A payment of this type already exists for this period',
       );
     }
 

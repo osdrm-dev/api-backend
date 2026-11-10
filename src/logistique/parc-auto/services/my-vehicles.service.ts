@@ -1,4 +1,5 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { VehicleDocument, VehicleDocumentType } from '@prisma/client';
 import {
   ParcAutoRepository,
@@ -46,7 +47,11 @@ export class MyVehiclesService {
   async getVehiclesForUser(userId: number): Promise<VehicleWithRemindersDto[]> {
     const user = await this.userRepository.findById(userId);
     if (!user) {
-      throw new NotFoundException(`Utilisateur ${userId} introuvable`);
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `User ${userId} not found`,
+      );
     }
     return this.buildVehiclesForUser(userId);
   }

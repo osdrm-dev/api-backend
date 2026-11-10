@@ -1,9 +1,5 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { EquipmentDemandRepository } from 'src/repository/inventory/equipment-demand.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
@@ -26,8 +22,18 @@ export class EquipmentDemandService {
       (await this.repository.countFilesUploadedBy(fileIds, requestorId)) !==
         fileIds.length
     ) {
-      throw new BadRequestException(
-        'Un ou plusieurs documents joints sont introuvables.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.EQUIPMENT_DEMAND_FILES_NOT_FOUND,
+        'One or more attached documents were not found',
+        {
+          fields: [
+            {
+              field: 'fileIds',
+              code: ErrorCode.EQUIPMENT_DEMAND_FILES_NOT_FOUND,
+            },
+          ],
+        },
       );
     }
 
@@ -97,7 +103,11 @@ export class EquipmentDemandService {
   async findById(id: string) {
     const demand = await this.repository.findById(id);
     if (!demand) {
-      throw new NotFoundException('Demande de matériel introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Equipment demand not found',
+      );
     }
     return demand;
   }
@@ -105,11 +115,17 @@ export class EquipmentDemandService {
   async findByIdForUser(id: string, userId: number) {
     const demand = await this.repository.findById(id);
     if (!demand) {
-      throw new NotFoundException('Demande de matériel introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Equipment demand not found',
+      );
     }
     if (demand.requestorId !== userId) {
-      throw new ForbiddenException(
-        "Accès refusé : vous ne pouvez accéder qu'à vos propres demandes.",
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.EQUIPMENT_DEMAND_ACCESS_DENIED,
+        'Access denied: you can only access your own demands',
       );
     }
     return demand;
@@ -122,7 +138,11 @@ export class EquipmentDemandService {
   ) {
     const demand = await this.repository.findById(id);
     if (!demand) {
-      throw new NotFoundException('Demande de matériel introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Equipment demand not found',
+      );
     }
 
     const updated = await this.repository.updateStatus(

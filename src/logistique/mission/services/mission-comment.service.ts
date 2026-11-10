@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { MissionRepository } from 'src/repository/mission/mission.repository';
 import { MissionCommentRepository } from 'src/repository/mission/mission-comment.repository';
 import { AddMissionCommentDto } from '../dto/add-mission-comment.dto';
@@ -17,7 +18,11 @@ export class MissionCommentService {
   ) {
     const mission = await this.missionRepository.findById(missionId);
     if (!mission)
-      throw new NotFoundException(`Trajet ${missionId} introuvable.`);
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Mission ${missionId} not found`,
+      );
 
     return this.commentRepository.create({
       content: dto.content,
@@ -29,7 +34,11 @@ export class MissionCommentService {
   async getComments(missionId: string) {
     const mission = await this.missionRepository.findById(missionId);
     if (!mission)
-      throw new NotFoundException(`Trajet ${missionId} introuvable.`);
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Mission ${missionId} not found`,
+      );
 
     return this.commentRepository.findByMissionId(missionId);
   }

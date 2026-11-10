@@ -1,8 +1,5 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { PrismaService } from 'prisma/prisma.service';
 import { BauxRepository } from 'src/repository/baux/baux.repository';
 import { FileStorageService } from 'src/storage/services/file-storage.service';
@@ -26,7 +23,11 @@ export class BauxAvenantService {
   async listAvenants(contractId: string) {
     const contract = await this.repository.findById(contractId);
     if (!contract)
-      throw new NotFoundException(`Bail ${contractId} introuvable.`);
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Lease ${contractId} not found`,
+      );
     return this.repository.findAvenantsByContract(contractId);
   }
 
@@ -38,17 +39,35 @@ export class BauxAvenantService {
   ) {
     const contract = await this.repository.findById(contractId);
     if (!contract)
-      throw new NotFoundException(`Bail ${contractId} introuvable.`);
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Lease ${contractId} not found`,
+      );
 
     if (dto.nouveauMontant !== undefined && dto.nouveauMontant <= 0) {
-      throw new BadRequestException('Le nouveau montant doit être positif.');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.LEASE_AMENDMENT_AMOUNT_NOT_POSITIVE,
+        'New amount must be positive',
+        {
+          fields: [
+            {
+              field: 'nouveauMontant',
+              code: ErrorCode.LEASE_AMENDMENT_AMOUNT_NOT_POSITIVE,
+            },
+          ],
+        },
+      );
     }
 
     let fileId: number | undefined;
     if (file) {
       if (file.mimetype !== PDF_MIME) {
-        throw new BadRequestException(
-          "Le fichier de l'avenant doit être un PDF.",
+        throw new AppException(
+          HttpStatus.BAD_REQUEST,
+          ErrorCode.LEASE_AMENDMENT_FILE_NOT_PDF,
+          'Amendment file must be a PDF',
         );
       }
       const stored = await this.fileStorage.upload(file, {

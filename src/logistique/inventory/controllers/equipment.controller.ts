@@ -3,12 +3,14 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   Param,
   Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -84,7 +86,11 @@ export class EquipmentController {
   async getAmortissement(@Param('id') id: string) {
     const asset = await this.assetService.findById(id);
     if (!asset) {
-      throw new NotFoundException('Matériel introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Equipment not found',
+      );
     }
     const duree =
       asset.depreciationOverrideYears ?? asset.category?.depreciationYears ?? 3;

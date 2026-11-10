@@ -6,6 +6,7 @@ import { MaintenanceRepository } from 'src/repository/maintenance/maintenance.re
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
+import { ErrorCode } from 'src/common/errors';
 
 const mockRequest = {
   id: 'req-1',
@@ -125,7 +126,7 @@ describe('MaintenanceStatusService', () => {
         service.updateStatus('nonexistent', {
           status: MaintenanceStatus.IN_PROGRESS,
         }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
 
     it('should throw NotFoundException if request is soft-deleted', async () => {
@@ -138,7 +139,7 @@ describe('MaintenanceStatusService', () => {
         service.updateStatus('req-1', {
           status: MaintenanceStatus.IN_PROGRESS,
         }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
   });
 });

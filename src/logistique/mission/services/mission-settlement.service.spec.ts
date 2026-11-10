@@ -1,10 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  ConflictException,
-  ForbiddenException,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
 import { MissionSettlementService } from './mission-settlement.service';
 import { SettlementValidationService } from './settlement-validation.service';
 import { MissionRepository } from 'src/repository/mission/mission.repository';
@@ -15,6 +9,7 @@ import {
   LgSettlementValidationStatus,
   LgMissionType,
 } from '@prisma/client';
+import { ErrorCode } from 'src/common/errors';
 
 const mockRepository = {
   findById: jest.fn(),
@@ -76,7 +71,7 @@ describe('MissionSettlementService', () => {
         { transportCost: 0, accommodationCost: 0, mealCost: 0 },
         1,
       ),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
   });
 
   it('throws 422 when status is PENDING', async () => {
@@ -90,7 +85,7 @@ describe('MissionSettlementService', () => {
         { transportCost: 0, accommodationCost: 0, mealCost: 0 },
         1,
       ),
-    ).rejects.toThrow(UnprocessableEntityException);
+    ).rejects.toMatchObject({ code: ErrorCode.MISSION_SETTLEMENT_NOT_ALLOWED });
   });
 
   it('throws 409 when settlement already exists', async () => {
@@ -104,7 +99,9 @@ describe('MissionSettlementService', () => {
         { transportCost: 0, accommodationCost: 0, mealCost: 0 },
         1,
       ),
-    ).rejects.toThrow(ConflictException);
+    ).rejects.toMatchObject({
+      code: ErrorCode.MISSION_SETTLEMENT_ALREADY_SUBMITTED,
+    });
   });
 
   it('computes totalAmount and creates validation rows', async () => {
@@ -172,9 +169,9 @@ describe('MissionSettlementService', () => {
 
   it('throws 404 when getting settlement on mission without one', async () => {
     mockRepository.findById.mockResolvedValue(BASE_MISSION); // settlement: null
-    await expect(service.getSettlement('mission-1')).rejects.toThrow(
-      NotFoundException,
-    );
+    await expect(service.getSettlement('mission-1')).rejects.toMatchObject({
+      code: ErrorCode.MISSION_SETTLEMENT_NOT_SUBMITTED,
+    });
   });
 
   describe('resubmit', () => {
@@ -187,9 +184,11 @@ describe('MissionSettlementService', () => {
 
     it('throws 404 when no settlement exists', async () => {
       mockRepository.findById.mockResolvedValue(BASE_MISSION);
-      await expect(service.resubmit('mission-1', DTO, USER)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.resubmit('mission-1', DTO, USER),
+      ).rejects.toMatchObject({
+        code: ErrorCode.MISSION_SETTLEMENT_NOT_SUBMITTED,
+      });
     });
 
     it('throws 403 when current user is not the requestor', async () => {
@@ -205,7 +204,9 @@ describe('MissionSettlementService', () => {
       });
       await expect(
         service.resubmit('mission-1', DTO, { id: 99, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.MISSION_SETTLEMENT_RESUBMIT_REQUESTOR_ONLY,
+      });
     });
 
     it('throws 422 when no validation row is REJECTED', async () => {
@@ -220,9 +221,11 @@ describe('MissionSettlementService', () => {
           ],
         },
       });
-      await expect(service.resubmit('mission-1', DTO, USER)).rejects.toThrow(
-        UnprocessableEntityException,
-      );
+      await expect(
+        service.resubmit('mission-1', DTO, USER),
+      ).rejects.toMatchObject({
+        code: ErrorCode.MISSION_SETTLEMENT_IN_VALIDATION,
+      });
     });
 
     it('resets validations and sets status back to SETTLED', async () => {

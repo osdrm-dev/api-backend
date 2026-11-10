@@ -1,9 +1,5 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { PrismaService } from 'prisma/prisma.service';
 import { EquipmentAttributionRepository } from 'src/repository/inventory/equipment-attribution.repository';
 import { EquipmentRepository } from 'src/repository/inventory/equipment.repository';
@@ -26,14 +22,24 @@ export class EquipmentAttributionService {
   async create(dto: CreateEquipmentAttributionDto) {
     const asset = await this.assetRepository.findById(dto.assetId);
     if (!asset || asset.archivedAt !== null) {
-      throw new NotFoundException('Matériel introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Equipment not found',
+      );
     }
     if (isAttributed(asset)) {
-      throw new BadRequestException('Ce matériel est déjà attribué.');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.EQUIPMENT_ALREADY_ATTRIBUTED,
+        'Equipment is already attributed',
+      );
     }
     if (isBroken(asset)) {
-      throw new BadRequestException(
-        'Ce matériel est en panne ou hors service.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.EQUIPMENT_BROKEN,
+        'Equipment is broken or out of service',
       );
     }
 
@@ -49,7 +55,11 @@ export class EquipmentAttributionService {
             },
           });
           if (active > 0) {
-            throw new BadRequestException('Ce matériel est déjà attribué.');
+            throw new AppException(
+              HttpStatus.BAD_REQUEST,
+              ErrorCode.EQUIPMENT_ALREADY_ATTRIBUTED,
+              'Equipment is already attributed',
+            );
           }
           return tx.equipmentAttribution.create({
             data: {
@@ -74,8 +84,10 @@ export class EquipmentAttributionService {
       );
     } catch (e: any) {
       if (e?.code === 'P2034') {
-        throw new ConflictException(
-          'Une autre attribution vient d’être enregistrée. Rechargez et réessayez.',
+        throw new AppException(
+          HttpStatus.CONFLICT,
+          ErrorCode.EQUIPMENT_ATTRIBUTION_CONCURRENT,
+          'Another attribution was just recorded',
         );
       }
       throw e;
@@ -114,10 +126,18 @@ export class EquipmentAttributionService {
   async return(id: string, dto: ReturnEquipmentAttributionDto) {
     const attribution = await this.repository.findById(id);
     if (!attribution) {
-      throw new NotFoundException('Attribution introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Attribution not found',
+      );
     }
     if (attribution.status === EquipmentAttributionStatus.RETOURNE) {
-      throw new ConflictException('Cet actif a déjà été retourné.');
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.EQUIPMENT_ALREADY_RETURNED,
+        'Asset was already returned',
+      );
     }
 
     return this.prisma.$transaction(async (tx) => {

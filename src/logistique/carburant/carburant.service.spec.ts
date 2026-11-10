@@ -3,7 +3,6 @@ import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
-  UnprocessableEntityException,
 } from '@nestjs/common';
 import {
   LgCarburantStatus,
@@ -14,6 +13,7 @@ import { CarburantService, computeConsumption } from './carburant.service';
 import { CarburantRepository } from 'src/repository/carburant/carburant.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { PrismaService } from 'prisma/prisma.service';
+import { ErrorCode } from 'src/common/errors';
 
 const mockRepository = {
   generateNextReference: jest.fn(),
@@ -143,9 +143,9 @@ describe('CarburantService', () => {
     it('throws 422 when vehicle does not exist', async () => {
       mockPrisma.vehicle.findUnique.mockResolvedValue(null);
 
-      await expect(service.create(dto, 10)).rejects.toThrow(
-        UnprocessableEntityException,
-      );
+      await expect(service.create(dto, 10)).rejects.toMatchObject({
+        code: ErrorCode.VEHICLE_NOT_FOUND,
+      });
     });
 
     it('throws 422 when vehicle is not ACTIF', async () => {
@@ -154,9 +154,9 @@ describe('CarburantService', () => {
         statut: VehicleStatut.ARCHIVE,
       });
 
-      await expect(service.create(dto, 10)).rejects.toThrow(
-        UnprocessableEntityException,
-      );
+      await expect(service.create(dto, 10)).rejects.toMatchObject({
+        code: ErrorCode.VEHICLE_NOT_ACTIVE,
+      });
     });
 
     it('does not throw when notification fails', async () => {
@@ -196,14 +196,14 @@ describe('CarburantService', () => {
       mockRepository.findById.mockResolvedValue(BASE_CARBURANT);
       await expect(
         service.findById('car-1', { id: 99, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({ code: ErrorCode.CARBURANT_ACCESS_DENIED });
     });
 
     it('throws NotFoundException when carburant does not exist', async () => {
       mockRepository.findById.mockResolvedValue(null);
       await expect(
         service.findById('car-999', { id: 10, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
   });
 
@@ -234,7 +234,7 @@ describe('CarburantService', () => {
       });
       await expect(
         service.cancel('car-1', { id: 10, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(UnprocessableEntityException);
+      ).rejects.toMatchObject({ code: ErrorCode.CARBURANT_NOT_PENDING });
     });
 
     it('throws 422 when carburant status is CANCELLED', async () => {
@@ -244,14 +244,14 @@ describe('CarburantService', () => {
       });
       await expect(
         service.cancel('car-1', { id: 10, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(UnprocessableEntityException);
+      ).rejects.toMatchObject({ code: ErrorCode.CARBURANT_NOT_PENDING });
     });
 
     it('throws ForbiddenException when DEMANDEUR is not the owner', async () => {
       mockRepository.findById.mockResolvedValue(BASE_CARBURANT);
       await expect(
         service.cancel('car-1', { id: 99, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({ code: ErrorCode.CARBURANT_CANCEL_OWN_ONLY });
     });
 
     it('allows ADMIN to cancel any PENDING entry', async () => {

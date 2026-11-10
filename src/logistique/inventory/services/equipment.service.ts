@@ -1,9 +1,5 @@
-import {
-  BadRequestException,
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { EquipmentRepository } from 'src/repository/inventory/equipment.repository';
 import { EquipmentCategoryRepository } from 'src/repository/inventory/equipment-category.repository';
 import {
@@ -13,9 +9,9 @@ import {
 import { FilterEquipmentDto } from '../dto/filter-equipment.dto';
 import { isEquipmentAvailable } from '../utils/equipment-stock.util';
 
-const UNIQUE_FIELD_LABELS: Record<string, string> = {
-  inventoryReference: 'référence inventaire',
-  serialNumber: 'numéro de série',
+const UNIQUE_FIELD_CODES: Record<string, ErrorCode> = {
+  inventoryReference: ErrorCode.EQUIPMENT_INVENTORY_REFERENCE_ALREADY_EXISTS,
+  serialNumber: ErrorCode.EQUIPMENT_SERIAL_NUMBER_ALREADY_EXISTS,
 };
 
 function findDuplicate(values: (string | undefined)[]) {
@@ -46,9 +42,13 @@ export class EquipmentService {
     } catch (e: any) {
       if (e?.code === 'P2002') {
         const target: string[] = e.meta?.target ?? [];
-        const field = target.find((t) => UNIQUE_FIELD_LABELS[t]);
-        throw new ConflictException(
-          `Cette ${field ? UNIQUE_FIELD_LABELS[field] : 'valeur'} est déjà utilisée par un autre matériel.`,
+        const field = target.find((t) => UNIQUE_FIELD_CODES[t]);
+        throw new AppException(
+          HttpStatus.CONFLICT,
+          field
+            ? UNIQUE_FIELD_CODES[field]
+            : ErrorCode.EQUIPMENT_VALUE_ALREADY_EXISTS,
+          'Equipment unique value already in use',
         );
       }
       throw e;
@@ -58,19 +58,29 @@ export class EquipmentService {
   async create(dto: CreateEquipmentDto) {
     const category = await this.categoryRepository.findById(dto.categoryId);
     if (!category) {
-      throw new NotFoundException('Catégorie introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Equipment category not found',
+      );
     }
 
     const dupRef = findDuplicate(dto.units.map((u) => u.inventoryReference));
     if (dupRef) {
-      throw new BadRequestException(
-        `Référence inventaire en double dans la saisie : ${dupRef}.`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.EQUIPMENT_DUPLICATE_INVENTORY_REFERENCE,
+        `Duplicate inventory reference in input: ${dupRef}`,
+        { params: { value: dupRef } },
       );
     }
     const dupSerial = findDuplicate(dto.units.map((u) => u.serialNumber));
     if (dupSerial) {
-      throw new BadRequestException(
-        `Numéro de série en double dans la saisie : ${dupSerial}.`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.EQUIPMENT_DUPLICATE_SERIAL_NUMBER,
+        `Duplicate serial number in input: ${dupSerial}`,
+        { params: { value: dupSerial } },
       );
     }
 
@@ -115,7 +125,11 @@ export class EquipmentService {
   async findById(id: string) {
     const equipment = await this.repository.findById(id);
     if (!equipment || equipment.archivedAt !== null) {
-      throw new NotFoundException('Matériel introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Equipment not found',
+      );
     }
     return this.withAvailability(equipment);
   }
@@ -123,12 +137,20 @@ export class EquipmentService {
   async update(id: string, dto: UpdateEquipmentDto) {
     const existing = await this.repository.findById(id);
     if (!existing || existing.archivedAt !== null) {
-      throw new NotFoundException('Matériel introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Equipment not found',
+      );
     }
     if (dto.categoryId) {
       const category = await this.categoryRepository.findById(dto.categoryId);
       if (!category) {
-        throw new NotFoundException('Catégorie introuvable.');
+        throw new AppException(
+          HttpStatus.NOT_FOUND,
+          ErrorCode.NOT_FOUND,
+          'Equipment category not found',
+        );
       }
     }
     const { acquisitionDate, ...rest } = dto;
@@ -146,11 +168,17 @@ export class EquipmentService {
   async archive(id: string) {
     const existing = await this.repository.findById(id);
     if (!existing || existing.archivedAt !== null) {
-      throw new NotFoundException('Matériel introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Equipment not found',
+      );
     }
     if ((existing.attributions?.length ?? 0) > 0) {
-      throw new BadRequestException(
-        "Impossible d'archiver un matériel attribué.",
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.EQUIPMENT_ARCHIVE_ATTRIBUTED,
+        'Cannot archive an attributed equipment',
       );
     }
     const equipment = await this.repository.archive(id);

@@ -1,8 +1,5 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { FileStorageService } from 'src/storage/services/file-storage.service';
 import { BauxRepository } from 'src/repository/baux/baux.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
@@ -45,7 +42,12 @@ export class BauxService {
 
   async getById(id: string) {
     const contract = await this.repository.findById(id);
-    if (!contract) throw new NotFoundException(`Bail ${id} introuvable.`);
+    if (!contract)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Lease ${id} not found`,
+      );
     return contract;
   }
 
@@ -54,8 +56,15 @@ export class BauxService {
     const dateFin = new Date(dto.dateFin);
 
     if (dateFin <= dateDebut) {
-      throw new BadRequestException(
-        'La date de fin doit être postérieure à la date de début.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.LEASE_END_BEFORE_START,
+        'End date must be after start date',
+        {
+          fields: [
+            { field: 'dateFin', code: ErrorCode.LEASE_END_BEFORE_START },
+          ],
+        },
       );
     }
 
@@ -101,8 +110,15 @@ export class BauxService {
     const dateDebut = updateData.dateDebut;
     const dateFin = updateData.dateFin;
     if (dateDebut && dateFin && dateFin <= dateDebut) {
-      throw new BadRequestException(
-        'La date de fin doit être postérieure à la date de début.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.LEASE_END_BEFORE_START,
+        'End date must be after start date',
+        {
+          fields: [
+            { field: 'dateFin', code: ErrorCode.LEASE_END_BEFORE_START },
+          ],
+        },
       );
     }
 
@@ -124,7 +140,11 @@ export class BauxService {
     await this.getById(id);
 
     if (file.mimetype !== PDF_MIME) {
-      throw new BadRequestException('Le contrat doit être un fichier PDF.');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.LEASE_CONTRACT_FILE_NOT_PDF,
+        'Contract must be a PDF file',
+      );
     }
 
     const stored = await this.fileStorage.upload(file, {

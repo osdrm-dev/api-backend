@@ -10,6 +10,7 @@ import { TriggerDaService } from './trigger-da.service';
 import { MaintenanceRepository } from 'src/repository/maintenance/maintenance.repository';
 import { BudgetTableService } from 'src/budget/services/budget-table.service';
 import { PrismaService } from 'prisma/prisma.service';
+import { ErrorCode } from 'src/common/errors';
 
 const mockRequest = {
   id: 'req-1',
@@ -150,7 +151,9 @@ describe('TriggerDaService', () => {
           activityCode: 'ACT001',
           acheteurId: 5,
         }),
-      ).rejects.toThrow(ConflictException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.MAINTENANCE_DA_ALREADY_LINKED,
+      });
     });
 
     it('should throw NotFoundException if request does not exist', async () => {
@@ -161,7 +164,7 @@ describe('TriggerDaService', () => {
           activityCode: 'ACT001',
           acheteurId: 5,
         }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
 
     it('should rollback transaction if purchase creation fails', async () => {

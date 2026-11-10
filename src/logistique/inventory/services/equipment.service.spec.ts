@@ -1,12 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
 import { EquipmentService } from './equipment.service';
 import { EquipmentRepository } from 'src/repository/inventory/equipment.repository';
 import { EquipmentCategoryRepository } from 'src/repository/inventory/equipment-category.repository';
+import { ErrorCode } from 'src/common/errors';
 
 const repo = { createMany: jest.fn() };
 const categoryRepo = { findById: jest.fn() };
@@ -70,7 +66,9 @@ describe('EquipmentService.create (bulk)', () => {
           { inventoryReference: 'INV-1' },
         ],
       }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toMatchObject({
+      code: ErrorCode.EQUIPMENT_DUPLICATE_INVENTORY_REFERENCE,
+    });
     expect(repo.createMany).not.toHaveBeenCalled();
   });
 
@@ -83,7 +81,9 @@ describe('EquipmentService.create (bulk)', () => {
           { inventoryReference: 'INV-2', serialNumber: 'SN' },
         ],
       }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toMatchObject({
+      code: ErrorCode.EQUIPMENT_DUPLICATE_SERIAL_NUMBER,
+    });
   });
 
   it('maps a unique violation from the database to 409', async () => {
@@ -93,13 +93,15 @@ describe('EquipmentService.create (bulk)', () => {
     });
     await expect(
       service.create({ ...base, units: [{ inventoryReference: 'INV-1' }] }),
-    ).rejects.toThrow(ConflictException);
+    ).rejects.toMatchObject({
+      code: ErrorCode.EQUIPMENT_INVENTORY_REFERENCE_ALREADY_EXISTS,
+    });
   });
 
   it('rejects unknown category', async () => {
     categoryRepo.findById.mockResolvedValue(null);
     await expect(
       service.create({ ...base, units: [{ inventoryReference: 'INV-1' }] }),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
   });
 });

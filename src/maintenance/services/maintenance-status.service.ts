@@ -1,4 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { MaintenanceRepository } from 'src/repository/maintenance/maintenance.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
@@ -21,7 +22,11 @@ export class MaintenanceStatusService {
     const request = await this.repository.findById(requestId);
 
     if (!request || request.deletedAt !== null) {
-      throw new NotFoundException('Demande de maintenance introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Maintenance request not found',
+      );
     }
 
     // Same status — return current without notification
