@@ -57,7 +57,8 @@ export class TripService {
       vehicleConnect = { connect: { id: vehicle.id } };
     }
 
-    if (!dto.missionId && !dto.missionReference) {
+    const missionReference = dto.missionReference?.trim().toUpperCase();
+    if (!dto.missionId && !missionReference) {
       throw new UnprocessableEntityException('Le trajet est requis.');
     }
 
@@ -65,14 +66,13 @@ export class TripService {
       where: dto.missionId
         ? { id: dto.missionId, deletedAt: null }
         : {
-            reference: dto.missionReference!.trim().toUpperCase(),
+            reference: missionReference!,
             deletedAt: null,
           },
     });
 
     if (!mission) {
-      const identifier =
-        dto.missionId ?? dto.missionReference!.trim().toUpperCase();
+      const identifier = dto.missionId ?? missionReference!;
       throw new UnprocessableEntityException(
         `Trajet ${identifier} introuvable.`,
       );

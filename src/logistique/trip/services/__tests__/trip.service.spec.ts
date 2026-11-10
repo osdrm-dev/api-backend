@@ -139,6 +139,25 @@ describe('TripService', () => {
       });
     });
 
+    it('rejects a whitespace-only missionReference as missing', async () => {
+      const { missionId: _m, ...noId } = dto;
+      await expect(
+        service.create({ ...noId, missionReference: '   ' }, 10),
+      ).rejects.toThrow(
+        new UnprocessableEntityException('Le trajet est requis.'),
+      );
+    });
+
+    it('accepts a mission with status IN_PROGRESS', async () => {
+      mockPrisma.lgMission.findFirst.mockResolvedValue({
+        ...MISSION,
+        status: 'IN_PROGRESS',
+      });
+      mockRepository.generateNextReference.mockResolvedValue('DEP-2026-0001');
+      mockRepository.create.mockResolvedValue(BASE_TRIP);
+      await expect(service.create(dto, 10)).resolves.toBeDefined();
+    });
+
     it('rejects mission not found or soft-deleted', async () => {
       mockPrisma.lgMission.findFirst.mockResolvedValue(null);
       const { missionId: _m, ...noId } = dto;
