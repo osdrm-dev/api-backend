@@ -28,7 +28,6 @@ import { CreateEquipmentDto } from '../dto/create-equipment.dto';
 import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
 import { FilterEquipmentDto } from '../dto/filter-equipment.dto';
 import { TriggerDaDto } from '../dto/trigger-da.dto';
-import { NotFoundException } from '@nestjs/common';
 
 @ApiTags('Logistique - Inventaire matériel - Actifs')
 @ApiBearerAuth()

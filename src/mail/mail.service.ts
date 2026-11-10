@@ -1,4 +1,5 @@
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { InjectQueue } from '@nestjs/bullmq';
 import { MailerService } from '@nestjs-modules/mailer';
 import { Logger } from '@nestjs/common';
@@ -24,7 +25,11 @@ export class MailService {
     } catch (error) {
       this.logger.error('Error queueing email:', (error as Error).stack);
 
-      throw new InternalServerErrorException();
+      throw new AppException(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        ErrorCode.INTERNAL_ERROR,
+        'Failed to queue email',
+      );
     }
   }
 
@@ -43,7 +48,11 @@ export class MailService {
       });
     } catch (error) {
       this.logger.error('Erreur, email non envoyé', (error as Error).stack);
-      throw new InternalServerErrorException();
+      throw new AppException(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        ErrorCode.INTERNAL_ERROR,
+        'Failed to send email',
+      );
     }
   }
 

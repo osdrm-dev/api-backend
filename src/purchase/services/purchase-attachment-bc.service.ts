@@ -39,8 +39,8 @@ export class PurchaseAttachmentBcService {
     if (purchase.currentStep !== PurchaseStep.BC) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_NOT_AT_STEP_QR,
-        'Purchase is not at step QR',
+        ErrorCode.PURCHASE_NOT_AT_STEP_BC,
+        'Purchase is not at step BC',
       );
     }
 

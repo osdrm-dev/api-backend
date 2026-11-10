@@ -1,4 +1,5 @@
-import { BadRequestException } from '@nestjs/common';
+import { HttpStatus } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { PrismaService } from 'prisma/prisma.service';
 
 /** Dedupes `fileIds` and checks they were all uploaded by `userId` (prevents attaching someone else's file). */
@@ -13,8 +14,10 @@ export async function assertOwnFiles(
     where: { id: { in: ids }, uploadedById: userId },
   });
   if (owned !== ids.length) {
-    throw new BadRequestException(
-      'Un ou plusieurs documents joints sont introuvables.',
+    throw new AppException(
+      HttpStatus.BAD_REQUEST,
+      ErrorCode.STORAGE_ATTACHMENTS_NOT_FOUND,
+      'One or more attached files were not found',
     );
   }
   return ids;

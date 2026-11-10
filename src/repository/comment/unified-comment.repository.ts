@@ -1,4 +1,5 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { CommentEntityType, LgComment, PurchaseStep } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 
@@ -82,8 +83,10 @@ export class UnifiedCommentRepository {
       });
 
       if (!comment || comment.authorId !== requestorId) {
-        throw new ForbiddenException(
-          'Vous ne pouvez supprimer que vos propres commentaires.',
+        throw new AppException(
+          HttpStatus.FORBIDDEN,
+          ErrorCode.COMMENT_DELETE_OWN_ONLY,
+          'Only the comment author can delete it',
         );
       }
     }

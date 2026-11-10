@@ -1,9 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import {
   LgCarburantStatus,
   LgTypeCarburant,
@@ -136,7 +132,9 @@ describe('CarburantService', () => {
 
       await expect(
         service.create({ ...dto, fileIds: [5] }, 10),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.STORAGE_ATTACHMENTS_NOT_FOUND,
+      });
       expect(mockRepository.create).not.toHaveBeenCalled();
     });
 

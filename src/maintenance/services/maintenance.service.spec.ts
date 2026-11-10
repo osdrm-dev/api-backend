@@ -1,9 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import {
   MaintenanceInterventionType,
   MaintenanceStatus,
@@ -117,7 +113,9 @@ describe('MaintenanceService - Reference Generation', () => {
           { ...baseDto, data: { attachmentIds: [7] } } as any,
           42,
         ),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.STORAGE_ATTACHMENTS_NOT_FOUND,
+      });
       expect(mockRepository.create).not.toHaveBeenCalled();
     });
 
