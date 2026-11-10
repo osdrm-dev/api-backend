@@ -1,4 +1,10 @@
-import { PrismaClient, LgMissionStatus, LgMissionType } from '@prisma/client';
+import {
+  PrismaClient,
+  LgMissionStatus,
+  LgMissionType,
+  LgSettlementValidationStatus as VStatus,
+  LgSettlementValidatorRole as VRole,
+} from '@prisma/client';
 
 const today = new Date();
 const daysFromNow = (n: number) => new Date(today.getTime() + n * 86_400_000);
@@ -8,6 +14,7 @@ export async function seedMission(
   prisma: PrismaClient,
   userMap: Record<string, any>,
 ) {
+  await prisma.lgSettlementValidation.deleteMany();
   await prisma.lgMissionSettlement.deleteMany();
   await prisma.lgMissionComment.deleteMany();
   await prisma.lgMission.deleteMany();
@@ -15,6 +22,53 @@ export async function seedMission(
   const gp = userMap['gp'];
   const d1 = userMap['demandeur1'];
   const d2 = userMap['demandeur2'];
+  const om = userMap['om'];
+  const cfo = userMap['cfo'];
+
+  // Liquidation + 3 validations parallèles (DEMANDEUR/OM/CFO).
+  // SETTLED = aucune décision ou décisions partielles sans rejet ;
+  // SETTLEMENT_APPROVED = 3 APPROVED ; SETTLEMENT_REJECTED = >=1 REJECTED commenté.
+  type Decision = [VStatus, string | undefined, number]; // statut, commentaire, décalage en jours
+  const settlementFor = (
+    requestor: any,
+    costs: [number, number, number, number],
+    remarks: string,
+    submittedOffset: number,
+    decisions: Partial<Record<VRole, Decision>>,
+  ) => {
+    const [transport, lodging, meals, other] = costs;
+    const validators: Record<VRole, any> = {
+      DEMANDEUR: requestor,
+      OM: om,
+      CFO: cfo,
+    };
+    return {
+      create: {
+        transportCost: transport.toFixed(2),
+        accommodationCost: lodging.toFixed(2),
+        mealCost: meals.toFixed(2),
+        otherCosts: other.toFixed(2),
+        totalAmount: (transport + lodging + meals + other).toFixed(2),
+        remarks,
+        submittedAt: daysFromNow(submittedOffset),
+        submittedById: requestor.id,
+        validations: {
+          create: [VRole.DEMANDEUR, VRole.OM, VRole.CFO].map((role) => {
+            const d = decisions[role];
+            return d
+              ? {
+                  role,
+                  status: d[0],
+                  comment: d[1],
+                  validatorId: validators[role].id,
+                  decidedAt: daysFromNow(d[2]),
+                }
+              : { role, status: VStatus.PENDING };
+          }),
+        },
+      },
+    };
+  };
 
   const vehicles = await prisma.vehicle.findMany({
     where: { statut: 'ACTIF' },
@@ -134,18 +188,13 @@ export async function seedMission(
       status: LgMissionStatus.SETTLED,
       requestor: { connect: { id: d1.id } },
       manager: { connect: { id: gp.id } },
-      settlement: {
-        create: {
-          transportCost: '120000.00',
-          accommodationCost: '180000.00',
-          mealCost: '60000.00',
-          otherCosts: '15000.00',
-          totalAmount: '375000.00',
-          remarks:
-            'Dépenses conformes au budget prévisionnel. Un taxi supplémentaire pris pour retour tardif.',
-          submittedById: d1.id,
-        },
-      },
+      settlement: settlementFor(
+        d1,
+        [120000, 180000, 60000, 15000],
+        'Dépenses conformes au budget prévisionnel. Un taxi supplémentaire pris pour retour tardif.',
+        -15,
+        {},
+      ),
     },
   });
 
@@ -209,7 +258,138 @@ export async function seedMission(
     },
   });
 
+  // 9. CONFIRMED — Pierre Andry, supervision Antsirabe (reçoit des déplacements)
+  await prisma.lgMission.create({
+    data: {
+      reference: `TRJ-${year}-0009`,
+      purpose: 'Supervision des centres de santé communautaires',
+      destination: 'Antsirabe',
+      departureDate: daysFromNow(2),
+      returnDate: daysFromNow(4),
+      missionType: LgMissionType.REGIONAL,
+      passengerCount: 2,
+      passengers: ['Hanta Rasolofo'],
+      perDiemAmount: '70000.00',
+      confirmedAt: daysFromNow(-2),
+      status: LgMissionStatus.CONFIRMED,
+      requestor: { connect: { id: d1.id } },
+      manager: { connect: { id: gp.id } },
+      ...(v1 && { vehicle: { connect: { id: v1.id } } }),
+    },
+  });
+
+  // 10. IN_PROGRESS — Pierre Andry, Morondava
+  await prisma.lgMission.create({
+    data: {
+      reference: `TRJ-${year}-0010`,
+      purpose: 'Distribution de kits agricoles — district Morondava',
+      destination: 'Morondava',
+      departureDate: daysFromNow(-3),
+      returnDate: daysFromNow(2),
+      missionType: LgMissionType.REGIONAL,
+      passengerCount: 3,
+      passengers: ['Tiana Randrianarisoa', 'Mino Rabe'],
+      perDiemAmount: '85000.00',
+      confirmedAt: daysFromNow(-6),
+      status: LgMissionStatus.IN_PROGRESS,
+      requestor: { connect: { id: d1.id } },
+      manager: { connect: { id: gp.id } },
+    },
+  });
+
+  // 11. SETTLEMENT_APPROVED — Julie Fara, Mahajanga (3 validations APPROVED)
+  await prisma.lgMission.create({
+    data: {
+      reference: `TRJ-${year}-0011`,
+      purpose: 'Atelier de planification annuelle — bureau régional Boeny',
+      destination: 'Mahajanga',
+      departureDate: daysFromNow(-45),
+      returnDate: daysFromNow(-42),
+      missionType: LgMissionType.NATIONAL,
+      passengerCount: 2,
+      passengers: ['Soa Razafy'],
+      perDiemAmount: '85000.00',
+      confirmedAt: daysFromNow(-50),
+      status: LgMissionStatus.SETTLEMENT_APPROVED,
+      requestor: { connect: { id: d2.id } },
+      manager: { connect: { id: gp.id } },
+      settlement: settlementFor(
+        d2,
+        [95000, 160000, 55000, 0],
+        'Frais conformes, justificatifs joints.',
+        -41,
+        {
+          DEMANDEUR: [VStatus.APPROVED, 'Je confirme les montants.', -41],
+          OM: [VStatus.APPROVED, 'Validé OM.', -40],
+          CFO: [VStatus.APPROVED, 'Budget conforme, paiement autorisé.', -38],
+        },
+      ),
+    },
+  });
+
+  // 12. SETTLEMENT_REJECTED — Pierre Andry, Fianarantsoa (CFO rejette)
+  await prisma.lgMission.create({
+    data: {
+      reference: `TRJ-${year}-0012`,
+      purpose: 'Revue trimestrielle des partenaires — Haute Matsiatra',
+      destination: 'Fianarantsoa',
+      departureDate: daysFromNow(-30),
+      returnDate: daysFromNow(-27),
+      missionType: LgMissionType.NATIONAL,
+      passengerCount: 1,
+      perDiemAmount: '80000.00',
+      confirmedAt: daysFromNow(-34),
+      status: LgMissionStatus.SETTLEMENT_REJECTED,
+      requestor: { connect: { id: d1.id } },
+      manager: { connect: { id: gp.id } },
+      settlement: settlementFor(
+        d1,
+        [110000, 210000, 75000, 90000],
+        'Autres frais : réparation pneu et frais de pont.',
+        -26,
+        {
+          DEMANDEUR: [VStatus.APPROVED, undefined, -26],
+          OM: [VStatus.APPROVED, 'OK sur le principe.', -25],
+          CFO: [
+            VStatus.REJECTED,
+            'Justificatifs manquants pour les « autres frais » (90 000 Ar). Merci de compléter et resoumettre.',
+            -24,
+          ],
+        },
+      ),
+    },
+  });
+
+  // 13. SETTLED — Julie Fara, Toliara (validation en cours : DEMANDEUR + OM décidés)
+  await prisma.lgMission.create({
+    data: {
+      reference: `TRJ-${year}-0013`,
+      purpose: 'Suivi des activités de nutrition — Atsimo-Andrefana',
+      destination: 'Toliara',
+      departureDate: daysFromNow(-12),
+      returnDate: daysFromNow(-9),
+      missionType: LgMissionType.NATIONAL,
+      passengerCount: 2,
+      passengers: ['Paul Ravelo'],
+      perDiemAmount: '90000.00',
+      confirmedAt: daysFromNow(-16),
+      status: LgMissionStatus.SETTLED,
+      requestor: { connect: { id: d2.id } },
+      manager: { connect: { id: gp.id } },
+      settlement: settlementFor(
+        d2,
+        [130000, 190000, 70000, 10000],
+        'Liquidation soumise après retour.',
+        -8,
+        {
+          DEMANDEUR: [VStatus.APPROVED, 'Montants exacts.', -8],
+          OM: [VStatus.APPROVED, undefined, -7],
+        },
+      ),
+    },
+  });
+
   console.log(
-    `Trajets: 8 dossiers | PENDING ×1 | VEHICLE_ASSIGNED ×1 | CONFIRMED ×1 | IN_PROGRESS ×1 | SETTLED ×1 | REJECTED ×1 | CANCELLED ×1 | PENDING_RENTAL ×1 | commentaires ×3`,
+    `Trajets: 13 dossiers | PENDING ×1 | VEHICLE_ASSIGNED ×1 | PENDING_RENTAL ×1 | CONFIRMED ×2 | IN_PROGRESS ×2 | SETTLED ×2 | SETTLEMENT_APPROVED ×1 | SETTLEMENT_REJECTED ×1 | REJECTED ×1 | CANCELLED ×1 | liquidations ×4 (12 validations) | commentaires ×3`,
   );
 }

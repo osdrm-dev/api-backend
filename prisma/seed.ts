@@ -6,6 +6,8 @@ import { seedBaux } from './seed-baux';
 import { seedMission } from './seed-mission';
 import { seedTrip } from './seed-trip';
 import { seedCarburant } from './seed-carburant';
+import { seedVehicleAssignment } from './seed-vehicle-assignment';
+import { seedComment } from './seed-comment';
 
 import {
   Role,
@@ -117,10 +119,13 @@ function daApprovedValidators(
 }
 
 async function cleanup() {
+  await prisma.lgComment.deleteMany();
+  await prisma.lgVehicleAssignment.deleteMany();
   await prisma.lgCarburantComment.deleteMany();
   await prisma.lgCarburant.deleteMany();
   await prisma.lgTripComment.deleteMany();
   await prisma.lgTrip.deleteMany();
+  await prisma.lgSettlementValidation.deleteMany();
   await prisma.lgMissionSettlement.deleteMany();
   await prisma.lgMissionComment.deleteMany();
   await prisma.lgMission.deleteMany();
@@ -477,9 +482,11 @@ async function main() {
   await seedMission(prisma, userMap);
   await seedTrip(prisma, userMap);
   await seedCarburant(prisma, userMap);
+  await seedVehicleAssignment(prisma, userMap);
+  await seedComment(prisma, userMap);
 
   console.log(
-    'Seeding termine: 11 users | 4 fournisseurs | 23 dossiers achat (19 + 4 DAP) | 10 demandes entretien | parc informatique | 11 baux | 8 trajets | 9 déplacements | 10 carburants',
+    'Seeding termine: 11 users | 4 fournisseurs | 23 dossiers achat (19 + 4 DAP) | 10 demandes entretien | parc informatique | 11 baux | 13 trajets (4 liquidations) | 10 déplacements | 10 carburants | 4 chauffeurs + 6 affectations | commentaires unifiés',
   );
 }
 
