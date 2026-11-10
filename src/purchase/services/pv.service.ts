@@ -107,18 +107,16 @@ export class PVService {
     if (purchase.currentStep !== PurchaseStep.PV) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STEP,
+        ErrorCode.PURCHASE_NOT_AT_STEP_PV,
         'Purchase is not at step PV',
-        { params: { step: 'PV' } },
       );
     }
 
     if (purchase.status !== PurchaseStatus.PUBLISHED) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STATUS,
+        ErrorCode.PURCHASE_NOT_PUBLISHED,
         'Purchase must be PUBLISHED',
-        { params: { expected: 'PUBLISHED' } },
       );
     }
 

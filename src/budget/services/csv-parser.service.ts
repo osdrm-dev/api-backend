@@ -45,7 +45,6 @@ export class CsvParserService {
         HttpStatus.BAD_REQUEST,
         ErrorCode.BUDGET_CSV_INVALID,
         `Invalid CSV file: ${(err as Error).message}`,
-        { params: { reason: (err as Error).message } },
       );
     }
 

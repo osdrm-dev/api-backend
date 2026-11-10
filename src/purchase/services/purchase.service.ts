@@ -266,16 +266,16 @@ export class PurchaseService {
   //     where: { id: purchaseId },
   //   });
 
-  //   if (!purchase) throw new AppException("Demande d'achat non trouvee");
+  //   if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
   //   if (purchase.creatorId !== userId)
-  //     throw new AppException(
+  //     throw new ForbiddenException(
   //       "Vous n'etes pas autorise a modifier cette DA",
   //     );
   //   if (
   //     purchase.status !== PurchaseStatus.DRAFT &&
   //     purchase.status !== PurchaseStatus.CHANGE_REQUESTED
   //   )
-  //     throw new AppException('Cette DA ne peut plus etre modifiee');
+  //     throw new BadRequestException('Cette DA ne peut plus etre modifiee');
 
   //   const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
@@ -344,9 +344,8 @@ export class PurchaseService {
     )
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STATUS,
+        ErrorCode.PURCHASE_NOT_PUBLISHABLE,
         'Purchase must be DRAFT or CHANGE_REQUESTED',
-        { params: { expected: 'DRAFT, CHANGE_REQUESTED' } },
       );
     if (purchase.items.length === 0)
       throw new AppException(
@@ -499,9 +498,8 @@ export class PurchaseService {
     if (purchase.status !== PurchaseStatus.DRAFT)
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STATUS,
+        ErrorCode.PURCHASE_NOT_DRAFT,
         'Purchase must be DRAFT',
-        { params: { expected: 'DRAFT' } },
       );
 
     await this.prisma.purchase.delete({ where: { id: purchaseId } });
@@ -667,9 +665,8 @@ export class PurchaseService {
     if (purchase.status !== PurchaseStatus.CHANGE_REQUESTED)
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STATUS,
+        ErrorCode.PURCHASE_NOT_REPUBLISHABLE,
         'Purchase must be CHANGE_REQUESTED',
-        { params: { expected: 'CHANGE_REQUESTED' } },
       );
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });

@@ -48,9 +48,8 @@ export class AttachmentService {
     if (dto.type === 'PURCHASE_ORDER' && purchase.currentStep !== 'BC') {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STEP,
+        ErrorCode.PURCHASE_NOT_AT_STEP_BC,
         'Purchase is not at step BC',
-        { params: { step: 'BC' } },
       );
     }
 

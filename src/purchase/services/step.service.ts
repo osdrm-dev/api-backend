@@ -15,6 +15,20 @@ import { AppException, ErrorCode } from 'src/common/errors';
 
 export type DocStep = 'BR' | 'INVOICE' | 'DAP' | 'PROOF_OF_PAYMENT';
 
+const NOT_AT_STEP_CODE: Record<DocStep, ErrorCode> = {
+  BR: ErrorCode.PURCHASE_NOT_AT_STEP_BR,
+  INVOICE: ErrorCode.PURCHASE_NOT_AT_STEP_INVOICE,
+  DAP: ErrorCode.PURCHASE_NOT_AT_STEP_DAP,
+  PROOF_OF_PAYMENT: ErrorCode.PURCHASE_NOT_AT_STEP_PROOF_OF_PAYMENT,
+};
+
+const DOCUMENT_MISSING_CODE: Record<DocStep, ErrorCode> = {
+  BR: ErrorCode.PURCHASE_DOCUMENT_MISSING_BR,
+  INVOICE: ErrorCode.PURCHASE_DOCUMENT_MISSING_INVOICE,
+  DAP: ErrorCode.PURCHASE_DOCUMENT_MISSING_DAP,
+  PROOF_OF_PAYMENT: ErrorCode.PURCHASE_DOCUMENT_MISSING_PROOF_OF_PAYMENT,
+};
+
 type CfgEntry = {
   step: PurchaseStep;
   type: AttachmentType;
@@ -107,9 +121,8 @@ export class DocumentStepService {
     if (purchase.currentStep !== cfg.step) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STEP,
+        NOT_AT_STEP_CODE[docStep],
         `Purchase is not at step ${docStep}`,
-        { params: { step: docStep } },
       );
     }
 
@@ -129,9 +142,8 @@ export class DocumentStepService {
     ) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STATUS,
+        ErrorCode.PURCHASE_NOT_ACCEPTING_DOCUMENTS,
         'Purchase must be PUBLISHED or AWAITING_DOCUMENTS',
-        { params: { expected: 'PUBLISHED, AWAITING_DOCUMENTS' } },
       );
     }
 
@@ -201,9 +213,8 @@ export class DocumentStepService {
     if (purchase.currentStep !== cfg.step) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STEP,
+        NOT_AT_STEP_CODE[docStep],
         `Purchase is not at step ${docStep}`,
-        { params: { step: docStep } },
       );
     }
 
@@ -219,9 +230,8 @@ export class DocumentStepService {
     if (purchase.status !== PurchaseStatus.AWAITING_DOCUMENTS) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_DOCUMENT_MISSING,
+        DOCUMENT_MISSING_CODE[docStep],
         `No document uploaded for step ${docStep}`,
-        { params: { step: docStep } },
       );
     }
 
@@ -231,9 +241,8 @@ export class DocumentStepService {
     if (!doc) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_DOCUMENT_MISSING,
+        DOCUMENT_MISSING_CODE[docStep],
         `No document uploaded for step ${docStep}`,
-        { params: { step: docStep } },
       );
     }
 
@@ -384,7 +393,7 @@ export class DocumentStepService {
     // });
 
     // if (!workflow || !this.workflowConfig.isValidatorAuthorized(validatorRole, workflow.validators)) {
-    //   throw new AppException(
+    //   throw new ForbiddenException(
     //     "Vous n'êtes pas le validateur actif pour cette étape",
     //   );
     // }

@@ -97,9 +97,8 @@ export class QuotationService {
     if (purchase.currentStep !== PurchaseStep.QR) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STEP,
+        ErrorCode.PURCHASE_NOT_AT_STEP_QR,
         'Purchase is not at step QR',
-        { params: { step: 'QR' } },
       );
     }
 
@@ -154,9 +153,8 @@ export class QuotationService {
     if (purchase.currentStep !== PurchaseStep.QR) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STEP,
+        ErrorCode.PURCHASE_NOT_AT_STEP_QR,
         'Purchase is not at step QR',
-        { params: { step: 'QR' } },
       );
     }
 
@@ -278,9 +276,8 @@ export class QuotationService {
     if (purchase.currentStep !== PurchaseStep.QR) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STEP,
+        ErrorCode.PURCHASE_NOT_AT_STEP_QR,
         'Purchase is not at step QR',
-        { params: { step: 'QR' } },
       );
     }
 
@@ -353,9 +350,8 @@ export class QuotationService {
     if (purchase.currentStep !== PurchaseStep.QR) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STEP,
+        ErrorCode.PURCHASE_NOT_AT_STEP_QR,
         'Purchase is not at step QR',
-        { params: { step: 'QR' } },
       );
     }
 
@@ -421,9 +417,8 @@ export class QuotationService {
     if (purchase.currentStep !== PurchaseStep.QR) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STEP,
+        ErrorCode.PURCHASE_NOT_AT_STEP_QR,
         'Purchase is not at step QR',
-        { params: { step: 'QR' } },
       );
     }
 
@@ -433,9 +428,8 @@ export class QuotationService {
     ) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STATUS,
+        ErrorCode.PURCHASE_NOT_ACCEPTING_DOCUMENTS,
         'Purchase must be PUBLISHED or AWAITING_DOCUMENTS',
-        { params: { expected: 'PUBLISHED, AWAITING_DOCUMENTS' } },
       );
     }
 
@@ -447,7 +441,7 @@ export class QuotationService {
     const hasEnoughQuotes = uploaded >= required;
 
     // if (!hasEnoughQuotes && !useDerogation) {
-    //   throw new AppException(
+    //   throw new BadRequestException(
     //     `Devis insuffisants (${uploaded}/${required}). Cochez la case dérogation pour continuer malgré le manque de devis.`,
     //   );
     // }

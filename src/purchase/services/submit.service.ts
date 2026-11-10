@@ -38,9 +38,8 @@ export class SubmitService {
       case PurchaseStep.QR:
         throw new AppException(
           HttpStatus.BAD_REQUEST,
-          ErrorCode.PURCHASE_SUBMIT_NOT_ALLOWED_AT_STEP,
+          ErrorCode.PURCHASE_SUBMIT_USE_QUOTATIONS,
           'Use the quotations submit endpoint for step QR',
-          { params: { step: 'QR' } },
         );
       case PurchaseStep.PV:
         return this.submitPV(purchase, userId, totalAmount);
@@ -57,9 +56,8 @@ export class SubmitService {
       default:
         throw new AppException(
           HttpStatus.BAD_REQUEST,
-          ErrorCode.PURCHASE_SUBMIT_NOT_ALLOWED_AT_STEP,
+          ErrorCode.PURCHASE_SUBMIT_NOT_ALLOWED,
           `Cannot submit at step ${purchase.currentStep}`,
-          { params: { step: purchase.currentStep } },
         );
     }
   }
@@ -74,9 +72,8 @@ export class SubmitService {
     if (!pv) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_DOCUMENT_MISSING,
+        ErrorCode.PURCHASE_PV_REQUIRED,
         'No PV created',
-        { params: { step: 'PV' } },
       );
     }
 
@@ -135,9 +132,8 @@ export class SubmitService {
     if (!bc) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_DOCUMENT_MISSING,
+        ErrorCode.PURCHASE_DOCUMENT_MISSING_BC,
         'No purchase order uploaded',
-        { params: { step: 'BC' } },
       );
     }
 
@@ -188,9 +184,8 @@ export class SubmitService {
     if (!br) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_DOCUMENT_MISSING,
+        ErrorCode.PURCHASE_DOCUMENT_MISSING_BR,
         'No goods receipt uploaded',
-        { params: { step: 'BR' } },
       );
     }
 
@@ -225,9 +220,8 @@ export class SubmitService {
     if (!invoice) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_DOCUMENT_MISSING,
+        ErrorCode.PURCHASE_DOCUMENT_MISSING_INVOICE,
         'No invoice uploaded',
-        { params: { step: 'INVOICE' } },
       );
     }
 
@@ -258,9 +252,8 @@ export class SubmitService {
     if (!dap) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_DOCUMENT_MISSING,
+        ErrorCode.PURCHASE_DOCUMENT_MISSING_DAP,
         'No DAP uploaded',
-        { params: { step: 'DAP' } },
       );
     }
 
@@ -315,9 +308,8 @@ export class SubmitService {
     if (!proof) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_DOCUMENT_MISSING,
+        ErrorCode.PURCHASE_DOCUMENT_MISSING_PROOF_OF_PAYMENT,
         'No proof of payment uploaded',
-        { params: { step: 'PROOF_OF_PAYMENT' } },
       );
     }
 

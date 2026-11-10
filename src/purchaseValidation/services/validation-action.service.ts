@@ -252,9 +252,8 @@ export class ValidationActionService {
     if (!validStatuses.includes(purchase.status)) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STATUS,
-        `Purchase ${purchase.id} is not awaiting validation (status: ${purchase.status})`,
-        { params: { expected: 'PUBLISHED, PENDING_APPROVAL, IN_DEROGATION' } },
+        ErrorCode.VALIDATION_NOT_PENDING,
+        `Purchase ${purchase.id} is not awaiting validation`,
       );
     }
 

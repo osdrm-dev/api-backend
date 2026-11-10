@@ -46,9 +46,8 @@ export class BCService {
     if (purchase.currentStep !== PurchaseStep.BC) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STEP,
+        ErrorCode.PURCHASE_NOT_AT_STEP_BC,
         'Purchase is not at step BC',
-        { params: { step: 'BC' } },
       );
     }
 
@@ -58,9 +57,8 @@ export class BCService {
     ) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
-        ErrorCode.PURCHASE_INVALID_STATUS,
+        ErrorCode.PURCHASE_NOT_ACCEPTING_DOCUMENTS,
         'Purchase must be PUBLISHED or AWAITING_DOCUMENTS',
-        { params: { expected: 'PUBLISHED, AWAITING_DOCUMENTS' } },
       );
     }
 
