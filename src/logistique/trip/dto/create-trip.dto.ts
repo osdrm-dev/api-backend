@@ -78,4 +78,10 @@ export class CreateTripDto {
   @IsOptional()
   @IsString()
   immatriculation?: string;
+
+  // Optional until Task 3 adds missionReference resolution and makes it mandatory.
+  @ApiPropertyOptional({ description: 'ID du trajet (mission) parent' })
+  @IsOptional()
+  @IsString()
+  missionId?: string;
 }

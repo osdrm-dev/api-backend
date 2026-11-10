@@ -305,9 +305,9 @@ export class NotificationService {
 
       // Validation liquidation : pas de template email dédié en V1
       // (notification in-app uniquement). Retour null pour éviter le throw du default.
-      case OSDRM_PROCESS_EVENT.LIQUIDATION_VALIDATION_REQUISE:
-      case OSDRM_PROCESS_EVENT.LIQUIDATION_REJETEE:
-      case OSDRM_PROCESS_EVENT.LIQUIDATION_VALIDEE_COMPLETE:
+      case OSDRM_PROCESS_EVENT.SETTLEMENT_VALIDATION_REQUIRED:
+      case OSDRM_PROCESS_EVENT.SETTLEMENT_REJECTED:
+      case OSDRM_PROCESS_EVENT.SETTLEMENT_APPROVED:
         return null;
 
       case OSDRM_PROCESS_EVENT.MAINTENANCE_STATUS_CHANGED: {

@@ -118,8 +118,8 @@ export class UnifiedCommentService {
           select: { id: true },
         });
         break;
-      case CommentEntityType.DEPLACEMENT:
-        exists = await this.prisma.lgDeplacement.findFirst({
+      case CommentEntityType.MISSION:
+        exists = await this.prisma.lgMission.findFirst({
           where: { id: entityId, deletedAt: null },
           select: { id: true },
         });

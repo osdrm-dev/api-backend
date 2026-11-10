@@ -3,7 +3,7 @@ import { seedParcAuto } from './seed-parc-auto';
 import { seedMaintenance } from './seed-maintenance';
 import { seedInventory } from './seed-inventory';
 import { seedBaux } from './seed-baux';
-import { seedDeplacement } from './seed-deplacement';
+import { seedMission } from './seed-mission';
 import { seedTrip } from './seed-trip';
 import { seedCarburant } from './seed-carburant';
 
@@ -121,9 +121,9 @@ async function cleanup() {
   await prisma.lgCarburant.deleteMany();
   await prisma.lgTripComment.deleteMany();
   await prisma.lgTrip.deleteMany();
-  await prisma.lgDeplacementLiquidation.deleteMany();
-  await prisma.lgDeplacementComment.deleteMany();
-  await prisma.lgDeplacement.deleteMany();
+  await prisma.lgMissionSettlement.deleteMany();
+  await prisma.lgMissionComment.deleteMany();
+  await prisma.lgMission.deleteMany();
   await prisma.lgBailAlertLog.deleteMany();
   await prisma.lgBailPaiement.deleteMany();
   await prisma.lgBailAvenant.deleteMany();
@@ -474,12 +474,12 @@ async function main() {
   await seedMaintenance(prisma, userMap);
   await seedInventory(prisma, userMap);
   await seedBaux(prisma);
-  await seedDeplacement(prisma, userMap);
+  await seedMission(prisma, userMap);
   await seedTrip(prisma, userMap);
   await seedCarburant(prisma, userMap);
 
   console.log(
-    'Seeding termine: 11 users | 4 fournisseurs | 23 dossiers achat (19 + 4 DAP) | 10 demandes entretien | parc informatique | 11 baux | 8 déplacements | 9 trajets | 10 carburants',
+    'Seeding termine: 11 users | 4 fournisseurs | 23 dossiers achat (19 + 4 DAP) | 10 demandes entretien | parc informatique | 11 baux | 8 trajets | 9 déplacements | 10 carburants',
   );
 }
 

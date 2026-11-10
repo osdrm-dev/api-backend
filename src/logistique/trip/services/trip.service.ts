@@ -56,6 +56,13 @@ export class TripService {
       vehicleConnect = { connect: { id: vehicle.id } };
     }
 
+    // Column is NOT NULL: fail with a clear 422 instead of a DB error.
+    if (!dto.missionId) {
+      throw new UnprocessableEntityException(
+        'Le trajet (missionId) est obligatoire.',
+      );
+    }
+
     const year = new Date().getFullYear();
     const reference = await this.tripRepository.generateNextReference(year);
 
@@ -77,6 +84,7 @@ export class TripService {
       distanceKm,
       notes: dto.notes,
       requestor: { connect: { id: userId } },
+      mission: { connect: { id: dto.missionId } },
       ...(vehicleConnect && { vehicle: vehicleConnect }),
     });
 

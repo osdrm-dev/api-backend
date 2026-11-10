@@ -6,7 +6,7 @@ import {
   VehicleDocument,
   VehicleStatut,
   VehicleDocumentType,
-  LgDeplacementStatus,
+  LgMissionStatus,
   LgTripStatus,
   LgCarburantStatus,
   Role,
@@ -19,7 +19,7 @@ export type VehicleWithRelations = Vehicle & {
   })[];
 };
 
-export type VehicleUsageSource = 'TRIP' | 'DEPLACEMENT' | 'CARBURANT';
+export type VehicleUsageSource = 'TRIP' | 'MISSION' | 'CARBURANT';
 
 /**
  * Métadonnées d'usage agrégées par véhicule pour un utilisateur (FR-4).
@@ -39,17 +39,17 @@ export type VehicleUsedByUser = VehicleWithRelations & {
 };
 
 /**
- * Statuts de déplacement considérés comme "validés" (FR-2) : tous sauf
- * EN_ATTENTE (en attente de validation), REFUSEE et ANNULEE.
+ * Statuts de mission (trajet) considérés comme "validés" (FR-2) : tous sauf
+ * EN_ATTENTE (en attente de validation), REJECTED et CANCELLED.
  */
-const VALIDATED_DEPLACEMENT_STATUSES: LgDeplacementStatus[] = [
-  LgDeplacementStatus.VEHICULE_ATTRIBUE,
-  LgDeplacementStatus.EN_ATTENTE_LOCATION,
-  LgDeplacementStatus.CONFIRMEE,
-  LgDeplacementStatus.EN_COURS,
-  LgDeplacementStatus.LIQUIDEE,
-  LgDeplacementStatus.LIQUIDATION_VALIDEE,
-  LgDeplacementStatus.LIQUIDATION_REJETEE,
+const VALIDATED_MISSION_STATUSES: LgMissionStatus[] = [
+  LgMissionStatus.VEHICLE_ASSIGNED,
+  LgMissionStatus.PENDING_RENTAL,
+  LgMissionStatus.CONFIRMED,
+  LgMissionStatus.IN_PROGRESS,
+  LgMissionStatus.SETTLED,
+  LgMissionStatus.SETTLEMENT_APPROVED,
+  LgMissionStatus.SETTLEMENT_REJECTED,
 ];
 
 export interface FindAllFilters {
@@ -377,13 +377,13 @@ export class ParcAutoRepository {
 
   /**
    * Dérive les véhicules utilisés par un utilisateur en tant que `requestor`
-   * (FR-1…FR-5). Interroge les trois sources (trajets, déplacements, carburant)
+   * (FR-1…FR-5). Interroge les trois sources (déplacements, trajets, carburant)
    * avec les exclusions FR-2, agrège par véhicule en mémoire (faible
    * cardinalité), puis charge les véhicules correspondants avec leurs documents
    * actifs. Retourne la liste triée par `lastUsedAt` décroissant.
    */
   async findVehiclesUsedByUser(userId: number): Promise<VehicleUsedByUser[]> {
-    const [trips, deplacements, carburants] = await Promise.all([
+    const [trips, missions, carburants] = await Promise.all([
       this.prisma.lgTrip.findMany({
         where: {
           requestorId: userId,
@@ -393,14 +393,14 @@ export class ParcAutoRepository {
         },
         select: { vehicleId: true, departureDate: true },
       }),
-      this.prisma.lgDeplacement.findMany({
+      this.prisma.lgMission.findMany({
         where: {
           requestorId: userId,
           vehicleId: { not: null },
           deletedAt: null,
-          status: { in: VALIDATED_DEPLACEMENT_STATUSES },
+          status: { in: VALIDATED_MISSION_STATUSES },
         },
-        select: { vehicleId: true, dateDepart: true },
+        select: { vehicleId: true, departureDate: true },
       }),
       this.prisma.lgCarburant.findMany({
         where: {
@@ -445,8 +445,8 @@ export class ParcAutoRepository {
     for (const trip of trips) {
       accumulate(trip.vehicleId, trip.departureDate, 'TRIP');
     }
-    for (const deplacement of deplacements) {
-      accumulate(deplacement.vehicleId, deplacement.dateDepart, 'DEPLACEMENT');
+    for (const mission of missions) {
+      accumulate(mission.vehicleId, mission.departureDate, 'MISSION');
     }
     for (const carburant of carburants) {
       accumulate(

@@ -18,6 +18,11 @@ export async function seedTrip(
   const d1 = userMap['demandeur1'];
   const d2 = userMap['demandeur2'];
 
+  // Trips require a mission (seeded by seed-mission.ts)
+  const mission = await prisma.lgMission.findFirstOrThrow({
+    where: { status: { in: ['CONFIRMED', 'IN_PROGRESS'] } },
+  });
+
   const v1 = await prisma.vehicle.findFirstOrThrow({
     where: { immatriculation: '1234 TAA 101' },
   });
@@ -30,6 +35,7 @@ export async function seedTrip(
   const trip1 = await prisma.lgTrip.create({
     data: {
       reference: `TRJ-${year}-0001`,
+      mission: { connect: { id: mission.id } },
       status: LgTripStatus.PENDING,
       departureLocation: 'Antananarivo — Siège OSDRM',
       arrivalLocation: 'Antsirabe',
@@ -50,6 +56,7 @@ export async function seedTrip(
   await prisma.lgTrip.create({
     data: {
       reference: `TRJ-${year}-0002`,
+      mission: { connect: { id: mission.id } },
       status: LgTripStatus.PENDING,
       departureLocation: 'Bureau OSDRM Analakely',
       arrivalLocation: "Aéroport d'Ivato",
@@ -65,6 +72,7 @@ export async function seedTrip(
   await prisma.lgTrip.create({
     data: {
       reference: `TRJ-${year}-0003`,
+      mission: { connect: { id: mission.id } },
       status: LgTripStatus.PENDING,
       departureLocation: 'Antananarivo',
       arrivalLocation: 'Ambohidratrimo',
@@ -84,6 +92,7 @@ export async function seedTrip(
   const trip4 = await prisma.lgTrip.create({
     data: {
       reference: `TRJ-${year}-0004`,
+      mission: { connect: { id: mission.id } },
       status: LgTripStatus.PROCESSED,
       departureLocation: 'Antananarivo',
       arrivalLocation: 'Toamasina',
@@ -116,6 +125,7 @@ export async function seedTrip(
   const trip5 = await prisma.lgTrip.create({
     data: {
       reference: `TRJ-${year}-0005`,
+      mission: { connect: { id: mission.id } },
       status: LgTripStatus.PROCESSED,
       departureLocation: "Antananarivo — Aéroport d'Ivato",
       arrivalLocation: 'Nairobi — Aéroport International Jomo Kenyatta',
@@ -142,6 +152,7 @@ export async function seedTrip(
   await prisma.lgTrip.create({
     data: {
       reference: `TRJ-${year}-0006`,
+      mission: { connect: { id: mission.id } },
       status: LgTripStatus.CANCELLED,
       departureLocation: 'Antananarivo',
       arrivalLocation: 'Mahajanga',
@@ -158,6 +169,7 @@ export async function seedTrip(
   const trip7 = await prisma.lgTrip.create({
     data: {
       reference: `TRJ-${year}-0007`,
+      mission: { connect: { id: mission.id } },
       status: LgTripStatus.CANCELLED,
       departureLocation: 'Antananarivo',
       arrivalLocation: 'Morondava',
@@ -184,6 +196,7 @@ export async function seedTrip(
   await prisma.lgTrip.create({
     data: {
       reference: `TRJ-${year}-0008`,
+      mission: { connect: { id: mission.id } },
       status: LgTripStatus.PENDING,
       departureLocation: 'Soanierana-Ivongo',
       arrivalLocation: 'Île Sainte-Marie',
@@ -203,6 +216,7 @@ export async function seedTrip(
   await prisma.lgTrip.create({
     data: {
       reference: `TRJ-${year}-0009`,
+      mission: { connect: { id: mission.id } },
       status: LgTripStatus.PENDING,
       departureLocation: 'Antananarivo',
       arrivalLocation: 'Ambositra',

@@ -87,28 +87,28 @@ model User {
   refreshTokens         RefreshToken[]
   auditLogs             AuditLog[]
   validators            Validator[]
-  purchasesCreated      Purchase[]                 @relation("PurchaseCreator")
-  purchasesAsAcheteur   Purchase[]                 @relation("PurchaseAcheteur")
+  purchasesCreated      Purchase[]               @relation("PurchaseCreator")
+  purchasesAsAcheteur   Purchase[]               @relation("PurchaseAcheteur")
   purchaseComments      PurchaseComment[]
   files                 File[]
   budgetTables          BudgetTable[]
   signatureSpecimens    SignatureSpecimen[]
-  maintenanceRequests   MaintenanceRequest[]       @relation("MaintenanceRequestor")
-  maintenanceComments   MaintenanceComment[]       @relation("MaintenanceCommentAuthor")
-  maintenanceAssigned   MaintenanceRequest[]       @relation("MaintenanceAssignedTo")
-  equipmentDemands      EquipmentDemand[]          @relation("EquipmentDemandRequestor")
-  equipmentAttributions EquipmentAttribution[]     @relation("EquipmentAttributionBeneficiary")
-  deplacements          LgDeplacement[]            @relation("DeplacementRequestor")
-  deplacementsGeres     LgDeplacement[]            @relation("DeplacementGestionnaire")
-  deplacementComments   LgDeplacementComment[]     @relation("DeplacementCommentAuthor")
-  liquidationsSubmises  LgDeplacementLiquidation[] @relation("LiquidationSubmitter")
-  validatedLiquidations LgLiquidationValidation[]  @relation("ValidatedLiquidations")
-  trips                 LgTrip[]                   @relation("TripRequestor")
-  tripComments          LgTripComment[]            @relation("TripCommentAuthor")
-  carburants            LgCarburant[]              @relation("CarburantRequestor")
-  carburantComments     LgCarburantComment[]       @relation("CarburantCommentAuthor")
-  comments              LgComment[]                @relation("CommentAuthor")
-  vehicleAssignments    LgVehicleAssignment[]      @relation("VehicleAssignmentDriver")
+  maintenanceRequests   MaintenanceRequest[]     @relation("MaintenanceRequestor")
+  maintenanceComments   MaintenanceComment[]     @relation("MaintenanceCommentAuthor")
+  maintenanceAssigned   MaintenanceRequest[]     @relation("MaintenanceAssignedTo")
+  equipmentDemands      EquipmentDemand[]        @relation("EquipmentDemandRequestor")
+  equipmentAttributions EquipmentAttribution[]   @relation("EquipmentAttributionBeneficiary")
+  missions              LgMission[]              @relation("MissionRequestor")
+  managedMissions       LgMission[]              @relation("MissionManager")
+  missionComments       LgMissionComment[]       @relation("MissionCommentAuthor")
+  submittedSettlements  LgMissionSettlement[]    @relation("SettlementSubmitter")
+  validatedSettlements  LgSettlementValidation[] @relation("ValidatedSettlements")
+  trips                 LgTrip[]                 @relation("TripRequestor")
+  tripComments          LgTripComment[]          @relation("TripCommentAuthor")
+  carburants            LgCarburant[]            @relation("CarburantRequestor")
+  carburantComments     LgCarburantComment[]     @relation("CarburantCommentAuthor")
+  comments              LgComment[]              @relation("CommentAuthor")
+  vehicleAssignments    LgVehicleAssignment[]    @relation("VehicleAssignmentDriver")
 
   @@index([email])
   @@index([role])
@@ -275,7 +275,7 @@ model Purchase {
   maintenanceRequest MaintenanceRequest?
   equipment          Equipment?          @relation("EquipmentLinkedPurchase")
   equipmentDemand    EquipmentDemand?    @relation("EquipmentDemandLinkedPurchase")
-  deplacement        LgDeplacement?      @relation("DeplacementLinkedPurchase")
+  mission            LgMission?          @relation("MissionLinkedPurchase")
 
   @@index([reference])
   @@index([status])
@@ -685,7 +685,7 @@ model PurchaseComment {
 enum CommentEntityType {
   PURCHASE
   MAINTENANCE
-  DEPLACEMENT
+  MISSION
   TRIP
   CARBURANT
 }
@@ -802,7 +802,7 @@ model Vehicle {
   photoFileIds    Int[]         @default([])
 
   documents           VehicleDocument[]
-  deplacements        LgDeplacement[]
+  missions            LgMission[]
   trips               LgTrip[]              @relation("TripVehicle")
   carburants          LgCarburant[]         @relation("CarburantVehicle")
   maintenanceRequests MaintenanceRequest[]
@@ -1129,142 +1129,143 @@ model LgBailAlertLog {
 }
 
 // =====================================================
-// GESTION DEPLACEMENT
+// GESTION MISSION (UI: Trajet)
 // =====================================================
 
-enum LgDeplacementStatus {
-  EN_ATTENTE
-  VEHICULE_ATTRIBUE
-  EN_ATTENTE_LOCATION
-  CONFIRMEE
-  EN_COURS
-  LIQUIDEE
-  LIQUIDATION_VALIDEE
-  LIQUIDATION_REJETEE
-  REFUSEE
-  ANNULEE
+enum LgMissionStatus {
+  PENDING
+  VEHICLE_ASSIGNED
+  PENDING_RENTAL
+  CONFIRMED
+  IN_PROGRESS
+  SETTLED
+  SETTLEMENT_APPROVED
+  SETTLEMENT_REJECTED
+  REJECTED
+  CANCELLED
 }
 
-enum LgLiquidationValidationStatus {
-  EN_ATTENTE
-  VALIDEE
-  REJETEE
+enum LgSettlementValidationStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
-enum LgLiquidationValidatorRole {
+enum LgSettlementValidatorRole {
   DEMANDEUR
   OM
   CFO
 }
 
-enum LgTypeMission {
-  DEPLACEMENT_NATIONAL
-  DEPLACEMENT_REGIONAL
-  DEPLACEMENT_INTERNATIONAL
+enum LgMissionType {
+  NATIONAL
+  REGIONAL
+  INTERNATIONAL
 }
 
-model LgDeplacement {
+model LgMission {
   id        String @id @default(cuid())
   reference String @unique
 
-  objet           String
-  destination     String
-  dateDepart      DateTime
-  dateRetour      DateTime
-  typeMission     LgTypeMission
-  nombrePersonnes Int           @default(1)
-  passagers       String[]      @default([])
-  justification   String?       @db.Text
+  purpose        String
+  destination    String
+  departureDate  DateTime
+  returnDate     DateTime
+  missionType    LgMissionType
+  passengerCount Int           @default(1)
+  passengers     String[]      @default([])
+  justification  String?       @db.Text
 
-  status LgDeplacementStatus @default(EN_ATTENTE)
+  status LgMissionStatus @default(PENDING)
 
-  motifRefus                  String?   @db.Text
-  montantPerDiem              Decimal?  @db.Decimal(15, 2)
-  instructionsComplementaires String?   @db.Text
-  confirmedAt                 DateTime?
+  rejectionReason        String?   @db.Text
+  perDiemAmount          Decimal?  @db.Decimal(15, 2)
+  additionalInstructions String?   @db.Text
+  confirmedAt            DateTime?
 
   requestorId      Int?
-  requestor        User?     @relation("DeplacementRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
-  gestionnairId    Int?
-  gestionnaire     User?     @relation("DeplacementGestionnaire", fields: [gestionnairId], references: [id], onDelete: SetNull)
+  requestor        User?     @relation("MissionRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
+  managerId        Int?
+  manager          User?     @relation("MissionManager", fields: [managerId], references: [id], onDelete: SetNull)
   vehicleId        String?
   vehicle          Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
   linkedPurchaseId String?   @unique
-  linkedPurchase   Purchase? @relation("DeplacementLinkedPurchase", fields: [linkedPurchaseId], references: [id], onDelete: SetNull)
+  linkedPurchase   Purchase? @relation("MissionLinkedPurchase", fields: [linkedPurchaseId], references: [id], onDelete: SetNull)
 
-  liquidation LgDeplacementLiquidation?
-  comments    LgDeplacementComment[]
-  data        Json?
-  deletedAt   DateTime?
-  createdAt   DateTime                  @default(now())
-  updatedAt   DateTime                  @updatedAt
+  settlement LgMissionSettlement?
+  comments   LgMissionComment[]
+  trips      LgTrip[]
+  data       Json?
+  deletedAt  DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
 
   @@index([status])
   @@index([requestorId])
   @@index([vehicleId])
-  @@index([dateDepart])
-  @@index([dateRetour])
+  @@index([departureDate])
+  @@index([returnDate])
   @@index([createdAt])
   @@index([deletedAt])
-  @@map("lg_deplacements")
+  @@map("lg_missions")
 }
 
-model LgDeplacementLiquidation {
-  id                   String                    @id @default(cuid())
-  deplacementId        String                    @unique
-  fraisTransport       Decimal                   @db.Decimal(15, 2)
-  fraisHebergement     Decimal                   @db.Decimal(15, 2)
-  fraisRestauration    Decimal                   @db.Decimal(15, 2)
-  autresFrais          Decimal                   @default(0) @db.Decimal(15, 2)
-  totalLiquidation     Decimal                   @db.Decimal(15, 2)
-  observations         String?                   @db.Text
-  dateDepotLiquidation DateTime                  @default(now())
-  submittedById        Int?
-  submittedBy          User?                     @relation("LiquidationSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
-  deplacement          LgDeplacement             @relation(fields: [deplacementId], references: [id], onDelete: Cascade)
-  validations          LgLiquidationValidation[]
-  createdAt            DateTime                  @default(now())
-  updatedAt            DateTime                  @updatedAt
+model LgMissionSettlement {
+  id                String                   @id @default(cuid())
+  missionId         String                   @unique
+  transportCost     Decimal                  @db.Decimal(15, 2)
+  accommodationCost Decimal                  @db.Decimal(15, 2)
+  mealCost          Decimal                  @db.Decimal(15, 2)
+  otherCosts        Decimal                  @default(0) @db.Decimal(15, 2)
+  totalAmount       Decimal                  @db.Decimal(15, 2)
+  remarks           String?                  @db.Text
+  submittedAt       DateTime                 @default(now())
+  submittedById     Int?
+  submittedBy       User?                    @relation("SettlementSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
+  mission           LgMission                @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  validations       LgSettlementValidation[]
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
 
-  @@index([deplacementId])
-  @@map("lg_deplacement_liquidations")
+  @@index([missionId])
+  @@map("lg_mission_settlements")
 }
 
-model LgLiquidationValidation {
-  id            String                        @id @default(cuid())
-  liquidationId String
-  role          LgLiquidationValidatorRole
-  status        LgLiquidationValidationStatus @default(EN_ATTENTE)
-  validatorId   Int?
-  commentaire   String?                       @db.Text
-  decidedAt     DateTime?
+model LgSettlementValidation {
+  id           String                       @id @default(cuid())
+  settlementId String
+  role         LgSettlementValidatorRole
+  status       LgSettlementValidationStatus @default(PENDING)
+  validatorId  Int?
+  comment      String?                      @db.Text
+  decidedAt    DateTime?
 
-  liquidation LgDeplacementLiquidation @relation(fields: [liquidationId], references: [id], onDelete: Cascade)
-  validator   User?                    @relation("ValidatedLiquidations", fields: [validatorId], references: [id], onDelete: SetNull)
+  settlement LgMissionSettlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  validator  User?               @relation("ValidatedSettlements", fields: [validatorId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@unique([liquidationId, role])
-  @@index([liquidationId])
+  @@unique([settlementId, role])
+  @@index([settlementId])
   @@index([status])
-  @@map("lg_liquidation_validations")
+  @@map("lg_settlement_validations")
 }
 
-model LgDeplacementComment {
-  id            String        @id @default(cuid())
-  deplacementId String
-  authorId      Int?
-  content       String        @db.Text
-  deplacement   LgDeplacement @relation(fields: [deplacementId], references: [id], onDelete: Cascade)
-  author        User?         @relation("DeplacementCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+model LgMissionComment {
+  id        String    @id @default(cuid())
+  missionId String
+  authorId  Int?
+  content   String    @db.Text
+  mission   LgMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  author    User?     @relation("MissionCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  @@index([deplacementId])
+  @@index([missionId])
   @@index([authorId])
   @@index([createdAt])
-  @@map("lg_deplacement_comments")
+  @@map("lg_mission_comments")
 }
 
 // =====================================================
@@ -1303,15 +1304,18 @@ model LgTrip {
   notes             String?         @db.VarChar(1000)
   requestorId       Int?
   vehicleId         String?
+  missionId         String
   deletedAt         DateTime?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
   requestor User?           @relation("TripRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
   vehicle   Vehicle?        @relation("TripVehicle", fields: [vehicleId], references: [id], onDelete: SetNull)
+  mission   LgMission       @relation(fields: [missionId], references: [id], onDelete: Restrict)
   comments  LgTripComment[]
 
   @@index([requestorId])
+  @@index([missionId])
   @@index([vehicleId])
   @@index([status])
   @@index([departureDate])
