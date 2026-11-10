@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { PurchaseStep, PurchaseStatus } from '@prisma/client';
 import { FilterPurchaseDto } from '../dto/filter-purchase.dto';
 import { ValidatePurchaseDto } from '../dto/validate-purchase.dto';
@@ -12,6 +12,7 @@ import { ValidatorRepository } from 'src/repository/purchase';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { PrismaService } from 'prisma/prisma.service';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 const NEXT_STEP_MAP: Partial<Record<PurchaseStep, PurchaseStep>> = {
   [PurchaseStep.DA]: PurchaseStep.QR,
@@ -71,8 +72,10 @@ export class DAValidationService {
   async getDAById(id: string) {
     const purchase = await this.queryService.findById(id);
     if (!purchase) {
-      throw new NotFoundException(
-        `Demande d'achat avec l'ID ${id} non trouvée.`,
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Purchase ${id} not found`,
       );
     }
     return purchase;
@@ -89,7 +92,11 @@ export class DAValidationService {
     ]);
 
     if (!purchase) {
-      throw new NotFoundException(`Demande d'achat non trouvée.`);
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     const userEmail = auth.user.email;

@@ -1,8 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { PrismaService } from 'prisma/prisma.service';
 import { SigningStatus } from '@prisma/client';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 export const PDF_SIGNING_QUEUE = 'pdf-signing';
 export const PDF_SIGNING_JOB = 'sign';
@@ -41,7 +42,11 @@ export class PdfSigningService {
     });
 
     if (!attachment) {
-      throw new NotFoundException('Pièce jointe introuvable');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Attachment not found',
+      );
     }
 
     return {

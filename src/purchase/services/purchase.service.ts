@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { WorkflowService } from './workflow.service';
 import { WorkflowConfigService } from '../../purchaseValidation/services/workflow-config.service';
@@ -26,6 +20,7 @@ import {
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { BudgetTableService } from '../../budget/services/budget-table.service';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 const STEP_ORDER: PurchaseStep[] = [
   PurchaseStep.DA,
@@ -55,21 +50,47 @@ export class PurchaseService {
     const acheteur = await this.prisma.user.findUnique({
       where: { id: acheteurId },
     });
-    if (!acheteur) throw new NotFoundException('Acheteur non trouve.');
+    if (!acheteur)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Buyer not found',
+      );
     if (acheteur.role !== Role.ACHETEUR) {
-      throw new BadRequestException(
-        "L'utilisateur sélectionné n'est pas un acheteur.",
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_BUYER_INVALID,
+        'Selected user is not a buyer',
+        {
+          fields: [
+            { field: 'acheteurId', code: ErrorCode.PURCHASE_BUYER_INVALID },
+          ],
+        },
       );
     }
     if (!acheteur.isActive) {
-      throw new BadRequestException("L'acheteur sélectionné n'est pas actif.");
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_BUYER_INVALID,
+        'Selected buyer is not active',
+        {
+          fields: [
+            { field: 'acheteurId', code: ErrorCode.PURCHASE_BUYER_INVALID },
+          ],
+        },
+      );
     }
     return acheteur;
   }
 
   async createPurchase(userId: number, createDto: CreatePurchaseDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException('Utilisateur non trouve');
+    if (!user)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'User not found',
+      );
 
     await this.resolveAcheteur(createDto.acheteurId);
 
@@ -158,16 +179,27 @@ export class PurchaseService {
       include: { items: true },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     if (purchase.creatorId !== userId)
-      throw new ForbiddenException(
-        "Vous n'etes pas autorise a modifier cette DA",
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_CREATOR_ONLY,
+        'Only the creator of the purchase can perform this action',
       );
     if (
       purchase.status !== PurchaseStatus.DRAFT &&
       purchase.status !== PurchaseStatus.CHANGE_REQUESTED
     )
-      throw new BadRequestException('Cette DA ne peut plus etre modifiee');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_NOT_EDITABLE,
+        'Purchase can no longer be edited',
+      );
 
     // Budget threshold enforcement at item-addition time.
     if (purchase.activityCode) {
@@ -179,8 +211,10 @@ export class PurchaseService {
         0,
       );
       if (total > project.budgetThreshold) {
-        throw new BadRequestException(
-          'Le montant total de la DA dépasse le seuil budgétaire autorisé pour ce projet.',
+        throw new AppException(
+          HttpStatus.BAD_REQUEST,
+          ErrorCode.PURCHASE_BUDGET_THRESHOLD_EXCEEDED,
+          'Purchase total exceeds the budget threshold of the project',
         );
       }
     }
@@ -232,16 +266,16 @@ export class PurchaseService {
   //     where: { id: purchaseId },
   //   });
 
-  //   if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+  //   if (!purchase) throw new AppException("Demande d'achat non trouvee");
   //   if (purchase.creatorId !== userId)
-  //     throw new ForbiddenException(
+  //     throw new AppException(
   //       "Vous n'etes pas autorise a modifier cette DA",
   //     );
   //   if (
   //     purchase.status !== PurchaseStatus.DRAFT &&
   //     purchase.status !== PurchaseStatus.CHANGE_REQUESTED
   //   )
-  //     throw new BadRequestException('Cette DA ne peut plus etre modifiee');
+  //     throw new AppException('Cette DA ne peut plus etre modifiee');
 
   //   const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
@@ -292,21 +326,33 @@ export class PurchaseService {
       include: { items: true, validationWorkflows: true },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     if (purchase.creatorId !== userId)
-      throw new ForbiddenException(
-        "Vous n'etes pas autorise a publier cette DA",
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_CREATOR_ONLY,
+        'Only the creator of the purchase can perform this action',
       );
     if (
       purchase.status !== PurchaseStatus.DRAFT &&
       purchase.status !== PurchaseStatus.CHANGE_REQUESTED
     )
-      throw new BadRequestException(
-        'Seules les DA en brouillon ou avec modifications demandees peuvent etre publiees',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STATUS,
+        'Purchase must be DRAFT or CHANGE_REQUESTED',
+        { params: { expected: 'DRAFT, CHANGE_REQUESTED' } },
       );
     if (purchase.items.length === 0)
-      throw new BadRequestException(
-        'Ajoutez au moins un article avant de publier',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_ITEMS_REQUIRED,
+        'Add at least one item before publishing',
       );
 
     if (purchase.status === PurchaseStatus.CHANGE_REQUESTED) {
@@ -401,7 +447,12 @@ export class PurchaseService {
       },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
 
     const statusMessage = this.workflowConfigService.getStatusMessage(
       purchase.status,
@@ -433,14 +484,24 @@ export class PurchaseService {
       where: { id: purchaseId },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     if (purchase.creatorId !== userId)
-      throw new ForbiddenException(
-        "Vous n'etes pas autorise a supprimer cette DA",
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_CREATOR_ONLY,
+        'Only the creator of the purchase can perform this action',
       );
     if (purchase.status !== PurchaseStatus.DRAFT)
-      throw new BadRequestException(
-        'Seules les DA en brouillon peuvent etre supprimees',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STATUS,
+        'Purchase must be DRAFT',
+        { params: { expected: 'DRAFT' } },
       );
 
     await this.prisma.purchase.delete({ where: { id: purchaseId } });
@@ -463,16 +524,27 @@ export class PurchaseService {
       where: { id: purchaseId },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     if (purchase.creatorId !== userId)
-      throw new ForbiddenException(
-        "Vous n'etes pas autorise a modifier cette DA",
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_CREATOR_ONLY,
+        'Only the creator of the purchase can perform this action',
       );
     if (
       purchase.status !== PurchaseStatus.DRAFT &&
       purchase.status !== PurchaseStatus.CHANGE_REQUESTED
     )
-      throw new BadRequestException('Cette DA ne peut plus etre modifiee');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_NOT_EDITABLE,
+        'Purchase can no longer be edited',
+      );
 
     const updateData: any = { ...updateDto };
 
@@ -531,10 +603,17 @@ export class PurchaseService {
       where: { id: purchaseId },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     if (purchase.creatorId !== userId)
-      throw new ForbiddenException(
-        "Vous n'etes pas autorise a modifier cette DA",
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_CREATOR_ONLY,
+        'Only the creator of the purchase can perform this action',
       );
 
     const updated = await this.prisma.purchase.update({
@@ -573,14 +652,24 @@ export class PurchaseService {
       include: { validationWorkflows: true },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     if (purchase.creatorId !== userId)
-      throw new ForbiddenException(
-        "Vous n'etes pas autorise a modifier cette DA",
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_CREATOR_ONLY,
+        'Only the creator of the purchase can perform this action',
       );
     if (purchase.status !== PurchaseStatus.CHANGE_REQUESTED)
-      throw new BadRequestException(
-        'Seules les DA avec modifications demandees peuvent etre republiees',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STATUS,
+        'Purchase must be CHANGE_REQUESTED',
+        { params: { expected: 'CHANGE_REQUESTED' } },
       );
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -828,10 +917,17 @@ export class PurchaseService {
       },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     if (purchase.creatorId !== userId)
-      throw new ForbiddenException(
-        'Seul le createur peut consulter le statut de validation',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_CREATOR_ONLY,
+        'Only the creator of the purchase can perform this action',
       );
 
     return {

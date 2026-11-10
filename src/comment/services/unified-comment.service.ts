@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, HttpStatus } from '@nestjs/common';
 import { CommentEntityType, PurchaseStep } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { NotificationService } from 'src/notification/services/nofitication.service';
@@ -7,6 +7,7 @@ import {
   LgCommentWithAuthor,
   UnifiedCommentRepository,
 } from 'src/repository/comment/unified-comment.repository';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 interface CreateCommentDto {
   content: string;
@@ -139,7 +140,11 @@ export class UnifiedCommentService {
     }
 
     if (!exists) {
-      throw new NotFoundException('Entité introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Entity not found',
+      );
     }
   }
 

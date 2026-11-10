@@ -8,7 +8,7 @@
  */
 import { Test, TestingModule } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bullmq';
-import { NotFoundException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors';
 import { PDFDocument } from 'pdf-lib';
 import { SigningStatus } from '@prisma/client';
 
@@ -156,9 +156,9 @@ describe('PdfSigning — module integration', () => {
     it('getStatus() throws NotFoundException for unknown attachment', async () => {
       prisma.attachment.findUnique.mockResolvedValue(null);
 
-      await expect(signingService.getStatus('att-missing')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        signingService.getStatus('att-missing'),
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
   });
 

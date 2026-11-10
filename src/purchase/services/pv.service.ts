@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, Inject, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PVRepository } from '../../repository/purchase/pv.repository';
 import { CreatePVDto } from '../dto/create-pv.dto';
@@ -19,6 +13,7 @@ import {
 import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { assertIsOwningBuyer } from '../../utils/purchase-guards';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 @Injectable()
 export class PVService {
@@ -76,13 +71,18 @@ export class PVService {
           where: { id: supplier.supplierId },
         });
         if (!existing) {
-          throw new NotFoundException(
-            `Fournisseur avec l'id ${supplier.supplierId} non trouve`,
+          throw new AppException(
+            HttpStatus.NOT_FOUND,
+            ErrorCode.NOT_FOUND,
+            `Supplier ${supplier.supplierId} not found`,
           );
         }
         if (existing.activeStatus != SupplierActiveStatus.ACTIVE) {
-          throw new BadRequestException(
-            `Le fournisseur ${existing.name} n'est pas actif`,
+          throw new AppException(
+            HttpStatus.BAD_REQUEST,
+            ErrorCode.PURCHASE_PV_SUPPLIER_INACTIVE,
+            `Supplier ${existing.name} is not active`,
+            { params: { name: existing.name } },
           );
         }
       }
@@ -95,26 +95,47 @@ export class PVService {
       include: { pv: true },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
 
     assertIsOwningBuyer(purchase, userId);
 
     if (purchase.currentStep !== PurchaseStep.PV) {
-      throw new BadRequestException(`La DA n'est pas a l'etape PV`);
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STEP,
+        'Purchase is not at step PV',
+        { params: { step: 'PV' } },
+      );
     }
 
     if (purchase.status !== PurchaseStatus.PUBLISHED) {
-      throw new BadRequestException('La DA doit etre publiee');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STATUS,
+        'Purchase must be PUBLISHED',
+        { params: { expected: 'PUBLISHED' } },
+      );
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== Role.ACHETEUR) {
-      throw new ForbiddenException('Seul un acheteur peut creer un PV');
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_BUYER_ONLY,
+        'Only a buyer can perform this action',
+      );
     }
 
     if (purchase.pv) {
-      throw new BadRequestException(
-        'Un PV existe deja pour cette DA. Utilisez la mise a jour.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_PV_ALREADY_EXISTS,
+        'A PV already exists for this purchase',
       );
     }
 
@@ -142,21 +163,36 @@ export class PVService {
       include: { pv: true },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     if (!purchase.pv)
-      throw new NotFoundException('Aucun PV trouve pour cette DA');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'PV not found for this purchase',
+      );
 
     assertIsOwningBuyer(purchase, userId);
 
     if (purchase.status !== PurchaseStatus.PUBLISHED) {
-      throw new BadRequestException(
-        'Ce PV ne peut plus etre modifie car il est deja soumis pour validation',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_PV_LOCKED,
+        'PV can no longer be modified because it was already submitted',
       );
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== Role.ACHETEUR) {
-      throw new ForbiddenException('Seul un acheteur peut modifier un PV');
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_BUYER_ONLY,
+        'Only a buyer can perform this action',
+      );
     }
 
     if (dto.suppliers) {
@@ -193,17 +229,32 @@ export class PVService {
       },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     if (!purchase.pv)
-      throw new NotFoundException('Aucun PV trouve pour cette DA');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'PV not found for this purchase',
+      );
 
     if (purchase.status !== PurchaseStatus.PUBLISHED) {
-      throw new BadRequestException('Ce PV a deja ete soumis');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_PV_LOCKED,
+        'PV can no longer be modified because it was already submitted',
+      );
     }
 
     if (purchase.pv.suppliers.length === 0) {
-      throw new BadRequestException(
-        'Ajoutez au moins un fournisseur avant de soumettre le PV',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_PV_NO_SUPPLIER,
+        'Add at least one supplier before submitting the PV',
       );
     }
 
@@ -245,7 +296,12 @@ export class PVService {
 
   async getPV(purchaseId: string) {
     const pv = await this.pvRepository.findByPurchaseId(purchaseId);
-    if (!pv) throw new NotFoundException('Aucun PV trouve pour cette DA');
+    if (!pv)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'PV not found for this purchase',
+      );
     return pv;
   }
 
@@ -260,26 +316,43 @@ export class PVService {
       include: { pv: { include: { suppliers: true } } },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     if (!purchase.pv)
-      throw new NotFoundException('Aucun PV trouve pour cette DA');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'PV not found for this purchase',
+      );
 
     if (purchase.status !== PurchaseStatus.PUBLISHED) {
-      throw new BadRequestException(
-        'Ce PV ne peut plus etre modifie car il est deja soumis pour validation',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_PV_LOCKED,
+        'PV can no longer be modified because it was already submitted',
       );
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== Role.ACHETEUR) {
-      throw new ForbiddenException(
-        'Seul un acheteur peut ajouter des articles',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_BUYER_ONLY,
+        'Only a buyer can perform this action',
       );
     }
 
     const supplier = purchase.pv.suppliers.find((s) => s.id === supplierId);
     if (!supplier) {
-      throw new NotFoundException('Fournisseur non trouve dans ce PV');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Supplier not found in PV',
+      );
     }
 
     await this.prisma.pVSupplierItem.deleteMany({
@@ -335,33 +408,53 @@ export class PVService {
       },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     if (!purchase.pv)
-      throw new NotFoundException('Aucun PV trouve pour cette DA');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'PV not found for this purchase',
+      );
 
     if (purchase.status !== PurchaseStatus.PUBLISHED) {
-      throw new BadRequestException(
-        'Ce PV ne peut plus etre modifie car il est deja soumis pour validation',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_PV_LOCKED,
+        'PV can no longer be modified because it was already submitted',
       );
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== Role.ACHETEUR) {
-      throw new ForbiddenException(
-        'Seul un acheteur peut selectionner des articles',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_BUYER_ONLY,
+        'Only a buyer can perform this action',
       );
     }
 
     const supplier = purchase.pv.suppliers.find((s) => s.id === supplierId);
     if (!supplier) {
-      throw new NotFoundException('Fournisseur non trouve dans ce PV');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Supplier not found in PV',
+      );
     }
 
     const supplierItemIds = supplier.items.map((item) => item.id);
     const invalidIds = itemIds.filter((id) => !supplierItemIds.includes(id));
     if (invalidIds.length > 0) {
-      throw new BadRequestException(
-        `Articles non trouves pour ce fournisseur: ${invalidIds.join(', ')}`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_PV_ITEMS_NOT_FOUND,
+        `Items not found for this supplier: ${invalidIds.join(', ')}`,
+        { params: { ids: invalidIds.join(', ') } },
       );
     }
 
@@ -386,7 +479,11 @@ export class PVService {
     });
 
     if (!updatedSupplier) {
-      throw new NotFoundException('Fournisseur non trouve');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Supplier not found in PV',
+      );
     }
 
     this.logger.info('Articles sélectionnés pour le fournisseur', {
@@ -405,7 +502,12 @@ export class PVService {
 
   async getSelectedItems(purchaseId: string) {
     const pv = await this.pvRepository.findByPurchaseId(purchaseId);
-    if (!pv) throw new NotFoundException('Aucun PV trouve pour cette DA');
+    if (!pv)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'PV not found for this purchase',
+      );
 
     const suppliersWithItems = pv.suppliers.map((supplier) => {
       const allItems = supplier.items.map((item) => ({

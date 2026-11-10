@@ -1,6 +1,6 @@
 import * as crypto from 'crypto';
 import { PDFDocument } from 'pdf-lib';
-import { BadRequestException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors';
 import { PdfLibService } from './pdf-lib.service';
 
 // Minimal 1×1 transparent PNG (valid for pdf-lib embedPng)
@@ -137,7 +137,7 @@ describe('PdfLibService', () => {
       expect(reloaded.getPageCount()).toBe(3);
     });
 
-    it('throws BadRequestException for page number exceeding page count', async () => {
+    it('throws PDF_PAGE_NOT_FOUND for page number exceeding page count', async () => {
       await expect(
         service.embedSignature(onePage, MINIMAL_PNG, 'image/png', {
           pageNumber: 99,
@@ -145,10 +145,10 @@ describe('PdfLibService', () => {
           positionY: 0,
           signatureWidth: 0.1,
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ code: ErrorCode.PDF_PAGE_NOT_FOUND });
     });
 
-    it('throws BadRequestException for page number 0', async () => {
+    it('throws PDF_PAGE_NOT_FOUND for page number 0', async () => {
       await expect(
         service.embedSignature(onePage, MINIMAL_PNG, 'image/png', {
           pageNumber: 0,
@@ -156,7 +156,7 @@ describe('PdfLibService', () => {
           positionY: 0,
           signatureWidth: 0.1,
         }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ code: ErrorCode.PDF_PAGE_NOT_FOUND });
     });
 
     it('clamps image within page bounds at extreme positions', async () => {

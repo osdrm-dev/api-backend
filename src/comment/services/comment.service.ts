@@ -1,9 +1,10 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, HttpStatus } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { CommentRepository } from 'src/repository/purchase/comment.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
 import { CreateCommentDto } from '../dto/create-comment.dto';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 @Injectable()
 export class CommentService {
@@ -25,7 +26,11 @@ export class CommentService {
     });
 
     if (!purchase) {
-      throw new NotFoundException('Achat non trouvé');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     const { data, total } = await this.commentRepository.findPaginated(
@@ -66,7 +71,11 @@ export class CommentService {
     });
 
     if (!purchase) {
-      throw new NotFoundException('Achat non trouvé');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     const comment = await this.commentRepository.create({

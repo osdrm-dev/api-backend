@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { ForbiddenException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors';
 import { CommentEntityType } from '@prisma/client';
 import { UnifiedCommentService } from './unified-comment.service';
 import { UnifiedCommentRepository } from 'src/repository/comment/unified-comment.repository';
@@ -84,7 +85,7 @@ describe('UnifiedCommentService', () => {
         service.create(CommentEntityType.CARBURANT, 'missing', 1, {
           content: 'x',
         }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
       expect(mockRepository.create).not.toHaveBeenCalled();
     });
 

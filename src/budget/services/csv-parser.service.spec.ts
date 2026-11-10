@@ -1,5 +1,15 @@
-import { BadRequestException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors';
 import { CsvParserService } from './csv-parser.service';
+
+const expectCode = (fn: () => unknown, code: string) => {
+  try {
+    fn();
+  } catch (err) {
+    expect((err as { code?: string }).code).toBe(code);
+    return;
+  }
+  throw new Error('Expected function to throw');
+};
 
 describe('CsvParserService', () => {
   let service: CsvParserService;
@@ -26,8 +36,9 @@ describe('CsvParserService', () => {
 
   it('throws on missing required columns', () => {
     const csv = ['nom_projet,code_projet', 'Foo,PROJ-001'].join('\n');
-    expect(() => service.parseBudgetCsv(Buffer.from(csv))).toThrow(
-      BadRequestException,
+    expectCode(
+      () => service.parseBudgetCsv(Buffer.from(csv)),
+      ErrorCode.BUDGET_CSV_COLUMNS_MISSING,
     );
   });
 
@@ -37,7 +48,10 @@ describe('CsvParserService', () => {
       'Foo,PROJ-001,G,ACT-1,C,R,S,1000',
       'Bar,PROJ-002,G,ACT-1,C,R,S,2000',
     ].join('\n');
-    expect(() => service.parseBudgetCsv(Buffer.from(csv))).toThrow(/doublon/i);
+    expectCode(
+      () => service.parseBudgetCsv(Buffer.from(csv)),
+      ErrorCode.BUDGET_CSV_DUPLICATE_ACTIVITY_CODES,
+    );
   });
 
   it('allows the same project code with different activity codes', () => {
@@ -52,8 +66,9 @@ describe('CsvParserService', () => {
 
   it('throws on invalid threshold', () => {
     const csv = [header, 'Foo,PROJ-001,G,A,C,R,S,not-a-number'].join('\n');
-    expect(() => service.parseBudgetCsv(Buffer.from(csv))).toThrow(
-      /seuil_budgetaire/,
+    expectCode(
+      () => service.parseBudgetCsv(Buffer.from(csv)),
+      ErrorCode.BUDGET_CSV_ROW_THRESHOLD_INVALID,
     );
   });
 
@@ -69,8 +84,9 @@ describe('CsvParserService', () => {
   });
 
   it('throws on empty file', () => {
-    expect(() => service.parseBudgetCsv(Buffer.from(''))).toThrow(
-      BadRequestException,
+    expectCode(
+      () => service.parseBudgetCsv(Buffer.from('')),
+      ErrorCode.BUDGET_CSV_EMPTY,
     );
   });
 

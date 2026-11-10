@@ -1,6 +1,7 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { PDFDocument } from 'pdf-lib';
 import * as crypto from 'crypto';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 export interface EmbedSignatureOptions {
   pageNumber: number; // 1-based
@@ -33,8 +34,11 @@ export class PdfLibService {
     const pageIndex = options.pageNumber - 1;
 
     if (pageIndex < 0 || pageIndex >= pages.length) {
-      throw new BadRequestException(
-        `Page ${options.pageNumber} introuvable (le document a ${pages.length} page(s))`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PDF_PAGE_NOT_FOUND,
+        `Page ${options.pageNumber} not found (document has ${pages.length} page(s))`,
+        { params: { page: options.pageNumber, pages: pages.length } },
       );
     }
 

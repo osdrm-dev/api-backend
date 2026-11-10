@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { WorkflowService } from './workflow.service';
 import { WorkflowConfigService } from '../../purchaseValidation/services/workflow-config.service';
@@ -16,6 +11,7 @@ import {
   DerogationStatus,
 } from '@prisma/client';
 import { assertIsOwningBuyer } from '../../utils/purchase-guards';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 @Injectable()
 export class QuotationService {
@@ -28,8 +24,10 @@ export class QuotationService {
   private async assertAcheteur(userId: number): Promise<void> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== 'ACHETEUR') {
-      throw new ForbiddenException(
-        'Seul un acheteur peut effectuer cette action',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_BUYER_ONLY,
+        'Only a buyer can perform this action',
       );
     }
   }
@@ -46,7 +44,11 @@ export class QuotationService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     const amount = purchase.items.reduce((sum, item) => sum + item.amount, 0);
@@ -83,13 +85,22 @@ export class QuotationService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     assertIsOwningBuyer(purchase, userId);
 
     if (purchase.currentStep !== PurchaseStep.QR) {
-      throw new BadRequestException("Cette DA n'est pas a l'etape QR");
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STEP,
+        'Purchase is not at step QR',
+        { params: { step: 'QR' } },
+      );
     }
 
     const attachment = await this.prisma.attachment.create({
@@ -131,13 +142,22 @@ export class QuotationService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     assertIsOwningBuyer(purchase, userId);
 
     if (purchase.currentStep !== PurchaseStep.QR) {
-      throw new BadRequestException("Cette DA n'est pas a l'etape QR");
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STEP,
+        'Purchase is not at step QR',
+        { params: { step: 'QR' } },
+      );
     }
 
     const attachments = await this.prisma.attachment.createMany({
@@ -178,7 +198,11 @@ export class QuotationService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     return {
@@ -197,7 +221,11 @@ export class QuotationService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     const quote = await this.prisma.attachment.findUnique({
@@ -205,7 +233,11 @@ export class QuotationService {
     });
 
     if (!quote || quote.purchaseId !== purchaseId) {
-      throw new NotFoundException('Devis non trouve');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Quotation not found',
+      );
     }
 
     await this.prisma.attachment.delete({
@@ -236,15 +268,28 @@ export class QuotationService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     if (purchase.currentStep !== PurchaseStep.QR) {
-      throw new BadRequestException("Cette DA n'est pas a l'etape QR");
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STEP,
+        'Purchase is not at step QR',
+        { params: { step: 'QR' } },
+      );
     }
 
     if (purchase.derogation) {
-      throw new BadRequestException('Une derogation existe deja pour cette DA');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_DEROGATION_ALREADY_EXISTS,
+        'A derogation already exists for this purchase',
+      );
     }
 
     const amount = purchase.items.reduce((sum, item) => sum + item.amount, 0);
@@ -252,7 +297,11 @@ export class QuotationService {
     const required = this.workflowService.getRequiredQuotesCount(level);
 
     if (purchase.attachments.length >= required) {
-      throw new BadRequestException('Vous avez deja suffisamment de devis');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_QUOTES_SUFFICIENT,
+        'Enough quotations were already uploaded',
+      );
     }
 
     const derogation = await this.prisma.derogation.create({
@@ -294,11 +343,20 @@ export class QuotationService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     if (purchase.currentStep !== PurchaseStep.QR) {
-      throw new BadRequestException("Cette DA n'est pas a l'etape QR");
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STEP,
+        'Purchase is not at step QR',
+        { params: { step: 'QR' } },
+      );
     }
 
     const amount = purchase.items.reduce((sum, item) => sum + item.amount, 0);
@@ -311,8 +369,10 @@ export class QuotationService {
       purchase.derogation?.status === DerogationStatus.VALIDATED;
 
     if (!hasEnoughQuotes && !hasApprovedDerogation) {
-      throw new BadRequestException(
-        'Devis insuffisants. Veuillez uploader plus de devis ou demander une derogation.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_QUOTES_INSUFFICIENT,
+        'Not enough quotations; upload more or request a derogation',
       );
     }
 
@@ -349,21 +409,33 @@ export class QuotationService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     assertIsOwningBuyer(purchase, userId);
 
     if (purchase.currentStep !== PurchaseStep.QR) {
-      throw new BadRequestException("Cette DA n'est pas a l'etape QR");
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STEP,
+        'Purchase is not at step QR',
+        { params: { step: 'QR' } },
+      );
     }
 
     if (
       purchase.status !== PurchaseStatus.PUBLISHED &&
       purchase.status !== PurchaseStatus.AWAITING_DOCUMENTS
     ) {
-      throw new BadRequestException(
-        'La DA doit etre en cours de validation ou en preparation pour soumettre les devis',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STATUS,
+        'Purchase must be PUBLISHED or AWAITING_DOCUMENTS',
+        { params: { expected: 'PUBLISHED, AWAITING_DOCUMENTS' } },
       );
     }
 
@@ -375,14 +447,24 @@ export class QuotationService {
     const hasEnoughQuotes = uploaded >= required;
 
     // if (!hasEnoughQuotes && !useDerogation) {
-    //   throw new BadRequestException(
+    //   throw new AppException(
     //     `Devis insuffisants (${uploaded}/${required}). Cochez la case dérogation pour continuer malgré le manque de devis.`,
     //   );
     // }
 
     if (useDerogation && !derogationJustification?.trim()) {
-      throw new BadRequestException(
-        'Une justification est obligatoire pour utiliser la dérogation.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_DEROGATION_JUSTIFICATION_REQUIRED,
+        'A justification is required to use the derogation',
+        {
+          fields: [
+            {
+              field: 'derogationJustification',
+              code: ErrorCode.PURCHASE_DEROGATION_JUSTIFICATION_REQUIRED,
+            },
+          ],
+        },
       );
     }
 

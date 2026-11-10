@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { WorkflowConfigService } from '../../purchaseValidation/services/workflow-config.service';
 import { UploadBCDto } from '../dto/bc.dto';
@@ -14,6 +9,7 @@ import {
   Role,
 } from '@prisma/client';
 import { assertIsOwningBuyer } from '../../utils/purchase-guards';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 @Injectable()
 export class BCService {
@@ -25,7 +21,11 @@ export class BCService {
   async uploadBC(purchaseId: string, userId: number, dto: UploadBCDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== Role.ACHETEUR) {
-      throw new ForbiddenException('Seul un ACHETEUR peut uploader un BC');
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_BUYER_ONLY,
+        'Only a buyer can perform this action',
+      );
     }
 
     const purchase = await this.prisma.purchase.findUnique({
@@ -34,21 +34,33 @@ export class BCService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     assertIsOwningBuyer(purchase, userId);
 
     if (purchase.currentStep !== PurchaseStep.BC) {
-      throw new BadRequestException("La DA n'est pas a l'etape BC");
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STEP,
+        'Purchase is not at step BC',
+        { params: { step: 'BC' } },
+      );
     }
 
     if (
       purchase.status !== PurchaseStatus.PUBLISHED &&
       purchase.status !== PurchaseStatus.AWAITING_DOCUMENTS
     ) {
-      throw new BadRequestException(
-        'La DA doit etre en statut PUBLISHED ou AWAITING_DOCUMENTS pour uploader un BC',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STATUS,
+        'Purchase must be PUBLISHED or AWAITING_DOCUMENTS',
+        { params: { expected: 'PUBLISHED, AWAITING_DOCUMENTS' } },
       );
     }
 
@@ -138,7 +150,11 @@ export class BCService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     const bc = purchase.attachments[0] ?? null;

@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors';
 import { PdfSigningService, PDF_SIGNING_JOB } from './pdf-signing.service';
 
 describe('PdfSigningService', () => {
@@ -58,12 +58,12 @@ describe('PdfSigningService', () => {
       expect(result.jobId).toBeNull();
     });
 
-    it('throws NotFoundException when attachment does not exist', async () => {
+    it('throws NOT_FOUND when attachment does not exist', async () => {
       mockPrisma.attachment.findUnique.mockResolvedValue(null);
 
-      await expect(service.getStatus('att-unknown')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.getStatus('att-unknown')).rejects.toMatchObject({
+        code: ErrorCode.NOT_FOUND,
+      });
     });
 
     it('queries by the correct attachmentId', async () => {

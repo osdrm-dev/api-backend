@@ -1,13 +1,9 @@
-import {
-  BadRequestException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { AttachmentType, Role, PurchaseStep } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { UploadBcDto } from '../dto/upload-bc.dto';
 import { assertIsOwningBuyer } from '../../utils/purchase-guards';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 @Injectable()
 export class PurchaseAttachmentBcService {
@@ -19,8 +15,10 @@ export class PurchaseAttachmentBcService {
     dto: UploadBcDto,
   ) {
     if (user.role !== Role.ACHETEUR) {
-      throw new ForbiddenException(
-        'Seul un utilisateur ACHETEUR peut uploader un BC',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_BUYER_ONLY,
+        'Only a buyer can perform this action',
       );
     }
 
@@ -29,13 +27,22 @@ export class PurchaseAttachmentBcService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     assertIsOwningBuyer(purchase, user.id);
 
     if (purchase.currentStep !== PurchaseStep.BC) {
-      throw new BadRequestException("Cette DA n'est pas a l'etape QR");
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_INVALID_STEP,
+        'Purchase is not at step QR',
+        { params: { step: 'QR' } },
+      );
     }
 
     const existingBC = await this.prisma.attachment.findFirst({
@@ -43,8 +50,10 @@ export class PurchaseAttachmentBcService {
     });
 
     if (existingBC) {
-      throw new ForbiddenException(
-        'Un Bon de Commande existe deja pour cette purchase',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_BC_ALREADY_EXISTS,
+        'A purchase order already exists for this purchase',
       );
     }
 
@@ -74,13 +83,19 @@ export class PurchaseAttachmentBcService {
       where: { id: purchaseId },
     });
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvée");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== Role.ACHETEUR) {
-      throw new ForbiddenException(
-        'Accès refusé - seul un ACHETEUR peut supprimer un BC',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_BUYER_ONLY,
+        'Only a buyer can perform this action',
       );
     }
 
@@ -92,7 +107,11 @@ export class PurchaseAttachmentBcService {
       bc.purchaseId !== purchaseId ||
       bc.type !== AttachmentType.PURCHASE_ORDER
     ) {
-      throw new NotFoundException('Bon de Commande non trouvé');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase order not found',
+      );
     }
 
     await this.prisma.attachment.delete({ where: { id: bcId } });

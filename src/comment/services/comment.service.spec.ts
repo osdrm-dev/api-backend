@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors';
 import { CommentService } from './comment.service';
 import { CommentRepository } from 'src/repository/purchase/comment.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
@@ -100,7 +100,7 @@ describe('CommentService', () => {
 
       await expect(
         service.findByPurchase('nonexistent', 1, 10),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
 
     it('should return empty result when no comments exist', async () => {
@@ -211,7 +211,7 @@ describe('CommentService', () => {
 
       await expect(
         service.create('nonexistent', 1, { content: 'Test' }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
 
     it('should exclude commenter email from recipients', async () => {
