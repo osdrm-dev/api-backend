@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { SupplierActiveStatus } from '@prisma/client';
 import type { File as MulterFile } from 'multer';
 import { SupplierRepository } from 'src/repository/supplier/supplier.repository';
@@ -27,12 +28,24 @@ export class SupplierImportService {
     file: MulterFile,
     options: { potential: boolean; dryRun: boolean },
   ): Promise<SupplierImportReport> {
-    if (!file) throw new BadRequestException('Fichier CSV manquant.');
+    if (!file)
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.SUPPLIER_IMPORT_FILE_MISSING,
+        'CSV file is missing',
+      );
     if (file.size > MAX_CSV_SIZE)
-      throw new BadRequestException('Le fichier CSV dépasse 5 Mo.');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.SUPPLIER_IMPORT_FILE_TOO_LARGE,
+        'CSV file exceeds 5 MB',
+      );
     if (!ALLOWED_MIME.includes(file.mimetype))
-      throw new BadRequestException(
-        `Type de fichier non supporté (${file.mimetype}) : exportez la feuille en CSV.`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.SUPPLIER_IMPORT_FILE_TYPE_UNSUPPORTED,
+        `Unsupported file type (${file.mimetype}): export the sheet as CSV`,
+        { params: { mimetype: file.mimetype } },
       );
 
     const { rows, skipped } = parseSupplierCsv(file.buffer);

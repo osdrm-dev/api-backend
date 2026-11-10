@@ -7,10 +7,11 @@ import {
   Body,
   Query,
   UseGuards,
-  BadRequestException,
   UploadedFile,
   UseInterceptors,
+  HttpStatus,
 } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { File as MulterFile } from 'multer';
 import { SupplierActiveStatus } from '@prisma/client';
@@ -189,8 +190,11 @@ export class SupplierController {
     @Body('activeStatus') activeStatus: SupplierActiveStatus,
   ) {
     if (!Object.values(SupplierActiveStatus).includes(activeStatus)) {
-      throw new BadRequestException(
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.BAD_REQUEST,
         `activeStatus must be one of: ${Object.values(SupplierActiveStatus).join(', ')}`,
+        { fields: [{ field: 'activeStatus', code: 'isEnum' }] },
       );
     }
     return this.supplierService.setStatus(id, activeStatus);

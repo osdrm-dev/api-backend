@@ -1,4 +1,3 @@
-import { BadRequestException } from '@nestjs/common';
 import { parseSupplierCsv } from './supplier-csv-parser.util';
 
 const HEADER = [
@@ -120,7 +119,7 @@ describe('parseSupplierCsv', () => {
 
   it('rejects a file without a FOURNISSEUR column', () => {
     expect(() => parseSupplierCsv(Buffer.from('nom;ville\nA;B'))).toThrow(
-      BadRequestException,
+      expect.objectContaining({ code: 'SUPPLIER_IMPORT_COLUMN_MISSING' }),
     );
   });
 });
