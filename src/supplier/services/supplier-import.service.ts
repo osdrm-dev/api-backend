@@ -45,7 +45,6 @@ export class SupplierImportService {
         HttpStatus.BAD_REQUEST,
         ErrorCode.SUPPLIER_IMPORT_FILE_TYPE_UNSUPPORTED,
         `Unsupported file type (${file.mimetype}): export the sheet as CSV`,
-        { params: { mimetype: file.mimetype } },
       );
 
     const { rows, skipped } = parseSupplierCsv(file.buffer);

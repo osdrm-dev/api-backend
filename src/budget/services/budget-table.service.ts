@@ -63,7 +63,6 @@ export class BudgetTableService {
         HttpStatus.BAD_REQUEST,
         ErrorCode.BUDGET_CSV_TYPE_UNSUPPORTED,
         `Unsupported file type: ${file.mimetype}`,
-        { params: { type: file.mimetype } },
       );
 
     // Parse first so we don't save bad files.

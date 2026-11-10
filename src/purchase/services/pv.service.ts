@@ -452,7 +452,6 @@ export class PVService {
         HttpStatus.BAD_REQUEST,
         ErrorCode.PURCHASE_PV_ITEMS_NOT_FOUND,
         `Items not found for this supplier: ${invalidIds.join(', ')}`,
-        { params: { ids: invalidIds.join(', ') } },
       );
     }
 

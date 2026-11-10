@@ -111,7 +111,15 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse();
     const req = ctx.getRequest();
-    if (res.headersSent) return;
+    if (res.headersSent) {
+      // Response already started: can't send JSON, so log and close the stream.
+      this.logger.error(
+        `${req.method} ${req.url}: error after headers sent`,
+        exception instanceof Error ? exception.stack : String(exception),
+      );
+      res.end();
+      return;
+    }
 
     const n = normalize(exception);
     const is5xx = n.status >= 500;

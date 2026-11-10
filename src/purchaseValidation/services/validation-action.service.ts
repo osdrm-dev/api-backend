@@ -70,7 +70,6 @@ export class ValidationActionService {
         HttpStatus.BAD_REQUEST,
         ErrorCode.VALIDATION_NO_WORKFLOW_FOR_STEP,
         `No validation workflow for step ${purchase.currentStep}`,
-        { params: { step: purchase.currentStep } },
       );
     }
 
@@ -266,7 +265,6 @@ export class ValidationActionService {
         HttpStatus.BAD_REQUEST,
         ErrorCode.VALIDATION_NO_WORKFLOW_FOR_STEP,
         `No validation workflow for step ${purchase.currentStep}`,
-        { params: { step: purchase.currentStep } },
       );
     }
   }

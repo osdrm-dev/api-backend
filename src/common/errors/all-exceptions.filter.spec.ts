@@ -11,7 +11,11 @@ import { ErrorCode } from './error-codes';
 
 function run(exception: unknown, headersSent = false) {
   const json = jest.fn();
-  const res: any = { headersSent, status: jest.fn(() => ({ json })) };
+  const res: any = {
+    headersSent,
+    end: jest.fn(),
+    status: jest.fn(() => ({ json })),
+  };
   const req = { method: 'POST', url: '/suppliers', user: { id: 'u1' } };
   const host: any = {
     switchToHttp: () => ({ getResponse: () => res, getRequest: () => req }),
@@ -120,8 +124,13 @@ describe('AllExceptionsFilter', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringMatching(/NOT_FOUND.*u1/));
   });
 
-  it('does nothing when headers are already sent', () => {
+  it('logs and ends the response when headers are already sent', () => {
     const { res } = run(new Error('late'), true);
     expect(res.status).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining('after headers sent'),
+      expect.stringContaining('late'),
+    );
+    expect(res.end).toHaveBeenCalled();
   });
 });
