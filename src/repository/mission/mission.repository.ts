@@ -40,6 +40,10 @@ const MISSION_INCLUDE = {
 
 const MISSION_INCLUDE_FULL = {
   ...MISSION_INCLUDE,
+  trips: {
+    where: { deletedAt: null },
+    select: { id: true, reference: true, status: true, departureDate: true },
+  },
   comments: {
     orderBy: { createdAt: 'asc' as const },
     include: { author: { select: { id: true, name: true, email: true } } },

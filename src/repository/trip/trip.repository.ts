@@ -16,6 +16,16 @@ const TRIP_INCLUDE = {
   vehicle: {
     select: { id: true, immatriculation: true, marque: true, modele: true },
   },
+  mission: {
+    select: {
+      id: true,
+      reference: true,
+      purpose: true,
+      destination: true,
+      departureDate: true,
+      returnDate: true,
+    },
+  },
   _count: { select: { comments: true } },
 } satisfies Prisma.LgTripInclude;
 
@@ -23,6 +33,16 @@ const TRIP_INCLUDE_FULL = {
   requestor: { select: { id: true, name: true, email: true, role: true } },
   vehicle: {
     select: { id: true, immatriculation: true, marque: true, modele: true },
+  },
+  mission: {
+    select: {
+      id: true,
+      reference: true,
+      purpose: true,
+      destination: true,
+      departureDate: true,
+      returnDate: true,
+    },
   },
   comments: {
     orderBy: { createdAt: 'asc' as const },
@@ -97,10 +117,10 @@ export class TripRepository {
 
   async generateNextReference(year: number): Promise<string> {
     const count = await this.prisma.lgTrip.count({
-      where: { reference: { startsWith: `TRJ-${year}-` } },
+      where: { reference: { startsWith: `DEP-${year}-` } },
     });
     const seq = String(count + 1).padStart(4, '0');
-    return `TRJ-${year}-${seq}`;
+    return `DEP-${year}-${seq}`;
   }
 
   async countByStatus(): Promise<{

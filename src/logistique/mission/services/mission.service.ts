@@ -4,6 +4,7 @@ import {
   NotFoundException,
   UnprocessableEntityException,
 } from '@nestjs/common';
+import { LINKABLE_MISSION_STATUSES } from '../constants/mission.constants';
 import { PrismaService } from 'prisma/prisma.service';
 import { Role } from '@prisma/client';
 import { NotificationService } from 'src/notification/services/nofitication.service';
@@ -178,5 +179,29 @@ export class MissionService {
 
   async getStats() {
     return this.repository.countByStatus();
+  }
+
+  async findLinkable(search?: string) {
+    return this.prisma.lgMission.findMany({
+      where: {
+        status: { in: LINKABLE_MISSION_STATUSES },
+        deletedAt: null,
+        ...(search && {
+          OR: (['reference', 'purpose', 'destination'] as const).map((f) => ({
+            [f]: { contains: search, mode: 'insensitive' as const },
+          })),
+        }),
+      },
+      select: {
+        id: true,
+        reference: true,
+        purpose: true,
+        destination: true,
+        departureDate: true,
+        returnDate: true,
+      },
+      orderBy: { departureDate: 'desc' },
+      take: 50,
+    });
   }
 }

@@ -8,6 +8,7 @@ import { LgTripStatus, LgTransportMode } from '@prisma/client';
 import { TripService } from '../trip.service';
 import { TripRepository } from 'src/repository/trip/trip.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
+import { PrismaService } from 'prisma/prisma.service';
 
 const mockRepository = {
   generateNextReference: jest.fn(),
@@ -17,6 +18,11 @@ const mockRepository = {
   findManyByRequestor: jest.fn(),
   updateStatus: jest.fn(),
   countByStatus: jest.fn(),
+};
+
+const mockPrisma = {
+  vehicle: { findUnique: jest.fn() },
+  lgMission: { findFirst: jest.fn() },
 };
 
 const mockNotification = {
@@ -53,6 +59,7 @@ describe('TripService', () => {
         TripService,
         { provide: TripRepository, useValue: mockRepository },
         { provide: NotificationService, useValue: mockNotification },
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
 
@@ -67,7 +74,13 @@ describe('TripService', () => {
       arrivalDate: '2026-05-21',
       purpose: 'Réunion de coordination',
       transportMode: LgTransportMode.SERVICE_VEHICLE,
+      missionId: 'mission-1',
     };
+    const MISSION = { id: 'mission-1', status: 'CONFIRMED' };
+
+    beforeEach(() => {
+      mockPrisma.lgMission.findFirst.mockResolvedValue(MISSION);
+    });
 
     it('creates a trip with a generated reference', async () => {
       mockRepository.generateNextReference.mockResolvedValue('TRJ-2026-0001');
@@ -104,6 +117,70 @@ describe('TripService', () => {
 
       const result = await service.create(dtoWithoutArrival, 10);
       expect(result).toBeDefined();
+    });
+
+    it('rejects when neither missionId nor missionReference', async () => {
+      const { missionId: _m, ...noMission } = dto;
+      await expect(service.create(noMission, 10)).rejects.toThrow(
+        new UnprocessableEntityException('Le trajet est requis.'),
+      );
+    });
+
+    it('resolves missionReference case/space-insensitively', async () => {
+      mockRepository.generateNextReference.mockResolvedValue('DEP-2026-0001');
+      mockRepository.create.mockResolvedValue(BASE_TRIP);
+      const { missionId: _m, ...noId } = dto;
+      await service.create(
+        { ...noId, missionReference: ' trj-2026-0003 ' },
+        10,
+      );
+      expect(mockPrisma.lgMission.findFirst).toHaveBeenCalledWith({
+        where: { reference: 'TRJ-2026-0003', deletedAt: null },
+      });
+    });
+
+    it('rejects mission not found or soft-deleted', async () => {
+      mockPrisma.lgMission.findFirst.mockResolvedValue(null);
+      const { missionId: _m, ...noId } = dto;
+      await expect(
+        service.create({ ...noId, missionReference: 'TRJ-2026-0003' }, 10),
+      ).rejects.toThrow(
+        new UnprocessableEntityException('Trajet TRJ-2026-0003 introuvable.'),
+      );
+    });
+
+    it('rejects mission with status PENDING', async () => {
+      mockPrisma.lgMission.findFirst.mockResolvedValue({
+        id: 'm',
+        reference: 'TRJ-2026-0003',
+        status: 'PENDING',
+      });
+      const { missionId: _m, ...noId } = dto;
+      await expect(
+        service.create({ ...noId, missionReference: 'TRJ-2026-0003' }, 10),
+      ).rejects.toThrow(
+        new UnprocessableEntityException(
+          'Le trajet TRJ-2026-0003 doit être confirmé ou en cours.',
+        ),
+      );
+    });
+
+    it('prefers missionId when both are sent', async () => {
+      mockRepository.generateNextReference.mockResolvedValue('DEP-2026-0001');
+      mockRepository.create.mockResolvedValue(BASE_TRIP);
+      await service.create({ ...dto, missionReference: 'TRJ-2026-0009' }, 10);
+      expect(mockPrisma.lgMission.findFirst).toHaveBeenCalledWith({
+        where: { id: 'mission-1', deletedAt: null },
+      });
+    });
+
+    it('connects mission and generates DEP- reference', async () => {
+      mockRepository.generateNextReference.mockResolvedValue('DEP-2026-0001');
+      mockRepository.create.mockResolvedValue(BASE_TRIP);
+      await service.create(dto, 10);
+      const arg = mockRepository.create.mock.calls[0][0];
+      expect(arg.mission).toEqual({ connect: { id: 'mission-1' } });
+      expect(arg.reference).toMatch(/^DEP-\d{4}-\d{4}$/);
     });
   });
 

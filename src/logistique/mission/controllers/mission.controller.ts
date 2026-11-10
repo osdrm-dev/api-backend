@@ -87,6 +87,14 @@ export class MissionController {
     return this.missionService.findMyRequests(user.id, query);
   }
 
+  // GET linkable must be before GET /:id
+  // shortcut: any authenticated user can link any mission, add ownership check when business asks.
+  @Get('linkable')
+  @ApiOperation({ summary: 'Lister les trajets rattachables à un déplacement' })
+  async getLinkable(@Query('search') search?: string) {
+    return this.missionService.findLinkable(search);
+  }
+
   @Get()
   @Roles('GESTIONNAIRE_PARC', 'ADMIN')
   @UseGuards(RolesGuard)

@@ -23,6 +23,7 @@ const mockRepository = {
 
 const mockPrisma = {
   user: { findMany: jest.fn() },
+  lgMission: { findMany: jest.fn() },
 };
 
 const mockNotification = {
@@ -207,6 +208,25 @@ describe('MissionService', () => {
         role: 'ADMIN',
       });
       expect(result.status).toBe('CANCELLED');
+    });
+  });
+
+  describe('findLinkable', () => {
+    it('findLinkable filters CONFIRMED/IN_PROGRESS, deletedAt null, search', async () => {
+      mockPrisma.lgMission.findMany.mockResolvedValue([]);
+      await service.findLinkable('tana');
+      const arg = mockPrisma.lgMission.findMany.mock.calls[0][0];
+      expect(arg.where).toEqual({
+        status: { in: ['CONFIRMED', 'IN_PROGRESS'] },
+        deletedAt: null,
+        OR: [
+          { reference: { contains: 'tana', mode: 'insensitive' } },
+          { purpose: { contains: 'tana', mode: 'insensitive' } },
+          { destination: { contains: 'tana', mode: 'insensitive' } },
+        ],
+      });
+      expect(arg.orderBy).toEqual({ departureDate: 'desc' });
+      expect(arg.take).toBe(50);
     });
   });
 });
