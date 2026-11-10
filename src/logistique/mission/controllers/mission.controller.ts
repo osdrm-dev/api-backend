@@ -75,7 +75,7 @@ export class MissionController {
     return this.missionService.getStats();
   }
 
-  // GET mes-demandes must be before GET /:id
+  // GET my-missions must be before GET /:id
   @Get('my-missions')
   @Roles('DEMANDEUR', 'ADMIN')
   @UseGuards(RolesGuard)

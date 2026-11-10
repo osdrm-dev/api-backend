@@ -7,6 +7,8 @@
 --
 -- Swap: LgDeplacement (mission request, UI "Trajet") -> LgMission; LgTrip now requires a mission.
 -- RENAME-based: zero data loss on lg_missions*. Only trip data is purged.
+-- Transactional: a failure rolls back everything.
+BEGIN;
 
 -- (a) Purge trip data (trips now require a mission)
 DELETE FROM "lg_comments" WHERE "entityType" = 'TRIP';
@@ -129,3 +131,5 @@ UPDATE "notifications" SET "type" = 'SETTLEMENT_VALIDATION_REQUIRED' WHERE "type
 UPDATE "notifications" SET "type" = 'SETTLEMENT_REJECTED' WHERE "type" = 'LIQUIDATION_REJETEE';
 UPDATE "notifications" SET "type" = 'SETTLEMENT_APPROVED' WHERE "type" = 'LIQUIDATION_VALIDEE_COMPLETE';
 UPDATE "notifications" SET "resourceType" = 'MISSION' WHERE "resourceType" = 'DEPLACEMENT';
+
+COMMIT;
