@@ -9,6 +9,8 @@ import { WINSTON_MODULE_NEST_PROVIDER } from 'nest-winston';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import { validationExceptionFactory } from './common/errors';
+import { ApiErrorResponse } from './common/config/swagger.config';
 
 const envResult = dotenv.config({
   path: path.resolve(__dirname, '../.env'),
@@ -45,6 +47,7 @@ async function bootstrap() {
     new ValidationPipe({
       whitelist: true,
       transform: true,
+      exceptionFactory: validationExceptionFactory,
     }),
   );
   const allowedOrigins = [
@@ -97,7 +100,10 @@ async function bootstrap() {
       )
       .build();
 
-    const documentFactory = () => SwaggerModule.createDocument(app, config);
+    const documentFactory = () =>
+      SwaggerModule.createDocument(app, config, {
+        extraModels: [ApiErrorResponse],
+      });
     SwaggerModule.setup('documentation', app, documentFactory);
   }
 

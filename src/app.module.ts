@@ -1,5 +1,5 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { WinstonModule } from 'nest-winston';
 import { AppController } from './app.controller';
@@ -30,6 +30,7 @@ import { SatisfactionModule } from './satisfaction/satisfaction.module';
 import { CommentModule } from './comment/comment.module';
 import { LogistiqueModule } from './logistique/logistique.module';
 import { UserModule } from './user/user.module';
+import { AllExceptionsFilter } from './common/errors';
 
 @Module({
   imports: [
@@ -100,6 +101,7 @@ import { UserModule } from './user/user.module';
     //   provide: APP_GUARD,
     //   useClass: RolesGuard,
     // },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
     {
       provide: APP_INTERCEPTOR,
       useClass: HttpLoggingInterceptor,
