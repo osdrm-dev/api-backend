@@ -1,5 +1,4 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
 import { MaintenanceStatus } from '@prisma/client';
 import { MaintenanceStatusService } from './maintenance-status.service';
 import { MaintenanceRepository } from 'src/repository/maintenance/maintenance.repository';
@@ -16,6 +15,8 @@ const mockRequest = {
   requestorId: 42,
   deletedAt: null,
 };
+
+const ADMIN_ID = 1;
 
 describe('MaintenanceStatusService', () => {
   let service: MaintenanceStatusService;
@@ -67,15 +68,19 @@ describe('MaintenanceStatusService', () => {
       });
       mockNotificationService.createNotification.mockResolvedValue({});
 
-      const result = await service.updateStatus('req-1', {
-        status: MaintenanceStatus.IN_PROGRESS,
-      });
+      const result = await service.updateStatus(
+        'req-1',
+        {
+          status: MaintenanceStatus.IN_PROGRESS,
+        },
+        ADMIN_ID,
+      );
 
       expect(result.status).toBe(MaintenanceStatus.IN_PROGRESS);
       expect(mockRepository.updateStatus).toHaveBeenCalledWith(
         'req-1',
         MaintenanceStatus.IN_PROGRESS,
-        undefined,
+        ADMIN_ID,
         undefined,
       );
       expect(mockNotificationService.createNotification).toHaveBeenCalledWith(
@@ -94,9 +99,13 @@ describe('MaintenanceStatusService', () => {
     it('should return current request without notification when status is unchanged', async () => {
       mockRepository.findById.mockResolvedValue(mockRequest);
 
-      const result = await service.updateStatus('req-1', {
-        status: MaintenanceStatus.PENDING,
-      });
+      const result = await service.updateStatus(
+        'req-1',
+        {
+          status: MaintenanceStatus.PENDING,
+        },
+        ADMIN_ID,
+      );
 
       expect(result).toEqual(mockRequest);
       expect(mockRepository.updateStatus).not.toHaveBeenCalled();
@@ -112,34 +121,46 @@ describe('MaintenanceStatusService', () => {
       mockRepository.findById.mockResolvedValue(requestWithoutRequestor);
       mockRepository.updateStatus.mockResolvedValue(updatedRequest);
 
-      await service.updateStatus('req-1', {
-        status: MaintenanceStatus.IN_PROGRESS,
-      });
+      await service.updateStatus(
+        'req-1',
+        {
+          status: MaintenanceStatus.IN_PROGRESS,
+        },
+        ADMIN_ID,
+      );
 
       expect(mockRepository.updateStatus).toHaveBeenCalled();
       expect(mockNotificationService.createNotification).not.toHaveBeenCalled();
     });
 
-    it('should throw NotFoundException if request does not exist', async () => {
+    it('should throw NOT_FOUND if request does not exist', async () => {
       mockRepository.findById.mockResolvedValue(null);
 
       await expect(
-        service.updateStatus('nonexistent', {
-          status: MaintenanceStatus.IN_PROGRESS,
-        }),
+        service.updateStatus(
+          'nonexistent',
+          {
+            status: MaintenanceStatus.IN_PROGRESS,
+          },
+          ADMIN_ID,
+        ),
       ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
 
-    it('should throw NotFoundException if request is soft-deleted', async () => {
+    it('should throw NOT_FOUND if request is soft-deleted', async () => {
       mockRepository.findById.mockResolvedValue({
         ...mockRequest,
         deletedAt: new Date(),
       });
 
       await expect(
-        service.updateStatus('req-1', {
-          status: MaintenanceStatus.IN_PROGRESS,
-        }),
+        service.updateStatus(
+          'req-1',
+          {
+            status: MaintenanceStatus.IN_PROGRESS,
+          },
+          ADMIN_ID,
+        ),
       ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
   });
