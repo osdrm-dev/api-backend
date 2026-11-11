@@ -11,21 +11,23 @@ const baseAttachment = {
   id: ATTACHMENT_ID,
   purchaseId: PURCHASE_ID,
   fileId: 10,
-  originalFileId: 5,
+  versions: null,
+};
+
+const specimen = { id: 3, fileId: 20, file: { mimeType: 'image/png' } };
+
+const jobData = {
+  attachmentId: ATTACHMENT_ID,
   signedById: USER_ID,
   specimenId: 3,
   pageNumber: 1,
   positionX: 0.1,
   positionY: 0.2,
   signatureWidth: 0.2,
-  specimen: {
-    fileId: 20,
-    file: { mimeType: 'image/png' },
-  },
 };
 
-function makeJob(name: string = PDF_SIGNING_JOB, attachmentId = ATTACHMENT_ID) {
-  return { name, data: { attachmentId }, id: 'j-1' } as any;
+function makeJob(name: string = PDF_SIGNING_JOB, data: any = jobData) {
+  return { name, data, id: 'j-1' } as any;
 }
 
 describe('PdfSigningProcessor', () => {
@@ -33,7 +35,7 @@ describe('PdfSigningProcessor', () => {
   let mockPrisma: any;
   let mockFileStorage: any;
   let mockPdfLib: any;
-  let mockValidationAction: any;
+  let mockValidation: any;
   let mockNotification: any;
 
   beforeEach(() => {
@@ -42,6 +44,9 @@ describe('PdfSigningProcessor', () => {
         update: jest.fn().mockResolvedValue({}),
         findUnique: jest.fn().mockResolvedValue(baseAttachment),
       },
+      signatureSpecimen: {
+        findUnique: jest.fn().mockResolvedValue(specimen),
+      },
       purchase: {
         findUnique: jest.fn().mockResolvedValue({ reference: 'DA-2024-001' }),
       },
@@ -49,7 +54,7 @@ describe('PdfSigningProcessor', () => {
         findFirst: jest.fn().mockResolvedValue({ validators: [] }),
       },
       user: {
-        findUnique: jest.fn().mockResolvedValue({ role: 'ACHETEUR' }),
+        findUnique: jest.fn().mockResolvedValue({ name: 'Jean Signataire' }),
       },
     };
 
@@ -59,7 +64,7 @@ describe('PdfSigningProcessor', () => {
         .mockResolvedValueOnce(Buffer.from('pdf-content'))
         .mockResolvedValueOnce(Buffer.from('image-content')),
       getById: jest.fn().mockResolvedValue({ originalName: 'dap.pdf' }),
-      upload: jest.fn().mockResolvedValue({ id: 99 }),
+      upload: jest.fn().mockResolvedValue({ id: 99, url: '/files/99' }),
     };
 
     mockPdfLib = {
@@ -70,8 +75,8 @@ describe('PdfSigningProcessor', () => {
       }),
     };
 
-    mockValidationAction = {
-      validate: jest.fn().mockResolvedValue({ wasCompleted: false }),
+    mockValidation = {
+      validateDA: jest.fn().mockResolvedValue({}),
     };
 
     mockNotification = {
@@ -82,7 +87,7 @@ describe('PdfSigningProcessor', () => {
       mockPrisma,
       mockFileStorage,
       mockPdfLib as PdfLibService,
-      mockValidationAction,
+      mockValidation,
       mockNotification,
     );
   });
@@ -99,29 +104,45 @@ describe('PdfSigningProcessor', () => {
   it('sets PROCESSING before loading data', async () => {
     await processor.process(makeJob());
 
-    expect(mockPrisma.attachment.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: ATTACHMENT_ID },
-        data: { signingStatus: SigningStatus.PROCESSING },
-      }),
-    );
+    expect(mockPrisma.attachment.update).toHaveBeenNthCalledWith(1, {
+      where: { id: ATTACHMENT_ID },
+      data: { signingStatus: SigningStatus.PROCESSING },
+    });
   });
 
-  it('loads PDF buffer from originalFileId', async () => {
+  it('signs the original file when there is no previous signature', async () => {
     await processor.process(makeJob());
-    expect(mockFileStorage.getBuffer).toHaveBeenCalledWith(
-      baseAttachment.originalFileId,
+    expect(mockFileStorage.getBuffer).toHaveBeenNthCalledWith(
+      1,
+      baseAttachment.fileId,
     );
   });
 
-  it('loads image buffer from specimen fileId', async () => {
+  it('signs the last signed version when previous signatures exist', async () => {
+    mockPrisma.attachment.findUnique.mockResolvedValue({
+      ...baseAttachment,
+      versions: { signatures: [{ fileId: 41 }, { fileId: 42 }] },
+    });
+
     await processor.process(makeJob());
-    expect(mockFileStorage.getBuffer).toHaveBeenCalledWith(
-      baseAttachment.specimen.fileId,
+
+    expect(mockFileStorage.getBuffer).toHaveBeenNthCalledWith(1, 42);
+  });
+
+  it('loads the specimen from job data and its image buffer', async () => {
+    await processor.process(makeJob());
+
+    expect(mockPrisma.signatureSpecimen.findUnique).toHaveBeenCalledWith({
+      where: { id: jobData.specimenId },
+      include: { file: true },
+    });
+    expect(mockFileStorage.getBuffer).toHaveBeenNthCalledWith(
+      2,
+      specimen.fileId,
     );
   });
 
-  it('calls embedSignature with attachment position data', async () => {
+  it('calls embedSignature with the job position data', async () => {
     await processor.process(makeJob());
 
     expect(mockPdfLib.embedSignature).toHaveBeenCalledWith(
@@ -129,10 +150,10 @@ describe('PdfSigningProcessor', () => {
       Buffer.from('image-content'),
       'image/png',
       {
-        pageNumber: baseAttachment.pageNumber,
-        positionX: baseAttachment.positionX,
-        positionY: baseAttachment.positionY,
-        signatureWidth: baseAttachment.signatureWidth,
+        pageNumber: jobData.pageNumber,
+        positionX: jobData.positionX,
+        positionY: jobData.positionY,
+        signatureWidth: jobData.signatureWidth,
       },
     );
   });
@@ -143,39 +164,45 @@ describe('PdfSigningProcessor', () => {
     expect(mockFileStorage.upload).toHaveBeenCalledWith(
       expect.objectContaining({
         mimetype: 'application/pdf',
+        originalname: 'signed-dap.pdf',
         size: Buffer.from('signed-pdf').length,
       }),
-      expect.objectContaining({
-        userId: USER_ID,
-        skipOptimization: true,
-      }),
+      { userId: USER_ID, skipOptimization: true },
     );
   });
 
-  it('updates attachment to DONE with signed file data', async () => {
+  it('marks DONE and appends the signature to versions', async () => {
     await processor.process(makeJob());
 
-    expect(mockPrisma.attachment.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: ATTACHMENT_ID },
-        data: expect.objectContaining({
-          signingStatus: SigningStatus.DONE,
-          fileId: 99,
-          signedHash: 'hash-after',
-          signedAt: expect.any(Date),
-        }),
-      }),
-    );
+    expect(mockPrisma.attachment.update).toHaveBeenLastCalledWith({
+      where: { id: ATTACHMENT_ID },
+      data: {
+        signingStatus: SigningStatus.DONE,
+        signedHash: 'hash-after',
+        signedAt: expect.any(Date),
+        versions: {
+          signatures: [
+            {
+              fileId: 99,
+              signedBy: 'Jean Signataire',
+              specimenId: jobData.specimenId,
+              signedAt: expect.any(Date),
+              signedHash: 'hash-after',
+              fileUrl: '/files/99',
+            },
+          ],
+        },
+      },
+    });
   });
 
-  it('calls validate with purchase id and signer user id', async () => {
+  it('validates the DA with purchase id and signer user id', async () => {
     await processor.process(makeJob());
 
-    expect(mockValidationAction.validate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        purchaseId: PURCHASE_ID,
-        userId: USER_ID,
-      }),
+    expect(mockValidation.validateDA).toHaveBeenCalledWith(
+      PURCHASE_ID,
+      USER_ID,
+      {},
     );
   });
 
@@ -192,7 +219,7 @@ describe('PdfSigningProcessor', () => {
       expect.any(String),
       ['cfo@example.com'],
       PURCHASE_ID,
-      expect.objectContaining({ reference: 'DA-2024-001' }),
+      { reference: 'DA-2024-001', attachmentId: ATTACHMENT_ID },
       true,
     );
   });
@@ -208,10 +235,6 @@ describe('PdfSigningProcessor', () => {
   });
 
   it('skips notification when validator list is empty', async () => {
-    mockPrisma.validationWorkflow.findFirst.mockResolvedValue({
-      validators: [],
-    });
-
     await processor.process(makeJob());
 
     expect(mockNotification.createNotification).not.toHaveBeenCalled();
@@ -219,21 +242,30 @@ describe('PdfSigningProcessor', () => {
 
   // ─── Error handling ───────────────────────────────────────────────────────
 
-  it('marks attachment FAILED when an error is thrown', async () => {
+  it('marks attachment FAILED when the attachment has no file', async () => {
     mockPrisma.attachment.findUnique.mockResolvedValue({
       ...baseAttachment,
-      originalFileId: null, // missing required field → triggers error
+      fileId: null,
     });
 
-    const job = makeJob();
-    await expect(processor.process(job)).rejects.toThrow();
+    await expect(processor.process(makeJob())).rejects.toThrow();
 
-    expect(mockPrisma.attachment.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: ATTACHMENT_ID },
-        data: { signingStatus: SigningStatus.FAILED },
-      }),
+    expect(mockPrisma.attachment.update).toHaveBeenLastCalledWith({
+      where: { id: ATTACHMENT_ID },
+      data: { signingStatus: SigningStatus.FAILED },
+    });
+  });
+
+  it('marks attachment FAILED when the specimen is missing', async () => {
+    mockPrisma.signatureSpecimen.findUnique.mockResolvedValue(null);
+
+    await expect(processor.process(makeJob())).rejects.toThrow(
+      'Specimen 3 not found',
     );
+    expect(mockPrisma.attachment.update).toHaveBeenLastCalledWith({
+      where: { id: ATTACHMENT_ID },
+      data: { signingStatus: SigningStatus.FAILED },
+    });
   });
 
   it('rethrows the original error so BullMQ can retry', async () => {
@@ -243,21 +275,15 @@ describe('PdfSigningProcessor', () => {
   });
 
   it('does NOT mark FAILED and does NOT rethrow when only validation fails', async () => {
-    mockValidationAction.validate.mockRejectedValue(new Error('workflow gone'));
+    mockValidation.validateDA.mockRejectedValue(new Error('workflow gone'));
 
-    // Should resolve — signing succeeded, validation failure is swallowed
-    await expect(processor.process(makeJob())).resolves.not.toThrow();
+    await expect(processor.process(makeJob())).resolves.toBeUndefined();
 
-    // attachment was updated to DONE (not FAILED)
-    const doneCalls = mockPrisma.attachment.update.mock.calls.filter(
-      ([arg]: any[]) => arg.data?.signingStatus === SigningStatus.DONE,
+    const statuses = mockPrisma.attachment.update.mock.calls.map(
+      ([arg]: any[]) => arg.data?.signingStatus,
     );
-    expect(doneCalls.length).toBe(1);
-
-    const failedCalls = mockPrisma.attachment.update.mock.calls.filter(
-      ([arg]: any[]) => arg.data?.signingStatus === SigningStatus.FAILED,
-    );
-    expect(failedCalls.length).toBe(0);
+    expect(statuses).toContain(SigningStatus.DONE);
+    expect(statuses).not.toContain(SigningStatus.FAILED);
   });
 
   it('does NOT rethrow when notification dispatch fails', async () => {
@@ -268,25 +294,19 @@ describe('PdfSigningProcessor', () => {
       validators: [{ user: { email: 'om@example.com' } }],
     });
 
-    await expect(processor.process(makeJob())).resolves.not.toThrow();
+    await expect(processor.process(makeJob())).resolves.toBeUndefined();
   });
 
   // ─── Default position values ──────────────────────────────────────────────
 
-  it('falls back to default position values when attachment fields are null', async () => {
-    mockPrisma.attachment.findUnique.mockResolvedValue({
-      ...baseAttachment,
-      pageNumber: null,
-      positionX: null,
-      positionY: null,
-      signatureWidth: null,
-    });
-    // reset getBuffer mocks consumed in earlier calls
-    mockFileStorage.getBuffer
-      .mockResolvedValueOnce(Buffer.from('pdf'))
-      .mockResolvedValueOnce(Buffer.from('img'));
-
-    await processor.process(makeJob());
+  it('falls back to default position values when job fields are missing', async () => {
+    await processor.process(
+      makeJob(PDF_SIGNING_JOB, {
+        attachmentId: ATTACHMENT_ID,
+        signedById: USER_ID,
+        specimenId: 3,
+      }),
+    );
 
     expect(mockPdfLib.embedSignature).toHaveBeenCalledWith(
       expect.any(Buffer),

@@ -76,6 +76,7 @@ describe('MaintenanceStatusService', () => {
         'req-1',
         MaintenanceStatus.IN_PROGRESS,
         undefined,
+        undefined,
       );
       expect(mockNotificationService.createNotification).toHaveBeenCalledWith(
         OSDRM_PROCESS_EVENT.MAINTENANCE_STATUS_CHANGED,

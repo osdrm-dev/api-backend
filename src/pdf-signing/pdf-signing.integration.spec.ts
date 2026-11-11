@@ -14,7 +14,7 @@ import { SigningStatus } from '@prisma/client';
 
 import { PrismaService } from 'prisma/prisma.service';
 import { FileStorageService } from 'src/storage/services/file-storage.service';
-import { ValidationActionService } from 'src/purchaseValidation/services/validation-action.service';
+import { DAValidationService } from 'src/purchaseValidation/services/validation.service';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 
 import { PdfLibService } from './pdf-lib.service';
@@ -51,8 +51,11 @@ function makePrismaMock() {
     validationWorkflow: {
       findFirst: jest.fn().mockResolvedValue({ validators: [] }),
     },
+    signatureSpecimen: {
+      findUnique: jest.fn(),
+    },
     user: {
-      findUnique: jest.fn().mockResolvedValue({ role: 'ACHETEUR' }),
+      findUnique: jest.fn().mockResolvedValue({ name: 'Signer' }),
     },
   };
 }
@@ -61,7 +64,7 @@ function makeFileStorageMock() {
   return {
     getBuffer: jest.fn(),
     getById: jest.fn().mockResolvedValue({ originalName: 'dap.pdf' }),
-    upload: jest.fn().mockResolvedValue({ id: 55 }),
+    upload: jest.fn().mockResolvedValue({ id: 55, url: '/files/55' }),
   };
 }
 
@@ -73,15 +76,15 @@ describe('PdfSigning — module integration', () => {
   let processor: PdfSigningProcessor;
   let prisma: ReturnType<typeof makePrismaMock>;
   let fileStorage: ReturnType<typeof makeFileStorageMock>;
-  let validationAction: { validate: jest.Mock };
+  let daValidation: { validateDA: jest.Mock };
   let notificationService: { createNotification: jest.Mock };
   let queue: { add: jest.Mock };
 
   beforeAll(async () => {
     prisma = makePrismaMock();
     fileStorage = makeFileStorageMock();
-    validationAction = {
-      validate: jest.fn().mockResolvedValue({ wasCompleted: false }),
+    daValidation = {
+      validateDA: jest.fn().mockResolvedValue({}),
     };
     notificationService = {
       createNotification: jest.fn().mockResolvedValue({}),
@@ -96,7 +99,7 @@ describe('PdfSigning — module integration', () => {
         { provide: getQueueToken(PDF_SIGNING_QUEUE), useValue: queue },
         { provide: PrismaService, useValue: prisma },
         { provide: FileStorageService, useValue: fileStorage },
-        { provide: ValidationActionService, useValue: validationAction },
+        { provide: DAValidationService, useValue: daValidation },
         { provide: NotificationService, useValue: notificationService },
       ],
     }).compile();
@@ -133,10 +136,19 @@ describe('PdfSigning — module integration', () => {
     it('enqueue() puts a job on the queue and returns the id', async () => {
       queue.add.mockResolvedValue({ id: 'job-99' });
 
-      const jobId = await signingService.enqueue('att-abc');
+      const params = {
+        signedById: 1,
+        specimenId: 3,
+        pageNumber: 1,
+        positionX: 0.1,
+        positionY: 0.1,
+        signatureWidth: 0.2,
+      };
+      const jobId = await signingService.enqueue('att-abc', params);
 
       expect(queue.add).toHaveBeenCalledWith(PDF_SIGNING_JOB, {
         attachmentId: 'att-abc',
+        ...params,
       });
       expect(jobId).toBe('job-99');
     });
@@ -166,6 +178,15 @@ describe('PdfSigning — module integration', () => {
 
   describe('PdfSigningProcessor — full flow with real PdfLibService', () => {
     let pdfBuffer: Buffer;
+    const flowJobData = {
+      attachmentId: 'att-flow',
+      signedById: 1,
+      specimenId: 3,
+      pageNumber: 1,
+      positionX: 0.1,
+      positionY: 0.1,
+      signatureWidth: 0.2,
+    };
 
     beforeAll(async () => {
       pdfBuffer = await buildPdfBuffer();
@@ -178,39 +199,34 @@ describe('PdfSigning — module integration', () => {
         id: 'att-flow',
         purchaseId: 'purch-flow',
         fileId: 10,
-        originalFileId: 5,
-        signedById: 1,
-        specimenId: 3,
-        pageNumber: 1,
-        positionX: 0.1,
-        positionY: 0.1,
-        signatureWidth: 0.2,
-        specimen: {
-          fileId: 20,
-          file: { mimeType: 'image/png' },
-        },
+        versions: null,
       };
 
       prisma.attachment.update.mockResolvedValue({});
       prisma.attachment.findUnique.mockResolvedValue(attachment);
       prisma.purchase.findUnique.mockResolvedValue({ reference: 'DA-001' });
       prisma.validationWorkflow.findFirst.mockResolvedValue({ validators: [] });
-      prisma.user.findUnique.mockResolvedValue({ role: 'ACHETEUR' });
+      prisma.signatureSpecimen.findUnique.mockResolvedValue({
+        id: 3,
+        fileId: 20,
+        file: { mimeType: 'image/png' },
+      });
+      prisma.user.findUnique.mockResolvedValue({ name: 'Signer' });
 
       fileStorage.getBuffer
         .mockResolvedValueOnce(pdfBuffer) // PDF
         .mockResolvedValueOnce(MINIMAL_PNG); // signature image
       fileStorage.getById.mockResolvedValue({ originalName: 'dap.pdf' });
-      fileStorage.upload.mockResolvedValue({ id: 77 });
+      fileStorage.upload.mockResolvedValue({ id: 77, url: '/files/77' });
 
-      validationAction.validate.mockResolvedValue({ wasCompleted: false });
+      daValidation.validateDA.mockResolvedValue({});
       notificationService.createNotification.mockResolvedValue({});
     });
 
     it('completes without error', async () => {
       const job = {
         name: PDF_SIGNING_JOB,
-        data: { attachmentId: 'att-flow' },
+        data: flowJobData,
         id: 'j-1',
       } as any;
       await expect(processor.process(job)).resolves.not.toThrow();
@@ -219,7 +235,7 @@ describe('PdfSigning — module integration', () => {
     it('passes through PROCESSING → DONE status transitions', async () => {
       const job = {
         name: PDF_SIGNING_JOB,
-        data: { attachmentId: 'att-flow' },
+        data: flowJobData,
         id: 'j-1',
       } as any;
       await processor.process(job);
@@ -236,7 +252,7 @@ describe('PdfSigning — module integration', () => {
     it('saves the signed file and links it on the attachment', async () => {
       const job = {
         name: PDF_SIGNING_JOB,
-        data: { attachmentId: 'att-flow' },
+        data: flowJobData,
         id: 'j-1',
       } as any;
       await processor.process(job);
@@ -249,8 +265,10 @@ describe('PdfSigning — module integration', () => {
       expect(prisma.attachment.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            fileId: 77,
             signingStatus: SigningStatus.DONE,
+            versions: {
+              signatures: [expect.objectContaining({ fileId: 77 })],
+            },
           }),
         }),
       );
@@ -259,14 +277,12 @@ describe('PdfSigning — module integration', () => {
     it('triggers workflow validation for the signer', async () => {
       const job = {
         name: PDF_SIGNING_JOB,
-        data: { attachmentId: 'att-flow' },
+        data: flowJobData,
         id: 'j-1',
       } as any;
       await processor.process(job);
 
-      expect(validationAction.validate).toHaveBeenCalledWith(
-        expect.objectContaining({ purchaseId: 'purch-flow', userId: 1 }),
-      );
+      expect(daValidation.validateDA).toHaveBeenCalledWith('purch-flow', 1, {});
     });
 
     it('marks FAILED and rethrows when PDF embedding fails', async () => {
@@ -278,7 +294,7 @@ describe('PdfSigning — module integration', () => {
 
       const job = {
         name: PDF_SIGNING_JOB,
-        data: { attachmentId: 'att-flow' },
+        data: flowJobData,
         id: 'j-1',
       } as any;
       await expect(processor.process(job)).rejects.toThrow();

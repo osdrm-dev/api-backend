@@ -75,8 +75,6 @@ export class PdfSigningProcessor extends WorkerHost {
       where: { id: attachmentId },
     });
 
-    console.log(attachment);
-
     if (!attachment || !attachment.fileId) {
       throw new Error(
         `Attachment ${attachmentId} is missing required signing data`,
