@@ -13,6 +13,9 @@ export interface MaintenanceFilters {
   interventionType?: MaintenanceInterventionType;
   vehicleId?: string;
   vehicleRef?: string;
+  /** VEHICLE_ONLY (défaut Entretien) : exclut les réparations de matériel ; EQUIPMENT_ONLY : l'inverse. */
+  scope?: 'VEHICLE_ONLY' | 'EQUIPMENT_ONLY';
+  equipmentId?: string;
   search?: string;
   dateFrom?: Date;
   dateTo?: Date;
@@ -36,6 +39,17 @@ export class MaintenanceRepository {
     },
     vehicle: {
       select: { id: true, immatriculation: true, marque: true, modele: true },
+    },
+    equipment: {
+      select: {
+        id: true,
+        designation: true,
+        brand: true,
+        model: true,
+        inventoryReference: true,
+        serialNumber: true,
+        status: true,
+      },
     },
     linkedPurchase: {
       select: { id: true, reference: true, status: true },
@@ -109,25 +123,30 @@ export class MaintenanceRepository {
       await Promise.all([
         this.prisma.maintenanceRequest.groupBy({
           by: ['status'],
-          where: { deletedAt: null },
+          where: { deletedAt: null, equipmentId: null },
           _count: { id: true },
         }),
         this.prisma.maintenanceRequest.groupBy({
           by: ['urgencyLevel'],
-          where: { deletedAt: null },
+          where: { deletedAt: null, equipmentId: null },
           _count: { id: true },
         }),
         this.prisma.maintenanceRequest.groupBy({
           by: ['interventionType'],
-          where: { deletedAt: null },
+          where: { deletedAt: null, equipmentId: null },
           _count: { id: true },
         }),
         this.prisma.maintenanceRequest.count({
-          where: { deletedAt: null, createdAt: { gte: startOfMonth } },
+          where: {
+            deletedAt: null,
+            equipmentId: null,
+            createdAt: { gte: startOfMonth },
+          },
         }),
         this.prisma.maintenanceRequest.findMany({
           where: {
             deletedAt: null,
+            equipmentId: null,
             status: MaintenanceStatus.VALIDATED,
             completedAt: { not: null },
           },
@@ -265,6 +284,12 @@ export class MaintenanceRepository {
 
     if (filters.vehicleId) {
       where.vehicleId = filters.vehicleId;
+    }
+
+    if (filters.scope === 'VEHICLE_ONLY') {
+      where.equipmentId = null;
+    } else if (filters.scope === 'EQUIPMENT_ONLY') {
+      where.equipmentId = filters.equipmentId ?? { not: null };
     }
 
     if (filters.vehicleRef) {

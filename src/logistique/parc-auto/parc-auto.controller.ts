@@ -28,6 +28,8 @@ import { MyVehiclesService } from './services/my-vehicles.service';
 import { CreateVehicleDto } from './dto/create-vehicle.dto';
 import { UpdateVehicleDto } from './dto/update-vehicle.dto';
 import { UploadDocumentDto } from './dto/upload-document.dto';
+import { CreateAssignmentDto } from './dto/create-assignment.dto';
+import { EndAssignmentDto } from './dto/end-assignment.dto';
 import { ListVehiclesQueryDto } from './dto/list-vehicles-query.dto';
 import { VehicleWithRemindersDto } from './dto/return-vehicle-with-reminders.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
@@ -72,6 +74,16 @@ export class ParcAutoController {
     @Param('userId') userId: string,
   ): Promise<VehicleWithRemindersDto[]> {
     return this.myVehiclesService.getVehiclesForUser(parseInt(userId, 10));
+  }
+
+  @Get('drivers')
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
+  @ApiOperation({
+    summary: 'Lister les chauffeurs (rôle DRIVER) avec leur véhicule actuel',
+  })
+  async getDrivers() {
+    return this.parcAutoService.getDrivers();
   }
 
   @Get()
@@ -191,7 +203,12 @@ export class ParcAutoController {
         file: { type: 'string', format: 'binary' },
         type: {
           type: 'string',
-          enum: ['ASSURANCE', 'VISITE_TECHNIQUE', 'CARTE_GRISE'],
+          enum: [
+            'ASSURANCE',
+            'VISITE_TECHNIQUE',
+            'CARTE_GRISE',
+            'FICHE_NON_IMPOSITION',
+          ],
         },
         reference: { type: 'string' },
         dateDebut: { type: 'string', format: 'date' },
@@ -206,5 +223,62 @@ export class ParcAutoController {
     @CurrentUser() user: { id: number },
   ) {
     return this.parcAutoService.uploadDocument(id, file, dto, user.id);
+  }
+
+  @Get(':id/assignments')
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: "Historique des affectations d'un véhicule" })
+  @ApiParam({ name: 'id', description: 'Identifiant du véhicule' })
+  async getAssignments(@Param('id') id: string) {
+    return this.parcAutoService.getAssignments(id);
+  }
+
+  @Post(':id/assignments')
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiOperation({
+    summary:
+      "Affecter le véhicule à un chauffeur (fiche d'attribution obligatoire)",
+  })
+  @ApiParam({ name: 'id', description: 'Identifiant du véhicule' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['file', 'driverId'],
+      properties: {
+        file: { type: 'string', format: 'binary' },
+        driverId: { type: 'integer' },
+        startDate: { type: 'string', format: 'date' },
+        notes: { type: 'string' },
+      },
+    },
+  })
+  async createAssignment(
+    @Param('id') id: string,
+    @UploadedFile() file: MulterFile,
+    @Body() dto: CreateAssignmentDto,
+    @CurrentUser() user: { id: number },
+  ) {
+    return this.parcAutoService.createAssignment(id, file, dto, user.id);
+  }
+
+  @Patch(':id/assignments/:assignmentId/end')
+  @Roles('ADMIN')
+  @UseGuards(RolesGuard)
+  @ApiOperation({ summary: 'Terminer une affectation' })
+  @ApiParam({ name: 'id', description: 'Identifiant du véhicule' })
+  @ApiParam({
+    name: 'assignmentId',
+    description: "Identifiant de l'affectation",
+  })
+  async endAssignment(
+    @Param('id') id: string,
+    @Param('assignmentId') assignmentId: string,
+    @Body() dto: EndAssignmentDto,
+  ) {
+    return this.parcAutoService.endAssignment(id, assignmentId, dto);
   }
 }

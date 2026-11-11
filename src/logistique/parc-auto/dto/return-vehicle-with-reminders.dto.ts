@@ -24,7 +24,7 @@ export class VehicleUsageDto {
 
   @ApiProperty({
     description: "Origines ayant contribué à l'usage du véhicule",
-    enum: ['TRIP', 'DEPLACEMENT', 'CARBURANT'],
+    enum: ['TRIP', 'MISSION', 'CARBURANT'],
     isArray: true,
     example: ['TRIP', 'CARBURANT'],
   })

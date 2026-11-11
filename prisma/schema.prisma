@@ -22,30 +22,33 @@ enum FileStatus {
 }
 
 model File {
-  id                Int          @id @default(autoincrement())
-  originalName      String
-  storedName        String       @unique
-  mimeType          String
-  fileType          FileType
-  size              Int
-  optimizedSize     Int?
-  compressionRatio  Float?
-  path              String
-  url               String
-  status            FileStatus   @default(UPLOADING)
-  uploadedById      Int
-  metadata          Json?
-  checksum          String
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  
-  uploadedBy          User                 @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
-  attachments         Attachment[]
-  budgetTables        BudgetTable[]
-  signatureSpecimens  SignatureSpecimen[]
-  vehicleDocuments    VehicleDocument[]
-  bailContracts       LgBailContract[]     @relation("BailContratFile")
-  bailAvenants        LgBailAvenant[]      @relation("BailAvenantFile")
+  id               Int        @id @default(autoincrement())
+  originalName     String
+  storedName       String     @unique
+  mimeType         String
+  fileType         FileType
+  size             Int
+  optimizedSize    Int?
+  compressionRatio Float?
+  path             String
+  url              String
+  status           FileStatus @default(UPLOADING)
+  uploadedById     Int
+  metadata         Json?
+  checksum         String
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  uploadedBy         User                  @relation(fields: [uploadedById], references: [id], onDelete: Cascade)
+  attachments        Attachment[]
+  budgetTables       BudgetTable[]
+  signatureSpecimens SignatureSpecimen[]
+  vehicleDocuments   VehicleDocument[]
+  bailContracts      LgBailContract[]      @relation("BailContratFile")
+  bailAvenants       LgBailAvenant[]       @relation("BailAvenantFile")
+  vehicleAssignments LgVehicleAssignment[]
+  equipmentDemands   EquipmentDemand[]     @relation("EquipmentDemandFiles")
+  carburants         LgCarburant[]         @relation("CarburantFiles")
 
   @@index([uploadedById])
   @@index([fileType])
@@ -66,44 +69,46 @@ enum Role {
   ACHETEUR
   CFR
   GESTIONNAIRE_PARC
+  DRIVER
 }
 
 model User {
-  id                Int                @id @default(autoincrement())
-  email             String             @unique
-  password          String
-  name              String
-  fonction          String
-  role              Role               @default(DEMANDEUR)
-  isActive          Boolean            @default(true)
-  lastLoginAt       DateTime?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
-  
+  id          Int       @id @default(autoincrement())
+  email       String    @unique
+  password    String
+  name        String
+  fonction    String
+  role        Role      @default(DEMANDEUR)
+  isActive    Boolean   @default(true)
+  lastLoginAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
   refreshTokens         RefreshToken[]
   auditLogs             AuditLog[]
   validators            Validator[]
-  purchasesCreated      Purchase[]           @relation("PurchaseCreator")
-  purchasesAsAcheteur   Purchase[]           @relation("PurchaseAcheteur")
+  purchasesCreated      Purchase[]               @relation("PurchaseCreator")
+  purchasesAsAcheteur   Purchase[]               @relation("PurchaseAcheteur")
   purchaseComments      PurchaseComment[]
   files                 File[]
   budgetTables          BudgetTable[]
   signatureSpecimens    SignatureSpecimen[]
-  maintenanceRequests   MaintenanceRequest[] @relation("MaintenanceRequestor")
-  maintenanceComments   MaintenanceComment[] @relation("MaintenanceCommentAuthor")
-  maintenanceAssigned   MaintenanceRequest[] @relation("MaintenanceAssignedTo")
-  itDemands             ItDemand[]           @relation("ItDemandRequestor")
-  itAttributions        ItAttribution[]      @relation("ItAttributionBeneficiary")
-  deplacements          LgDeplacement[]      @relation("DeplacementRequestor")
-  deplacementsGeres     LgDeplacement[]      @relation("DeplacementGestionnaire")
-  deplacementComments   LgDeplacementComment[] @relation("DeplacementCommentAuthor")
-  liquidationsSubmises  LgDeplacementLiquidation[] @relation("LiquidationSubmitter")
-  validatedLiquidations LgLiquidationValidation[]  @relation("ValidatedLiquidations")
-  trips                 LgTrip[]                   @relation("TripRequestor")
-  tripComments          LgTripComment[]            @relation("TripCommentAuthor")
-  carburants            LgCarburant[]              @relation("CarburantRequestor")
-  carburantComments     LgCarburantComment[]       @relation("CarburantCommentAuthor")
-  comments              LgComment[]                @relation("CommentAuthor")
+  maintenanceRequests   MaintenanceRequest[]     @relation("MaintenanceRequestor")
+  maintenanceComments   MaintenanceComment[]     @relation("MaintenanceCommentAuthor")
+  maintenanceAssigned   MaintenanceRequest[]     @relation("MaintenanceAssignedTo")
+  equipmentDemands      EquipmentDemand[]        @relation("EquipmentDemandRequestor")
+  equipmentAttributions EquipmentAttribution[]   @relation("EquipmentAttributionBeneficiary")
+  missions              LgMission[]              @relation("MissionRequestor")
+  managedMissions       LgMission[]              @relation("MissionManager")
+  missionComments       LgMissionComment[]       @relation("MissionCommentAuthor")
+  submittedSettlements  LgMissionSettlement[]    @relation("SettlementSubmitter")
+  validatedSettlements  LgSettlementValidation[] @relation("ValidatedSettlements")
+  trips                 LgTrip[]                 @relation("TripRequestor")
+  tripComments          LgTripComment[]          @relation("TripCommentAuthor")
+  carburants            LgCarburant[]            @relation("CarburantRequestor")
+  carburantComments     LgCarburantComment[]     @relation("CarburantCommentAuthor")
+  comments              LgComment[]              @relation("CommentAuthor")
+  vehicleAssignments    LgVehicleAssignment[]    @relation("VehicleAssignmentDriver")
 
   @@index([email])
   @@index([role])
@@ -111,36 +116,36 @@ model User {
 }
 
 model RefreshToken {
-  id          Int       @id @default(autoincrement())
-  token       String    @unique
-  userId      Int
-  expiresAt   DateTime
-  createdAt   DateTime  @default(now())
-  revokedAt   DateTime?
-  replacedBy  String?
-  ipAddress   String?
-  userAgent   String?
-  
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id         Int       @id @default(autoincrement())
+  token      String    @unique
+  userId     Int
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  revokedAt  DateTime?
+  replacedBy String?
+  ipAddress  String?
+  userAgent  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([token])
   @@map("refresh_tokens")
 }
 
 model AuditLog {
-  id          Int       @id @default(autoincrement())
-  userId      Int?
-  action      String
-  resource    String
-  resourceId  String?
-  details     Json?
-  ipAddress   String?
-  userAgent   String?
-  createdAt   DateTime  @default(now())
-  
-  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
+  id         Int      @id @default(autoincrement())
+  userId     Int?
+  action     String
+  resource   String
+  resourceId String?
+  details    Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
   @@index([userId])
   @@index([action])
   @@index([createdAt])
@@ -180,15 +185,15 @@ enum PurchaseStatus {
 // jointes lors de la création de la demande d'achat
 // =====================================================
 enum AttachmentType {
-  DA_ATTACHMENT     // <- NOUVEAU: Pièces jointes de la DA (étape création)
-  QUOTE             // Devis (étape QR)
-  INVOICE           // Facture
-  PURCHASE_ORDER    // Bon de commande
-  DELIVERY_NOTE     // Bon de livraison
-  PROOF_OF_PAYMENT  // Preuve de paiement,
+  DA_ATTACHMENT // <- NOUVEAU: Pièces jointes de la DA (étape création)
+  QUOTE // Devis (étape QR)
+  INVOICE // Facture
+  PURCHASE_ORDER // Bon de commande
+  DELIVERY_NOTE // Bon de livraison
+  PROOF_OF_PAYMENT // Preuve de paiement,
   SATISFACTION_SURVEY
   DAP
-  OTHER             // Autre
+  OTHER // Autre
 }
 
 enum SigningStatus {
@@ -216,61 +221,61 @@ enum ValidatorRole {
 }
 
 model Purchase {
-  id                    String              @id @default(cuid())
-  reference             String              @unique
-  year                  Int?
-  site                  String?
-  sequentialNumber      String?
+  id               String  @id @default(cuid())
+  reference        String  @unique
+  year             Int?
+  site             String?
+  sequentialNumber String?
 
-  project               String?
-  region                String?
-  projectCode           String?
-  grantCode             String?
-  activityCode          String?
-  costCenter            String?
+  project      String?
+  region       String?
+  projectCode  String?
+  grantCode    String?
+  activityCode String?
+  costCenter   String?
 
-  title                 String
-  description           String?             @db.Text
-  marketType            String?
-  operationType         OperationType
+  title         String
+  description   String?       @db.Text
+  marketType    String?
+  operationType OperationType
 
-  createdAt             DateTime            @default(now())
+  createdAt             DateTime  @default(now())
   requestedDeliveryDate DateTime?
   receivedAt            DateTime?
   closedAt              DateTime?
   validatedAt           DateTime?
 
-  processingDuration    Int?
-  priority              String?
-  justification         String  
+  processingDuration Int?
+  priority           String?
+  justification      String
 
-  deliveryAddress       String?             @db.Text
+  deliveryAddress String? @db.Text
 
-  status                PurchaseStatus      @default(DRAFT)
-  currentStep           PurchaseStep        @default(DA)
-  observations          String?             @db.Text
-  responsible           String?
-  data                  Json?
+  status       PurchaseStatus @default(DRAFT)
+  currentStep  PurchaseStep   @default(DA)
+  observations String?        @db.Text
+  responsible  String?
+  data         Json?
 
-  creatorId             Int?
-  creator               User?               @relation("PurchaseCreator", fields: [creatorId], references: [id], onDelete: SetNull)
+  creatorId Int?
+  creator   User? @relation("PurchaseCreator", fields: [creatorId], references: [id], onDelete: SetNull)
 
-  acheteurId            Int?
-  acheteur              User?               @relation("PurchaseAcheteur", fields: [acheteurId], references: [id], onDelete: SetNull)
+  acheteurId Int?
+  acheteur   User? @relation("PurchaseAcheteur", fields: [acheteurId], references: [id], onDelete: SetNull)
 
-  items                 PurchaseItem[]
-  attachments           Attachment[]
-  derogation            Derogation?
-  validationWorkflows   ValidationWorkflow[]
+  items               PurchaseItem[]
+  attachments         Attachment[]
+  derogation          Derogation?
+  validationWorkflows ValidationWorkflow[]
 
-  updatedAt             DateTime            @updatedAt
-  pv                    PV?
-  satisfactionSurvey    SatisfactionSurvey?
-  comments              PurchaseComment[]
-  maintenanceRequest    MaintenanceRequest?
-  itAsset               ItAsset?    @relation("ItAssetLinkedPurchase")
-  itDemand              ItDemand?   @relation("ItDemandLinkedPurchase")
-  deplacement           LgDeplacement? @relation("DeplacementLinkedPurchase")
+  updatedAt          DateTime            @updatedAt
+  pv                 PV?
+  satisfactionSurvey SatisfactionSurvey?
+  comments           PurchaseComment[]
+  maintenanceRequest MaintenanceRequest?
+  equipment          Equipment?          @relation("EquipmentLinkedPurchase")
+  equipmentDemand    EquipmentDemand?    @relation("EquipmentDemandLinkedPurchase")
+  mission            LgMission?          @relation("MissionLinkedPurchase")
 
   @@index([reference])
   @@index([status])
@@ -284,53 +289,53 @@ model Purchase {
 }
 
 model PurchaseItem {
-  id              String    @id @default(cuid())
-  purchaseId      String
+  id         String @id @default(cuid())
+  purchaseId String
 
-  designation     String
-  quantity        Float
-  unitPrice       Float
-  amount          Float
-  unit            String?
-  specifications  String?   @db.Text
+  designation    String
+  quantity       Float
+  unitPrice      Float
+  amount         Float
+  unit           String?
+  specifications String? @db.Text
 
-  purchase        Purchase  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([purchaseId])
   @@map("purchase_items")
 }
 
 model Attachment {
-  id              String          @id @default(cuid())
-  purchaseId      String
-  fileId          Int?
+  id         String @id @default(cuid())
+  purchaseId String
+  fileId     Int?
 
-  type            AttachmentType
-  fileName        String
-  fileUrl         String
-  fileSize        Int?
-  mimeType        String?
+  type     AttachmentType
+  fileName String
+  fileUrl  String
+  fileSize Int?
+  mimeType String?
 
-  description     String?         @db.Text
-  uploadedBy      String?
-  receivedAt      DateTime?
-  validatedAt     DateTime?
+  description String?   @db.Text
+  uploadedBy  String?
+  receivedAt  DateTime?
+  validatedAt DateTime?
 
-  originHash      String?
-  signedHash      String?
-  signingStatus   SigningStatus?
-  jobId           String?
-  signedAt        DateTime?
-  versions        Json?
+  originHash    String?
+  signedHash    String?
+  signingStatus SigningStatus?
+  jobId         String?
+  signedAt      DateTime?
+  versions      Json?
 
-  purchase        Purchase           @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  file            File?              @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  file     File?    @relation(fields: [fileId], references: [id], onDelete: SetNull)
 
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([purchaseId])
   @@index([fileId])
@@ -339,24 +344,24 @@ model Attachment {
 }
 
 model Derogation {
-  id                  String            @id @default(cuid())
-  purchaseId          String            @unique
+  id         String @id @default(cuid())
+  purchaseId String @unique
 
-  reason              String            @db.Text
-  justification       String            @db.Text
-  status              DerogationStatus  @default(PENDING)
-  validationLevel     Int               @default(0)
+  reason          String           @db.Text
+  justification   String           @db.Text
+  status          DerogationStatus @default(PENDING)
+  validationLevel Int              @default(0)
 
-  approvedBy          String?
-  approvedAt          DateTime?
-  rejectedBy          String?
-  rejectedAt          DateTime?
-  comments            String?           @db.Text
+  approvedBy String?
+  approvedAt DateTime?
+  rejectedBy String?
+  rejectedAt DateTime?
+  comments   String?   @db.Text
 
-  purchase            Purchase          @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
 
-  createdAt           DateTime          @default(now())
-  updatedAt           DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([purchaseId])
   @@index([status])
@@ -364,18 +369,18 @@ model Derogation {
 }
 
 model ValidationWorkflow {
-  id              String        @id @default(cuid())
-  purchaseId      String
-  step            PurchaseStep  @default(DA)
+  id         String       @id @default(cuid())
+  purchaseId String
+  step       PurchaseStep @default(DA)
 
-  currentStep     Int           @default(0)
-  isComplete      Boolean       @default(false)
+  currentStep Int     @default(0)
+  isComplete  Boolean @default(false)
 
-  purchase        Purchase      @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  validators      Validator[]
+  purchase   Purchase    @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  validators Validator[]
 
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([purchaseId, step])
   @@index([purchaseId])
@@ -384,26 +389,26 @@ model ValidationWorkflow {
 }
 
 model Validator {
-  id                    String              @id @default(cuid())
-  workflowId            String
-  userId                Int?
+  id         String @id @default(cuid())
+  workflowId String
+  userId     Int?
 
-  role                  ValidatorRole
-  order                 Int
-  name                  String?
-  email                 String?
+  role  ValidatorRole
+  order Int
+  name  String?
+  email String?
 
-  isValidated           Boolean             @default(false)
-  validatedAt           DateTime?
-  comment               String?             @db.Text
+  isValidated Boolean   @default(false)
+  validatedAt DateTime?
+  comment     String?   @db.Text
 
-  decision              String?
+  decision String?
 
-  workflow              ValidationWorkflow  @relation(fields: [workflowId], references: [id], onDelete: Cascade)
-  user                  User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+  workflow ValidationWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  user     User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  createdAt             DateTime            @default(now())
-  updatedAt             DateTime            @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([workflowId])
   @@index([userId])
@@ -412,23 +417,31 @@ model Validator {
 }
 
 model Supplier {
-  id          String   @id @default(cuid())
-  name        String
-  status      String
-  nif         String
-  stat        String
-  rcs         String
-  region      String
-  address     String
-  phone       String
-  email       String?
-  label       String?
-  pvSuppliers PVSupplier[]
+  id              String       @id @default(cuid())
+  name            String
+  status          String?
+  nif             String?
+  stat            String?
+  rcs             String?
+  region          String?
+  address         String?
+  phone           String?
+  email           String?
+  label           String?
+  category        String?
+  city            String?
+  country         String?
+  contactName     String?
+  contactPosition String?
+  languages       String?
+  website         String?
+  notes           String?      @db.Text
+  pvSuppliers     PVSupplier[]
 
   activeStatus SupplierActiveStatus @default(ACTIVE)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([name])
   @@index([status])
@@ -440,6 +453,7 @@ enum SupplierActiveStatus {
   ACTIVE
   INACTIVE
   BLACK_LIST
+  POTENTIAL
 }
 
 enum PVStatus {
@@ -450,59 +464,59 @@ enum PVStatus {
 }
 
 model PV {
-  id              String    @id @default(cuid())
-  purchaseId      String    @unique
+  id         String @id @default(cuid())
+  purchaseId String @unique
 
-  evaluateur      String?
-  dateEvaluation  DateTime?
-  natureObjet     String?
-  decisionFinale  String?   @db.Text
-  status          PVStatus  @default(DRAFT)
+  evaluateur     String?
+  dateEvaluation DateTime?
+  natureObjet    String?
+  decisionFinale String?   @db.Text
+  status         PVStatus  @default(DRAFT)
 
-  purchase        Purchase     @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  suppliers       PVSupplier[]
+  purchase  Purchase     @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  suppliers PVSupplier[]
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([purchaseId])
   @@map("pvs")
 }
 
 model PVSupplier {
-  id          String   @id @default(cuid())
-  pvId        String
-  supplierId  String?
+  id         String  @id @default(cuid())
+  pvId       String
+  supplierId String?
 
-  order   Int
-  name    String?
-  rang    Int?
+  order Int
+  name  String?
+  rang  Int?
 
-  reponseDansDelai          String?
-  annexe1                   String?
-  devisSpecifications       String?
-  regulariteFiscale         String?
-  copiecin                  String?
-  conformiteSpecs           String?
-  distanceBureaux           String?
-  delaiLivraison            String?
-  sav                       String?
-  disponibiliteArticles     String?
-  qualiteArticles           String?
-  experienceAnterieure      String?
-  producteurOuSousTraitant  String?
-  echantillonBat            String?
-  validiteOffre             String?
-  modePaiement              String?
-  delaiPaiement             String?
-  offreFinanciere           Decimal? @db.Decimal(15, 2)
+  reponseDansDelai         String?
+  annexe1                  String?
+  devisSpecifications      String?
+  regulariteFiscale        String?
+  copiecin                 String?
+  conformiteSpecs          String?
+  distanceBureaux          String?
+  delaiLivraison           String?
+  sav                      String?
+  disponibiliteArticles    String?
+  qualiteArticles          String?
+  experienceAnterieure     String?
+  producteurOuSousTraitant String?
+  echantillonBat           String?
+  validiteOffre            String?
+  modePaiement             String?
+  delaiPaiement            String?
+  offreFinanciere          Decimal? @db.Decimal(15, 2)
 
-  pv        PV        @relation(fields: [pvId], references: [id], onDelete: Cascade)
-  supplier  Supplier? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
-  items     PVSupplierItem[]
+  pv       PV               @relation(fields: [pvId], references: [id], onDelete: Cascade)
+  supplier Supplier?        @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  items    PVSupplierItem[]
 
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([pvId])
   @@index([supplierId])
@@ -510,21 +524,21 @@ model PVSupplier {
 }
 
 model PVSupplierItem {
-  id              String  @id @default(cuid())
-  supplierId      String
+  id         String @id @default(cuid())
+  supplierId String
 
-  purchaseItemId  String?
-  designation     String
-  quantity        Float
-  unitPrice       Float
-  amount          Float
-  disponibilite   String?
-  isSelected      Boolean @default(false)
+  purchaseItemId String?
+  designation    String
+  quantity       Float
+  unitPrice      Float
+  amount         Float
+  disponibilite  String?
+  isSelected     Boolean @default(false)
 
-  supplier        PVSupplier  @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  supplier PVSupplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
 
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([supplierId])
   @@map("pv_supplier_items")
@@ -539,26 +553,26 @@ enum NotificationStatus {
 }
 
 model Notification {
-  id            String             @id @default(cuid())
-  type          String             
-  
-  resourceId    String?
-  resourceType  String?            
-  
-  recipients    Json               
-  data          Json               
-  
-  status        NotificationStatus @default(PENDING)
-  
-  hasReminder   Boolean            @default(false)
-  attemptCount  Int                @default(0)
-  reminderCount Int                @default(0)
-  reminderIntervalInDays Int?      @default(24)
-  
-  lastSentAt    DateTime?
-  expiredAt     DateTime?          
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  id   String @id @default(cuid())
+  type String
+
+  resourceId   String?
+  resourceType String?
+
+  recipients Json
+  data       Json
+
+  status NotificationStatus @default(PENDING)
+
+  hasReminder            Boolean @default(false)
+  attemptCount           Int     @default(0)
+  reminderCount          Int     @default(0)
+  reminderIntervalInDays Int?    @default(24)
+
+  lastSentAt DateTime?
+  expiredAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@index([resourceId])
   @@index([status])
@@ -568,21 +582,21 @@ model Notification {
 }
 
 model BudgetTable {
-  id            Int               @id @default(autoincrement())
-  version       Int
-  label         String
-  isPending     Boolean           @default(false)
-  isActive      Boolean           @default(false)
-  activatedAt   DateTime?
-  uploadedById  Int
-  fileId        Int
+  id           Int       @id @default(autoincrement())
+  version      Int
+  label        String
+  isPending    Boolean   @default(false)
+  isActive     Boolean   @default(false)
+  activatedAt  DateTime?
+  uploadedById Int
+  fileId       Int
 
-  uploadedBy    User              @relation(fields: [uploadedById], references: [id])
-  file          File              @relation(fields: [fileId], references: [id])
-  projects      BudgetProject[]
+  uploadedBy User            @relation(fields: [uploadedById], references: [id])
+  file       File            @relation(fields: [fileId], references: [id])
+  projects   BudgetProject[]
 
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([isActive])
   @@index([isPending])
@@ -591,7 +605,7 @@ model BudgetTable {
 }
 
 model BudgetProject {
-  id              Int          @id @default(autoincrement())
+  id              Int     @id @default(autoincrement())
   budgetTableId   Int
   projectName     String
   projectCode     String
@@ -600,12 +614,12 @@ model BudgetProject {
   costCenter      String
   region          String
   site            String
-  budgetThreshold Decimal      @db.Decimal(18, 2)
+  budgetThreshold Decimal @db.Decimal(18, 2)
 
-  budgetTable     BudgetTable  @relation(fields: [budgetTableId], references: [id], onDelete: Cascade)
+  budgetTable BudgetTable @relation(fields: [budgetTableId], references: [id], onDelete: Cascade)
 
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([budgetTableId, activityCode])
   @@index([budgetTableId])
@@ -621,45 +635,46 @@ model SignatureSpecimen {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  file              File         @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  file File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@map("signature_specimens")
 }
 
 model SatisfactionSurvey {
-  id                String                     @id @default(cuid())
-  purchaseId        String                     @unique
-  
-  rating            Int
-  comment           String?                    @db.Text
-  deliveryRating    Int?
-  qualityRating     Int?
-  serviceRating     Int?
-  
-  purchase          Purchase                   @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  
-  createdAt         DateTime                   @default(now())
-  updatedAt         DateTime                   @updatedAt
-  
+  id         String @id @default(cuid())
+  purchaseId String @unique
+
+  rating         Int
+  comment        String? @db.Text
+  deliveryRating Int?
+  qualityRating  Int?
+  serviceRating  Int?
+
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([purchaseId])
   @@index([rating])
   @@map("satisfaction_surveys")
 }
 
 model PurchaseComment {
-  id          String        @id @default(cuid())
-  purchaseId  String
-  authorId    Int?
+  id         String @id @default(cuid())
+  purchaseId String
+  authorId   Int?
 
-  content     String        @db.Text
+  content     String       @db.Text
   currentStep PurchaseStep
 
-  purchase    Purchase      @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  author      User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  author   User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([purchaseId])
   @@index([authorId])
@@ -670,25 +685,25 @@ model PurchaseComment {
 enum CommentEntityType {
   PURCHASE
   MAINTENANCE
-  DEPLACEMENT
+  MISSION
   TRIP
   CARBURANT
 }
 
 model LgComment {
-  id          String            @id @default(cuid())
-  entityType  CommentEntityType
-  entityId    String
+  id         String            @id @default(cuid())
+  entityType CommentEntityType
+  entityId   String
 
-  content     String            @db.Text
+  content     String        @db.Text
   currentStep PurchaseStep?
 
-  authorId    Int?
-  author      User?             @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  authorId Int?
+  author   User? @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 
-  deletedAt   DateTime?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([entityType, entityId])
   @@index([entityType, entityId, createdAt])
@@ -697,7 +712,7 @@ model LgComment {
   @@map("lg_comments")
 }
 
-enum ItAssetStatus {
+enum EquipmentStatus {
   NEUF
   BON
   USAGE
@@ -705,13 +720,13 @@ enum ItAssetStatus {
   HORS_SERVICE
 }
 
-enum ItDemandStatus {
+enum EquipmentDemandStatus {
   EN_ATTENTE
   APPROUVEE
   REFUSEE
 }
 
-enum ItAttributionStatus {
+enum EquipmentAttributionStatus {
   ACTIVE
   RETOURNE
 }
@@ -747,25 +762,54 @@ enum VehicleDocumentType {
   ASSURANCE
   VISITE_TECHNIQUE
   CARTE_GRISE
+  FICHE_NON_IMPOSITION
+}
+
+enum VehicleAssignmentStatus {
+  ACTIVE
+  TERMINEE
+}
+
+model LgVehicleAssignment {
+  id          String                  @id @default(cuid())
+  vehicleId   String
+  vehicle     Vehicle                 @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  driverId    Int
+  driver      User                    @relation("VehicleAssignmentDriver", fields: [driverId], references: [id])
+  fileId      Int?
+  file        File?                   @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  startDate   DateTime                @default(now())
+  endDate     DateTime?
+  status      VehicleAssignmentStatus @default(ACTIVE)
+  notes       String?                 @db.Text
+  createdById Int?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  @@index([vehicleId])
+  @@index([driverId])
+  @@index([status])
+  @@map("lg_vehicle_assignments")
 }
 
 model Vehicle {
-  id              String            @id @default(cuid())
-  immatriculation String            @unique
+  id              String        @id @default(cuid())
+  immatriculation String        @unique
   marque          String
   modele          String
   annee           Int
-  statut          VehicleStatut     @default(ACTIF)
-  photoFileIds    Int[]             @default([])
+  statut          VehicleStatut @default(ACTIF)
+  photoFileIds    Int[]         @default([])
 
-  documents            VehicleDocument[]
-  deplacements         LgDeplacement[]
-  trips                LgTrip[]             @relation("TripVehicle")
-  carburants           LgCarburant[]        @relation("CarburantVehicle")
-  maintenanceRequests  MaintenanceRequest[]
+  documents           VehicleDocument[]
+  missions            LgMission[]
+  trips               LgTrip[]              @relation("TripVehicle")
+  carburants          LgCarburant[]         @relation("CarburantVehicle")
+  maintenanceRequests MaintenanceRequest[]
+  assignments         LgVehicleAssignment[]
 
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([statut])
   @@index([marque])
@@ -773,21 +817,21 @@ model Vehicle {
 }
 
 model VehicleDocument {
-  id              String               @id @default(cuid())
-  vehicleId       String
-  type            VehicleDocumentType
-  reference       String?
-  dateDebut       DateTime?
-  dateExpiration  DateTime
-  isActive        Boolean              @default(true)
-  fileId          Int?
+  id             String              @id @default(cuid())
+  vehicleId      String
+  type           VehicleDocumentType
+  reference      String?
+  dateDebut      DateTime?
+  dateExpiration DateTime
+  isActive       Boolean             @default(true)
+  fileId         Int?
 
-  vehicle         Vehicle              @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  file            File?                @relation(fields: [fileId], references: [id], onDelete: SetNull)
-  alertLogs       VehicleAlertLog[]
+  vehicle   Vehicle           @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  file      File?             @relation(fields: [fileId], references: [id], onDelete: SetNull)
+  alertLogs VehicleAlertLog[]
 
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([vehicleId])
   @@index([type])
@@ -797,12 +841,12 @@ model VehicleDocument {
 }
 
 model VehicleAlertLog {
-  id                String           @id @default(cuid())
+  id                String   @id @default(cuid())
   vehicleDocumentId String
   thresholdDays     Int
-  notifiedAt        DateTime         @default(now())
+  notifiedAt        DateTime @default(now())
 
-  vehicleDocument   VehicleDocument  @relation(fields: [vehicleDocumentId], references: [id], onDelete: Cascade)
+  vehicleDocument VehicleDocument @relation(fields: [vehicleDocumentId], references: [id], onDelete: Cascade)
 
   @@unique([vehicleDocumentId, thresholdDays])
   @@index([vehicleDocumentId])
@@ -810,43 +854,45 @@ model VehicleAlertLog {
 }
 
 model MaintenanceRequest {
-  id                  String                      @id @default(cuid())
-  reference           String                      @unique
+  id        String @id @default(cuid())
+  reference String @unique
 
-  interventionType    MaintenanceInterventionType
-  urgencyLevel        MaintenanceUrgencyLevel     @default(NORMALE)
-  status              MaintenanceStatus           @default(PENDING)
+  interventionType MaintenanceInterventionType
+  urgencyLevel     MaintenanceUrgencyLevel     @default(NORMALE)
+  status           MaintenanceStatus           @default(PENDING)
 
-  title               String
-  description         String                      @db.Text
-  location            String?
-  vehicleRef          String?
-  vehicleId           String?
-  vehicle             Vehicle?                    @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  title       String
+  description String     @db.Text
+  location    String?
+  vehicleRef  String?
+  vehicleId   String?
+  vehicle     Vehicle?   @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  equipmentId String?
+  equipment   Equipment? @relation(fields: [equipmentId], references: [id], onDelete: SetNull)
 
-  requestorId         Int?
-  requestor           User?                       @relation("MaintenanceRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
+  requestorId Int?
+  requestor   User? @relation("MaintenanceRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
 
-  assignedToId        Int?
-  assignedTo          User?                       @relation("MaintenanceAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedToId Int?
+  assignedTo   User? @relation("MaintenanceAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
 
-  technicianName      String?
-  scheduledAt         DateTime?
-  completedAt         DateTime?
+  technicianName String?
+  scheduledAt    DateTime?
+  completedAt    DateTime?
 
-  observations        String?                     @db.Text
+  observations String? @db.Text
 
-  linkedPurchaseId    String?                     @unique
-  linkedPurchase      Purchase?                   @relation(fields: [linkedPurchaseId], references: [id], onDelete: SetNull)
+  linkedPurchaseId String?   @unique
+  linkedPurchase   Purchase? @relation(fields: [linkedPurchaseId], references: [id], onDelete: SetNull)
 
-  data                Json?
+  data Json?
 
-  deletedAt           DateTime?
+  deletedAt DateTime?
 
-  comments            MaintenanceComment[]
+  comments MaintenanceComment[]
 
-  createdAt           DateTime                    @default(now())
-  updatedAt           DateTime                    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([urgencyLevel])
@@ -861,17 +907,17 @@ model MaintenanceRequest {
 }
 
 model MaintenanceComment {
-  id          String             @id @default(cuid())
-  requestId   String
-  authorId    Int?
+  id        String @id @default(cuid())
+  requestId String
+  authorId  Int?
 
-  content     String             @db.Text
+  content String @db.Text
 
-  request     MaintenanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  author      User?              @relation("MaintenanceCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  request MaintenanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  author  User?              @relation("MaintenanceCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([requestId])
   @@index([authorId])
@@ -883,95 +929,97 @@ model MaintenanceComment {
 // PARC INFORMATIQUE
 // =====================================================
 
-model ItCategory {
-  id                String     @id @default(cuid())
-  name              String     @unique
-  description       String?    @db.Text
-  depreciationYears Int        @default(3)
-  isActive          Boolean    @default(true)
-  assets            ItAsset[]
-  demands           ItDemand[]
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+model EquipmentCategory {
+  id                String            @id @default(cuid())
+  name              String            @unique
+  description       String?           @db.Text
+  depreciationYears Int               @default(3)
+  alertThreshold    Int               @default(1)
+  isActive          Boolean           @default(true)
+  assets            Equipment[]
+  demands           EquipmentDemand[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@index([isActive])
-  @@map("lg_it_categories")
+  @@map("lg_equipment_categories")
 }
 
-model ItAsset {
-  id                        String          @id @default(cuid())
+model Equipment {
+  id                        String                 @id @default(cuid())
   categoryId                String
   designation               String
-  serialNumber              String?         @unique
+  serialNumber              String?                @unique
   supplierReference         String?
-  status                    ItAssetStatus   @default(NEUF)
+  brand                     String?
+  model                     String?
+  inventoryReference        String?                @unique
+  status                    EquipmentStatus        @default(NEUF)
   location                  String?
   acquisitionDate           DateTime
-  purchasePrice             Decimal         @db.Decimal(15, 2)
-  quantiteTotal             Int             @default(1)
-  quantiteAttribuee         Int             @default(0)
-  seuilAlerte               Int             @default(1)
+  purchasePrice             Decimal                @db.Decimal(15, 2)
   depreciationOverrideYears Int?
-  linkedPurchaseId          String?         @unique
-  linkedPurchase            Purchase?       @relation("ItAssetLinkedPurchase", fields: [linkedPurchaseId], references: [id], onDelete: SetNull)
+  linkedPurchaseId          String?                @unique
+  linkedPurchase            Purchase?              @relation("EquipmentLinkedPurchase", fields: [linkedPurchaseId], references: [id], onDelete: SetNull)
   archivedAt                DateTime?
-  category                  ItCategory      @relation(fields: [categoryId], references: [id])
-  attributions              ItAttribution[]
-  createdAt                 DateTime        @default(now())
-  updatedAt                 DateTime        @updatedAt
+  category                  EquipmentCategory      @relation(fields: [categoryId], references: [id])
+  attributions              EquipmentAttribution[]
+  maintenanceRequests       MaintenanceRequest[]
+  createdAt                 DateTime               @default(now())
+  updatedAt                 DateTime               @updatedAt
 
   @@index([categoryId])
   @@index([status])
   @@index([location])
   @@index([archivedAt])
-  @@map("lg_it_assets")
+  @@map("lg_equipments")
 }
 
-model ItDemand {
-  id               String          @id @default(cuid())
-  reference        String          @unique
+model EquipmentDemand {
+  id               String                 @id @default(cuid())
+  reference        String                 @unique
   requestorId      Int?
-  requestor        User?           @relation("ItDemandRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
+  requestor        User?                  @relation("EquipmentDemandRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
   categoryId       String?
-  category         ItCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  category         EquipmentCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   desiredType      String
   quantity         Int
-  justification    String          @db.Text
-  status           ItDemandStatus  @default(EN_ATTENTE)
-  adminNote        String?         @db.Text
-  linkedPurchaseId String?         @unique
-  linkedPurchase   Purchase?       @relation("ItDemandLinkedPurchase", fields: [linkedPurchaseId], references: [id], onDelete: SetNull)
-  attributions     ItAttribution[]
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
+  justification    String                 @db.Text
+  status           EquipmentDemandStatus  @default(EN_ATTENTE)
+  adminNote        String?                @db.Text
+  linkedPurchaseId String?                @unique
+  linkedPurchase   Purchase?              @relation("EquipmentDemandLinkedPurchase", fields: [linkedPurchaseId], references: [id], onDelete: SetNull)
+  attributions     EquipmentAttribution[]
+  files            File[]                 @relation("EquipmentDemandFiles")
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
 
   @@index([requestorId])
   @@index([status])
   @@index([createdAt])
-  @@map("lg_it_demands")
+  @@map("lg_equipment_demands")
 }
 
-model ItAttribution {
-  id              String               @id @default(cuid())
+model EquipmentAttribution {
+  id              String                     @id @default(cuid())
   assetId         String
-  asset           ItAsset              @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  asset           Equipment                  @relation(fields: [assetId], references: [id], onDelete: Cascade)
   beneficiaryId   Int?
-  beneficiary     User?                @relation("ItAttributionBeneficiary", fields: [beneficiaryId], references: [id], onDelete: SetNull)
+  beneficiary     User?                      @relation("EquipmentAttributionBeneficiary", fields: [beneficiaryId], references: [id], onDelete: SetNull)
   demandId        String?
-  demand          ItDemand?            @relation(fields: [demandId], references: [id], onDelete: SetNull)
-  quantity        Int                  @default(1)
-  attributedAt    DateTime             @default(now())
+  demand          EquipmentDemand?           @relation(fields: [demandId], references: [id], onDelete: SetNull)
+  attributedAt    DateTime                   @default(now())
   returnedAt      DateTime?
-  returnCondition ItAssetStatus?
-  status          ItAttributionStatus  @default(ACTIVE)
-  notes           String?              @db.Text
-  createdAt       DateTime             @default(now())
-  updatedAt       DateTime             @updatedAt
+  returnCondition EquipmentStatus?
+  status          EquipmentAttributionStatus @default(ACTIVE)
+  notes           String?                    @db.Text
+  createdAt       DateTime                   @default(now())
+  updatedAt       DateTime                   @updatedAt
 
   @@index([assetId])
   @@index([beneficiaryId])
   @@index([status])
-  @@map("lg_it_attributions")
+  @@map("lg_equipment_attributions")
 }
 
 // =====================================================
@@ -1000,10 +1048,10 @@ enum LgBailPaiementType {
 }
 
 model LgBailContract {
-  id                      String            @id @default(cuid())
-  reference               String            @unique
+  id                      String           @id @default(cuid())
+  reference               String           @unique
   type                    LgBailType
-  statut                  LgBailStatut      @default(EN_NEGOCIATION)
+  statut                  LgBailStatut     @default(EN_NEGOCIATION)
   bailleur                String
   preneur                 String
   objetBail               String
@@ -1012,18 +1060,18 @@ model LgBailContract {
   dateDebut               DateTime
   dateFin                 DateTime
   dureeInitialeMois       Int
-  montantMensuel          Decimal           @db.Decimal(15, 2)
-  montantDepotGarantie    Decimal?          @db.Decimal(15, 2)
-  conditionsParticulieres String?           @db.Text
-  indexationRate          Decimal           @default(0) @db.Decimal(5, 2)
-  indexationMois          Int               @default(1)
+  montantMensuel          Decimal          @db.Decimal(15, 2)
+  montantDepotGarantie    Decimal?         @db.Decimal(15, 2)
+  conditionsParticulieres String?          @db.Text
+  indexationRate          Decimal          @default(0) @db.Decimal(5, 2)
+  indexationMois          Int              @default(1)
   contratFileId           Int?
-  contratFile             File?             @relation("BailContratFile", fields: [contratFileId], references: [id], onDelete: SetNull)
+  contratFile             File?            @relation("BailContratFile", fields: [contratFileId], references: [id], onDelete: SetNull)
   avenants                LgBailAvenant[]
   paiements               LgBailPaiement[]
   alertLogs               LgBailAlertLog[]
-  createdAt               DateTime          @default(now())
-  updatedAt               DateTime          @updatedAt
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
 
   @@index([statut])
   @@index([type])
@@ -1033,33 +1081,33 @@ model LgBailContract {
 }
 
 model LgBailAvenant {
-  id              String          @id @default(cuid())
-  contractId      String
-  contract        LgBailContract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  numero          String
-  dateSignature   DateTime?
-  description     String          @db.Text
-  nouveauMontant  Decimal?        @db.Decimal(15, 2)
-  fileId          Int?
-  file            File?           @relation("BailAvenantFile", fields: [fileId], references: [id], onDelete: SetNull)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id             String         @id @default(cuid())
+  contractId     String
+  contract       LgBailContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  numero         String
+  dateSignature  DateTime?
+  description    String         @db.Text
+  nouveauMontant Decimal?       @db.Decimal(15, 2)
+  fileId         Int?
+  file           File?          @relation("BailAvenantFile", fields: [fileId], references: [id], onDelete: SetNull)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
 
   @@index([contractId])
   @@map("lg_bail_avenants")
 }
 
 model LgBailPaiement {
-  id              String              @id @default(cuid())
-  contractId      String
-  contract        LgBailContract      @relation(fields: [contractId], references: [id], onDelete: Cascade)
-  periode         String
-  montantPaye     Decimal             @db.Decimal(15, 2)
-  datePaiement    DateTime
-  typePaiement    LgBailPaiementType  @default(LOYER)
-  notes           String?             @db.Text
-  createdAt       DateTime            @default(now())
-  updatedAt       DateTime            @updatedAt
+  id           String             @id @default(cuid())
+  contractId   String
+  contract     LgBailContract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  periode      String
+  montantPaye  Decimal            @db.Decimal(15, 2)
+  datePaiement DateTime
+  typePaiement LgBailPaiementType @default(LOYER)
+  notes        String?            @db.Text
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@unique([contractId, periode, typePaiement])
   @@index([contractId])
@@ -1068,12 +1116,12 @@ model LgBailPaiement {
 }
 
 model LgBailAlertLog {
-  id            String          @id @default(cuid())
+  id            String         @id @default(cuid())
   contractId    String
-  contract      LgBailContract  @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  contract      LgBailContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
   thresholdDays Int
   annee         Int
-  notifiedAt    DateTime        @default(now())
+  notifiedAt    DateTime       @default(now())
 
   @@unique([contractId, thresholdDays, annee])
   @@index([contractId])
@@ -1081,142 +1129,143 @@ model LgBailAlertLog {
 }
 
 // =====================================================
-// GESTION DEPLACEMENT
+// GESTION MISSION (UI: Trajet)
 // =====================================================
 
-enum LgDeplacementStatus {
-  EN_ATTENTE
-  VEHICULE_ATTRIBUE
-  EN_ATTENTE_LOCATION
-  CONFIRMEE
-  EN_COURS
-  LIQUIDEE
-  LIQUIDATION_VALIDEE
-  LIQUIDATION_REJETEE
-  REFUSEE
-  ANNULEE
+enum LgMissionStatus {
+  PENDING
+  VEHICLE_ASSIGNED
+  PENDING_RENTAL
+  CONFIRMED
+  IN_PROGRESS
+  SETTLED
+  SETTLEMENT_APPROVED
+  SETTLEMENT_REJECTED
+  REJECTED
+  CANCELLED
 }
 
-enum LgLiquidationValidationStatus {
-  EN_ATTENTE
-  VALIDEE
-  REJETEE
+enum LgSettlementValidationStatus {
+  PENDING
+  APPROVED
+  REJECTED
 }
 
-enum LgLiquidationValidatorRole {
+enum LgSettlementValidatorRole {
   DEMANDEUR
   OM
   CFO
 }
 
-enum LgTypeMission {
-  DEPLACEMENT_NATIONAL
-  DEPLACEMENT_REGIONAL
-  DEPLACEMENT_INTERNATIONAL
+enum LgMissionType {
+  NATIONAL
+  REGIONAL
+  INTERNATIONAL
 }
 
-model LgDeplacement {
-  id                          String                   @id @default(cuid())
-  reference                   String                   @unique
+model LgMission {
+  id        String @id @default(cuid())
+  reference String @unique
 
-  objet                       String
-  destination                 String
-  dateDepart                  DateTime
-  dateRetour                  DateTime
-  typeMission                 LgTypeMission
-  nombrePersonnes             Int                      @default(1)
-  passagers                   String[]                 @default([])
-  justification               String?                  @db.Text
+  purpose        String
+  destination    String
+  departureDate  DateTime
+  returnDate     DateTime
+  missionType    LgMissionType
+  passengerCount Int           @default(1)
+  passengers     String[]      @default([])
+  justification  String?       @db.Text
 
-  status                      LgDeplacementStatus      @default(EN_ATTENTE)
+  status LgMissionStatus @default(PENDING)
 
-  motifRefus                  String?                  @db.Text
-  montantPerDiem              Decimal?                 @db.Decimal(15, 2)
-  instructionsComplementaires String?                  @db.Text
-  confirmedAt                 DateTime?
+  rejectionReason        String?   @db.Text
+  perDiemAmount          Decimal?  @db.Decimal(15, 2)
+  additionalInstructions String?   @db.Text
+  confirmedAt            DateTime?
 
-  requestorId                 Int?
-  requestor                   User?                    @relation("DeplacementRequestor",    fields: [requestorId],  references: [id], onDelete: SetNull)
-  gestionnairId               Int?
-  gestionnaire                User?                    @relation("DeplacementGestionnaire", fields: [gestionnairId], references: [id], onDelete: SetNull)
-  vehicleId                   String?
-  vehicle                     Vehicle?                 @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
-  linkedPurchaseId            String?                  @unique
-  linkedPurchase              Purchase?                @relation("DeplacementLinkedPurchase", fields: [linkedPurchaseId], references: [id], onDelete: SetNull)
+  requestorId      Int?
+  requestor        User?     @relation("MissionRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
+  managerId        Int?
+  manager          User?     @relation("MissionManager", fields: [managerId], references: [id], onDelete: SetNull)
+  vehicleId        String?
+  vehicle          Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  linkedPurchaseId String?   @unique
+  linkedPurchase   Purchase? @relation("MissionLinkedPurchase", fields: [linkedPurchaseId], references: [id], onDelete: SetNull)
 
-  liquidation                 LgDeplacementLiquidation?
-  comments                    LgDeplacementComment[]
-  data                        Json?
-  deletedAt                   DateTime?
-  createdAt                   DateTime                 @default(now())
-  updatedAt                   DateTime                 @updatedAt
+  settlement LgMissionSettlement?
+  comments   LgMissionComment[]
+  trips      LgTrip[]
+  data       Json?
+  deletedAt  DateTime?
+  createdAt  DateTime             @default(now())
+  updatedAt  DateTime             @updatedAt
 
   @@index([status])
   @@index([requestorId])
   @@index([vehicleId])
-  @@index([dateDepart])
-  @@index([dateRetour])
+  @@index([departureDate])
+  @@index([returnDate])
   @@index([createdAt])
   @@index([deletedAt])
-  @@map("lg_deplacements")
+  @@map("lg_missions")
 }
 
-model LgDeplacementLiquidation {
-  id                    String          @id @default(cuid())
-  deplacementId         String          @unique
-  fraisTransport        Decimal         @db.Decimal(15, 2)
-  fraisHebergement      Decimal         @db.Decimal(15, 2)
-  fraisRestauration     Decimal         @db.Decimal(15, 2)
-  autresFrais           Decimal         @default(0) @db.Decimal(15, 2)
-  totalLiquidation      Decimal         @db.Decimal(15, 2)
-  observations          String?         @db.Text
-  dateDepotLiquidation  DateTime        @default(now())
-  submittedById         Int?
-  submittedBy           User?           @relation("LiquidationSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
-  deplacement           LgDeplacement   @relation(fields: [deplacementId], references: [id], onDelete: Cascade)
-  validations           LgLiquidationValidation[]
-  createdAt             DateTime        @default(now())
-  updatedAt             DateTime        @updatedAt
+model LgMissionSettlement {
+  id                String                   @id @default(cuid())
+  missionId         String                   @unique
+  transportCost     Decimal                  @db.Decimal(15, 2)
+  accommodationCost Decimal                  @db.Decimal(15, 2)
+  mealCost          Decimal                  @db.Decimal(15, 2)
+  otherCosts        Decimal                  @default(0) @db.Decimal(15, 2)
+  totalAmount       Decimal                  @db.Decimal(15, 2)
+  remarks           String?                  @db.Text
+  submittedAt       DateTime                 @default(now())
+  submittedById     Int?
+  submittedBy       User?                    @relation("SettlementSubmitter", fields: [submittedById], references: [id], onDelete: SetNull)
+  mission           LgMission                @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  validations       LgSettlementValidation[]
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
 
-  @@index([deplacementId])
-  @@map("lg_deplacement_liquidations")
+  @@index([missionId])
+  @@map("lg_mission_settlements")
 }
 
-model LgLiquidationValidation {
-  id            String                        @id @default(cuid())
-  liquidationId String
-  role          LgLiquidationValidatorRole
-  status        LgLiquidationValidationStatus @default(EN_ATTENTE)
-  validatorId   Int?
-  commentaire   String?                       @db.Text
-  decidedAt     DateTime?
+model LgSettlementValidation {
+  id           String                       @id @default(cuid())
+  settlementId String
+  role         LgSettlementValidatorRole
+  status       LgSettlementValidationStatus @default(PENDING)
+  validatorId  Int?
+  comment      String?                      @db.Text
+  decidedAt    DateTime?
 
-  liquidation   LgDeplacementLiquidation @relation(fields: [liquidationId], references: [id], onDelete: Cascade)
-  validator     User?                    @relation("ValidatedLiquidations", fields: [validatorId], references: [id], onDelete: SetNull)
+  settlement LgMissionSettlement @relation(fields: [settlementId], references: [id], onDelete: Cascade)
+  validator  User?               @relation("ValidatedSettlements", fields: [validatorId], references: [id], onDelete: SetNull)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@unique([liquidationId, role])
-  @@index([liquidationId])
+  @@unique([settlementId, role])
+  @@index([settlementId])
   @@index([status])
-  @@map("lg_liquidation_validations")
+  @@map("lg_settlement_validations")
 }
 
-model LgDeplacementComment {
-  id            String          @id @default(cuid())
-  deplacementId String
-  authorId      Int?
-  content       String          @db.Text
-  deplacement   LgDeplacement   @relation(fields: [deplacementId], references: [id], onDelete: Cascade)
-  author        User?           @relation("DeplacementCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+model LgMissionComment {
+  id        String    @id @default(cuid())
+  missionId String
+  authorId  Int?
+  content   String    @db.Text
+  mission   LgMission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+  author    User?     @relation("MissionCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  @@index([deplacementId])
+  @@index([missionId])
   @@index([authorId])
   @@index([createdAt])
-  @@map("lg_deplacement_comments")
+  @@map("lg_mission_comments")
 }
 
 // =====================================================
@@ -1255,15 +1304,18 @@ model LgTrip {
   notes             String?         @db.VarChar(1000)
   requestorId       Int?
   vehicleId         String?
+  missionId         String
   deletedAt         DateTime?
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
 
-  requestor         User?           @relation("TripRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
-  vehicle           Vehicle?        @relation("TripVehicle", fields: [vehicleId], references: [id], onDelete: SetNull)
-  comments          LgTripComment[]
+  requestor User?           @relation("TripRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
+  vehicle   Vehicle?        @relation("TripVehicle", fields: [vehicleId], references: [id], onDelete: SetNull)
+  mission   LgMission       @relation(fields: [missionId], references: [id], onDelete: Restrict)
+  comments  LgTripComment[]
 
   @@index([requestorId])
+  @@index([missionId])
   @@index([vehicleId])
   @@index([status])
   @@index([departureDate])
@@ -1278,8 +1330,8 @@ model LgTripComment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  trip      LgTrip   @relation(fields: [tripId], references: [id], onDelete: Cascade)
-  author    User?    @relation("TripCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  trip   LgTrip @relation(fields: [tripId], references: [id], onDelete: Cascade)
+  author User?  @relation("TripCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([tripId])
   @@map("lg_trip_comments")
@@ -1304,30 +1356,31 @@ enum LgTypeCarburant {
 }
 
 model LgCarburant {
-  id                    String             @id @default(cuid())
-  reference             String             @unique
-  status                LgCarburantStatus  @default(PENDING)
+  id        String            @id @default(cuid())
+  reference String            @unique
+  status    LgCarburantStatus @default(PENDING)
 
-  vehicleId             String?
-  vehicle               Vehicle?           @relation("CarburantVehicle", fields: [vehicleId], references: [id], onDelete: SetNull)
+  vehicleId String?
+  vehicle   Vehicle? @relation("CarburantVehicle", fields: [vehicleId], references: [id], onDelete: SetNull)
 
   typeCarburant         LgTypeCarburant
-  volumeLitres          Decimal            @db.Decimal(8, 2)
-  prixUnitaire          Decimal?           @db.Decimal(10, 4)
-  montantTotal          Decimal            @db.Decimal(15, 2)
+  volumeLitres          Decimal         @db.Decimal(8, 2)
+  prixUnitaire          Decimal?        @db.Decimal(10, 4)
+  montantTotal          Decimal         @db.Decimal(15, 2)
   kilometrage           Int?
-  station               String?            @db.VarChar(255)
-  notes                 String?            @db.VarChar(1000)
-  dateApprovisionnement DateTime           @db.Date
+  station               String?         @db.VarChar(255)
+  notes                 String?         @db.VarChar(1000)
+  dateApprovisionnement DateTime        @db.Date
 
-  requestorId           Int?
-  requestor             User?              @relation("CarburantRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
+  requestorId Int?
+  requestor   User? @relation("CarburantRequestor", fields: [requestorId], references: [id], onDelete: SetNull)
 
-  comments              LgCarburantComment[]
+  comments LgCarburantComment[]
+  files    File[]               @relation("CarburantFiles")
 
-  deletedAt             DateTime?
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([requestorId])
   @@index([vehicleId])
@@ -1337,16 +1390,16 @@ model LgCarburant {
 }
 
 model LgCarburantComment {
-  id          String      @id @default(cuid())
-  content     String      @db.VarChar(2000)
+  id          String @id @default(cuid())
+  content     String @db.VarChar(2000)
   carburantId String
   authorId    Int?
 
-  carburant   LgCarburant @relation(fields: [carburantId], references: [id], onDelete: Cascade)
-  author      User?       @relation("CarburantCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  carburant LgCarburant @relation(fields: [carburantId], references: [id], onDelete: Cascade)
+  author    User?       @relation("CarburantCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([carburantId])
   @@map("lg_carburant_comments")

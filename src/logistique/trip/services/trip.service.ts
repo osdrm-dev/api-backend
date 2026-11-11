@@ -9,6 +9,7 @@ import { PrismaService } from 'prisma/prisma.service';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
 import { TripRepository } from 'src/repository/trip/trip.repository';
+import { LINKABLE_MISSION_STATUSES } from 'src/logistique/mission/constants/mission.constants';
 import { CreateTripDto } from '../dto/create-trip.dto';
 import { FilterTripDto } from '../dto/filter-trip.dto';
 
@@ -56,6 +57,33 @@ export class TripService {
       vehicleConnect = { connect: { id: vehicle.id } };
     }
 
+    const missionReference = dto.missionReference?.trim().toUpperCase();
+    if (!dto.missionId && !missionReference) {
+      throw new UnprocessableEntityException('Le trajet est requis.');
+    }
+
+    const mission = await this.prisma.lgMission.findFirst({
+      where: dto.missionId
+        ? { id: dto.missionId, deletedAt: null }
+        : {
+            reference: missionReference!,
+            deletedAt: null,
+          },
+    });
+
+    if (!mission) {
+      const identifier = dto.missionId ?? missionReference!;
+      throw new UnprocessableEntityException(
+        `Trajet ${identifier} introuvable.`,
+      );
+    }
+
+    if (!LINKABLE_MISSION_STATUSES.includes(mission.status)) {
+      throw new UnprocessableEntityException(
+        `Le trajet ${mission.reference} doit être confirmé ou en cours.`,
+      );
+    }
+
     const year = new Date().getFullYear();
     const reference = await this.tripRepository.generateNextReference(year);
 
@@ -77,6 +105,7 @@ export class TripService {
       distanceKm,
       notes: dto.notes,
       requestor: { connect: { id: userId } },
+      mission: { connect: { id: mission.id } },
       ...(vehicleConnect && { vehicle: vehicleConnect }),
     });
 

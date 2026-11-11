@@ -31,6 +31,15 @@ const CARBURANT_INCLUDE_FULL = {
       author: { select: { id: true, name: true, role: true } },
     },
   },
+  files: {
+    select: {
+      id: true,
+      originalName: true,
+      mimeType: true,
+      size: true,
+      url: true,
+    },
+  },
 } satisfies Prisma.LgCarburantInclude;
 
 @Injectable()
@@ -165,6 +174,31 @@ export class CarburantRepository {
       totalMontantMGA: montantSum._sum.montantTotal ?? 0,
       byTypeCarburant,
     };
+  }
+
+  async findForConsumption(
+    filters: Pick<
+      FindAllCarburantFilters,
+      'vehicleId' | 'typeCarburant' | 'dateFrom' | 'dateTo'
+    >,
+  ) {
+    return this.prisma.lgCarburant.findMany({
+      where: {
+        ...this.buildWhereClause(filters),
+        status: { not: LgCarburantStatus.CANCELLED },
+        vehicleId: filters.vehicleId ?? { not: null },
+      },
+      select: {
+        vehicleId: true,
+        volumeLitres: true,
+        montantTotal: true,
+        kilometrage: true,
+        dateApprovisionnement: true,
+        vehicle: {
+          select: { immatriculation: true, marque: true, modele: true },
+        },
+      },
+    });
   }
 
   async softDelete(id: string) {

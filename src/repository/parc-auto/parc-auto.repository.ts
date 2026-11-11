@@ -6,9 +6,11 @@ import {
   VehicleDocument,
   VehicleStatut,
   VehicleDocumentType,
-  LgDeplacementStatus,
+  LgMissionStatus,
   LgTripStatus,
   LgCarburantStatus,
+  Role,
+  VehicleAssignmentStatus,
 } from '@prisma/client';
 
 export type VehicleWithRelations = Vehicle & {
@@ -17,7 +19,7 @@ export type VehicleWithRelations = Vehicle & {
   })[];
 };
 
-export type VehicleUsageSource = 'TRIP' | 'DEPLACEMENT' | 'CARBURANT';
+export type VehicleUsageSource = 'TRIP' | 'MISSION' | 'CARBURANT';
 
 /**
  * Métadonnées d'usage agrégées par véhicule pour un utilisateur (FR-4).
@@ -37,17 +39,17 @@ export type VehicleUsedByUser = VehicleWithRelations & {
 };
 
 /**
- * Statuts de déplacement considérés comme "validés" (FR-2) : tous sauf
- * EN_ATTENTE (en attente de validation), REFUSEE et ANNULEE.
+ * Statuts de mission (trajet) considérés comme "validés" (FR-2) : tous sauf
+ * PENDING (en attente de validation), REJECTED et CANCELLED.
  */
-const VALIDATED_DEPLACEMENT_STATUSES: LgDeplacementStatus[] = [
-  LgDeplacementStatus.VEHICULE_ATTRIBUE,
-  LgDeplacementStatus.EN_ATTENTE_LOCATION,
-  LgDeplacementStatus.CONFIRMEE,
-  LgDeplacementStatus.EN_COURS,
-  LgDeplacementStatus.LIQUIDEE,
-  LgDeplacementStatus.LIQUIDATION_VALIDEE,
-  LgDeplacementStatus.LIQUIDATION_REJETEE,
+const VALIDATED_MISSION_STATUSES: LgMissionStatus[] = [
+  LgMissionStatus.VEHICLE_ASSIGNED,
+  LgMissionStatus.PENDING_RENTAL,
+  LgMissionStatus.CONFIRMED,
+  LgMissionStatus.IN_PROGRESS,
+  LgMissionStatus.SETTLED,
+  LgMissionStatus.SETTLEMENT_APPROVED,
+  LgMissionStatus.SETTLEMENT_REJECTED,
 ];
 
 export interface FindAllFilters {
@@ -98,6 +100,12 @@ export class ParcAutoRepository {
           orderBy: { createdAt: 'desc' },
           include: { file: true },
         },
+        assignments: {
+          where: { status: VehicleAssignmentStatus.ACTIVE },
+          include: {
+            driver: { select: { id: true, name: true, email: true } },
+          },
+        },
       },
     }) as Promise<VehicleWithRelations | null>;
   }
@@ -141,9 +149,120 @@ export class ParcAutoRepository {
   }
 
   async archive(id: string): Promise<Vehicle> {
-    return this.prisma.vehicle.update({
+    return this.prisma.$transaction(async (tx) => {
+      await tx.lgVehicleAssignment.updateMany({
+        where: { vehicleId: id, status: VehicleAssignmentStatus.ACTIVE },
+        data: { status: VehicleAssignmentStatus.TERMINEE, endDate: new Date() },
+      });
+      return tx.vehicle.update({
+        where: { id },
+        data: { statut: VehicleStatut.ARCHIVE },
+      });
+    });
+  }
+
+  async findAssignmentsByVehicle(vehicleId: string) {
+    return this.prisma.lgVehicleAssignment.findMany({
+      where: { vehicleId },
+      orderBy: { startDate: 'desc' },
+      include: {
+        driver: { select: { id: true, name: true, email: true } },
+        file: true,
+      },
+    });
+  }
+
+  async findAssignmentById(id: string) {
+    return this.prisma.lgVehicleAssignment.findUnique({ where: { id } });
+  }
+
+  async createAssignmentClosingPrevious(params: {
+    vehicleId: string;
+    driverId: number;
+    fileId: number;
+    startDate: Date;
+    notes?: string;
+    createdById: number;
+  }) {
+    const { vehicleId, driverId, startDate } = params;
+    return this.prisma.$transaction(
+      async (tx) => {
+        // Un véhicule ↔ un chauffeur : clôture l'actif des deux côtés, sans chevauchement.
+        await tx.lgVehicleAssignment.updateMany({
+          where: {
+            status: VehicleAssignmentStatus.ACTIVE,
+            OR: [{ vehicleId }, { driverId }],
+          },
+          data: {
+            status: VehicleAssignmentStatus.TERMINEE,
+            endDate: startDate,
+          },
+        });
+        return tx.lgVehicleAssignment.create({ data: params });
+      },
+      // Serializable : deux affectations concurrentes ne peuvent pas rester ACTIVE toutes les deux.
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    );
+  }
+
+  /** Affectation (véhicule ou chauffeur) qui commence ou finit après `startDate` → chevauchement. */
+  async findConflictingAssignment(
+    vehicleId: string,
+    driverId: number,
+    startDate: Date,
+  ) {
+    return this.prisma.lgVehicleAssignment.findFirst({
+      where: {
+        OR: [{ vehicleId }, { driverId }],
+        AND: [
+          {
+            OR: [
+              { startDate: { gt: startDate } },
+              { endDate: { gt: startDate } },
+            ],
+          },
+        ],
+      },
+    });
+  }
+
+  async endAssignment(id: string, endDate: Date) {
+    return this.prisma.lgVehicleAssignment.update({
       where: { id },
-      data: { statut: VehicleStatut.ARCHIVE },
+      data: { status: VehicleAssignmentStatus.TERMINEE, endDate },
+    });
+  }
+
+  async findDrivers() {
+    return this.prisma.user.findMany({
+      where: { role: Role.DRIVER },
+      orderBy: { name: 'asc' },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        fonction: true,
+        role: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+        lastLoginAt: true,
+        vehicleAssignments: {
+          where: { status: VehicleAssignmentStatus.ACTIVE },
+          select: {
+            id: true,
+            startDate: true,
+            vehicle: {
+              select: {
+                id: true,
+                immatriculation: true,
+                marque: true,
+                modele: true,
+              },
+            },
+          },
+        },
+      },
     });
   }
 
@@ -258,13 +377,13 @@ export class ParcAutoRepository {
 
   /**
    * Dérive les véhicules utilisés par un utilisateur en tant que `requestor`
-   * (FR-1…FR-5). Interroge les trois sources (trajets, déplacements, carburant)
+   * (FR-1…FR-5). Interroge les trois sources (déplacements, trajets, carburant)
    * avec les exclusions FR-2, agrège par véhicule en mémoire (faible
    * cardinalité), puis charge les véhicules correspondants avec leurs documents
    * actifs. Retourne la liste triée par `lastUsedAt` décroissant.
    */
   async findVehiclesUsedByUser(userId: number): Promise<VehicleUsedByUser[]> {
-    const [trips, deplacements, carburants] = await Promise.all([
+    const [trips, missions, carburants] = await Promise.all([
       this.prisma.lgTrip.findMany({
         where: {
           requestorId: userId,
@@ -274,14 +393,14 @@ export class ParcAutoRepository {
         },
         select: { vehicleId: true, departureDate: true },
       }),
-      this.prisma.lgDeplacement.findMany({
+      this.prisma.lgMission.findMany({
         where: {
           requestorId: userId,
           vehicleId: { not: null },
           deletedAt: null,
-          status: { in: VALIDATED_DEPLACEMENT_STATUSES },
+          status: { in: VALIDATED_MISSION_STATUSES },
         },
-        select: { vehicleId: true, dateDepart: true },
+        select: { vehicleId: true, departureDate: true },
       }),
       this.prisma.lgCarburant.findMany({
         where: {
@@ -326,8 +445,8 @@ export class ParcAutoRepository {
     for (const trip of trips) {
       accumulate(trip.vehicleId, trip.departureDate, 'TRIP');
     }
-    for (const deplacement of deplacements) {
-      accumulate(deplacement.vehicleId, deplacement.dateDepart, 'DEPLACEMENT');
+    for (const mission of missions) {
+      accumulate(mission.vehicleId, mission.departureDate, 'MISSION');
     }
     for (const carburant of carburants) {
       accumulate(

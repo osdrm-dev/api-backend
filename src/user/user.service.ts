@@ -121,6 +121,11 @@ export class UserService {
       data: dto,
     });
 
+    const leftDriverRole = dto.role !== undefined && dto.role !== 'DRIVER';
+    if (leftDriverRole || dto.isActive === false) {
+      await this.closeActiveAssignments(id);
+    }
+
     return {
       user: this.excludePassword(updated),
       message: 'Utilisateur mis à jour avec succès.',
@@ -147,12 +152,24 @@ export class UserService {
 
     const updated = await this.userRepository.toggleActive(id, !user.isActive);
 
+    if (!updated.isActive) {
+      await this.closeActiveAssignments(id);
+    }
+
     return {
       user: this.excludePassword(updated),
       message: updated.isActive
         ? 'Compte activé avec succès.'
         : 'Compte désactivé avec succès.',
     };
+  }
+
+  /** Un chauffeur désactivé ou qui perd le rôle DRIVER ne garde pas de véhicule. */
+  private async closeActiveAssignments(userId: number) {
+    await this.prisma.lgVehicleAssignment.updateMany({
+      where: { driverId: userId, status: 'ACTIVE' },
+      data: { status: 'TERMINEE', endDate: new Date() },
+    });
   }
 
   async resetPassword(id: number) {

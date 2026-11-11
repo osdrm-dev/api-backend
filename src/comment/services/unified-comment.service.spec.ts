@@ -20,7 +20,7 @@ describe('UnifiedCommentService', () => {
   const mockPrismaService = {
     purchase: { findFirst: jest.fn(), findUnique: jest.fn() },
     maintenanceRequest: { findFirst: jest.fn() },
-    lgDeplacement: { findFirst: jest.fn() },
+    lgMission: { findFirst: jest.fn() },
     lgTrip: { findFirst: jest.fn() },
     lgCarburant: { findFirst: jest.fn() },
     user: { findMany: jest.fn(), findUnique: jest.fn() },

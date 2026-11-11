@@ -1,15 +1,33 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
+  ArrayMaxSize,
+  IsArray,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
 import {
   MaintenanceInterventionType,
   MaintenanceUrgencyLevel,
 } from '@prisma/client';
+
+export class MaintenanceRequestDataDto {
+  @ApiPropertyOptional({
+    description:
+      'IDs des pièces jointes, téléversées au préalable via POST /files/upload (max 5)',
+    type: [Number],
+  })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsInt({ each: true })
+  attachmentIds?: number[];
+}
 
 export class CreateMaintenanceRequestDto {
   @ApiProperty({
@@ -72,4 +90,10 @@ export class CreateMaintenanceRequestDto {
   @IsString()
   @IsOptional()
   immatriculation?: string;
+
+  @ApiPropertyOptional({ type: MaintenanceRequestDataDto })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => MaintenanceRequestDataDto)
+  data?: MaintenanceRequestDataDto;
 }

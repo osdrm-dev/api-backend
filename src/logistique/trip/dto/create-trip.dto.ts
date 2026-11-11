@@ -78,4 +78,17 @@ export class CreateTripDto {
   @IsOptional()
   @IsString()
   immatriculation?: string;
+
+  @ApiPropertyOptional({ description: 'ID du trajet (mission) parent' })
+  @IsOptional()
+  @IsString()
+  missionId?: string;
+
+  @ApiPropertyOptional({
+    example: 'TRJ-2026-0003',
+    description: 'Référence du trajet parent (alternatif à missionId)',
+  })
+  @IsOptional()
+  @IsString()
+  missionReference?: string;
 }
