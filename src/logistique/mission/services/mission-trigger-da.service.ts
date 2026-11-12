@@ -1,8 +1,5 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { PrismaService } from 'prisma/prisma.service';
 import {
   OperationType,
@@ -24,10 +21,19 @@ export class MissionTriggerDaService {
 
   async triggerDA(id: string, dto: TriggerDaMissionDto, managerId: number) {
     const mission = await this.repository.findById(id);
-    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    if (!mission)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Mission ${id} not found`,
+      );
 
     if (mission.linkedPurchaseId) {
-      throw new ConflictException('Une DA est déjà liée à ce trajet.');
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.MISSION_DA_ALREADY_LINKED,
+        'A purchase request is already linked to this mission',
+      );
     }
 
     const acheteur = await this.prisma.user.findUnique({
@@ -35,8 +41,15 @@ export class MissionTriggerDaService {
       select: { id: true, role: true, isActive: true },
     });
     if (!acheteur || acheteur.role !== Role.ACHETEUR || !acheteur.isActive) {
-      throw new NotFoundException(
-        "L'acheteur spécifié est introuvable ou inactif.",
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.PURCHASE_BUYER_INVALID,
+        'Specified buyer not found or inactive',
+        {
+          fields: [
+            { field: 'acheteurId', code: ErrorCode.PURCHASE_BUYER_INVALID },
+          ],
+        },
       );
     }
 

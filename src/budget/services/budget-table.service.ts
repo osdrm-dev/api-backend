@@ -1,15 +1,10 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-  ConflictException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { FileStorageService } from 'src/storage/services/file-storage.service';
 import type { File as MulterFile } from 'multer';
 import { BudgetTableRepository } from '../repository/budget-table.repository';
 import { CsvParserService } from './csv-parser.service';
 import { BudgetDiffService, BudgetDiff } from './budget-diff.service';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 const MAX_CSV_SIZE = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_MIME = ['text/csv', 'application/vnd.ms-excel', 'text/plain'];
@@ -44,16 +39,30 @@ export class BudgetTableService {
     label: string;
     diff: BudgetDiff;
   }> {
-    if (!file) throw new BadRequestException('Fichier CSV manquant.');
+    if (!file)
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.BUDGET_CSV_MISSING,
+        'CSV file is missing',
+      );
     if (!label || label.trim() === '')
-      throw new BadRequestException('Le libelle est obligatoire.');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.BUDGET_LABEL_REQUIRED,
+        'Label is required',
+        { fields: [{ field: 'label', code: ErrorCode.BUDGET_LABEL_REQUIRED }] },
+      );
     if (file.size > MAX_CSV_SIZE)
-      throw new BadRequestException(
-        'Le fichier CSV depasse la taille maximale de 5 MB.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.BUDGET_CSV_TOO_LARGE,
+        'CSV file exceeds the maximum size of 5 MB',
       );
     if (!ALLOWED_MIME.includes(file.mimetype))
-      throw new BadRequestException(
-        `Type de fichier non supporte: ${file.mimetype}`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.BUDGET_CSV_TYPE_UNSUPPORTED,
+        `Unsupported file type: ${file.mimetype}`,
       );
 
     // Parse first so we don't save bad files.
@@ -67,10 +76,11 @@ export class BudgetTableService {
         .filter((p) => !incomingActivityCodes.has(p.activityCode))
         .map((p) => p.activityCode);
       if (missing.length > 0) {
-        throw new BadRequestException(
-          `Le nouveau tableau budgetaire omet des codes activite presents dans le tableau actif: ${missing.join(
-            ', ',
-          )}`,
+        throw new AppException(
+          HttpStatus.BAD_REQUEST,
+          ErrorCode.BUDGET_ACTIVITY_CODES_MISSING,
+          `New budget table omits activity codes present in the active table: ${missing.join(', ')}`,
+          { params: { codes: missing.join(', ') } },
         );
       }
     }
@@ -135,13 +145,25 @@ export class BudgetTableService {
   async activate(budgetTableId: number) {
     const existing = await this.repo.findById(budgetTableId);
     if (!existing)
-      throw new NotFoundException('Tableau budgetaire introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Budget table not found',
+      );
     if (existing.isActive)
-      throw new ConflictException('Ce tableau est deja actif.');
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.BUDGET_ALREADY_ACTIVE,
+        'Budget table is already active',
+      );
 
     const activated = await this.repo.activateInTransaction(budgetTableId);
     if (!activated)
-      throw new NotFoundException('Tableau budgetaire introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Budget table not found',
+      );
 
     return {
       id: activated.id,
@@ -177,13 +199,23 @@ export class BudgetTableService {
 
   async getActive() {
     const active = await this.repo.findActive();
-    if (!active) throw new NotFoundException('Aucun tableau budgetaire actif.');
+    if (!active)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.BUDGET_NO_ACTIVE_TABLE,
+        'No active budget table',
+      );
     return active; // ADMIN-only endpoint, budgetThreshold allowed
   }
 
   async getActiveProjects() {
     const active = await this.repo.findActiveProjects();
-    if (!active) throw new NotFoundException('Aucun tableau budgetaire actif.');
+    if (!active)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.BUDGET_NO_ACTIVE_TABLE,
+        'No active budget table',
+      );
     return {
       projects: active.projects.map((p) => ({
         projectCode: p.projectCode,
@@ -198,13 +230,20 @@ export class BudgetTableService {
     activityCode: string,
   ): Promise<ActiveProjectImputation> {
     const active = await this.repo.findActiveProjects();
-    if (!active) throw new NotFoundException('Aucun tableau budgetaire actif.');
+    if (!active)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.BUDGET_NO_ACTIVE_TABLE,
+        'No active budget table',
+      );
     const project = active.projects.find(
       (p) => p.activityCode === activityCode,
     );
     if (!project)
-      throw new NotFoundException(
-        'Code activite introuvable dans le tableau budgetaire actif.',
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.BUDGET_ACTIVITY_CODE_NOT_FOUND,
+        'Activity code not found in the active budget table',
       );
     return {
       projectCode: project.projectCode,
@@ -233,16 +272,20 @@ export class BudgetTableService {
   }> {
     const active = await this.repo.findActiveProjects();
     if (!active) {
-      throw new ServiceUnavailableException(
-        'Aucun tableau budgetaire actif. La creation de DA est temporairement indisponible.',
+      throw new AppException(
+        HttpStatus.SERVICE_UNAVAILABLE,
+        ErrorCode.BUDGET_CREATION_UNAVAILABLE,
+        'No active budget table; purchase creation is unavailable',
       );
     }
     const project = active.projects.find(
       (p) => p.activityCode === activityCode,
     );
     if (!project)
-      throw new NotFoundException(
-        'Code activite introuvable dans le tableau budgetaire actif.',
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.BUDGET_ACTIVITY_CODE_NOT_FOUND,
+        'Activity code not found in the active budget table',
       );
     return {
       projectCode: project.projectCode,
@@ -258,7 +301,12 @@ export class BudgetTableService {
 
   async getById(id: number) {
     const table = await this.repo.findById(id);
-    if (!table) throw new NotFoundException('Tableau budgetaire introuvable.');
+    if (!table)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Budget table not found',
+      );
     return table; // ADMIN-only endpoint, budgetThreshold allowed
   }
 

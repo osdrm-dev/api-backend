@@ -1,9 +1,5 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { Role } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import { NotificationService } from 'src/notification/services/nofitication.service';
@@ -26,8 +22,18 @@ export class TripService {
       const departure = new Date(dto.departureDate);
       const arrival = new Date(dto.arrivalDate);
       if (arrival < departure) {
-        throw new UnprocessableEntityException(
-          "La date d'arrivée doit être postérieure ou égale à la date de départ.",
+        throw new AppException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          ErrorCode.TRIP_ARRIVAL_BEFORE_DEPARTURE,
+          'Arrival date must be on or after departure date',
+          {
+            fields: [
+              {
+                field: 'arrivalDate',
+                code: ErrorCode.TRIP_ARRIVAL_BEFORE_DEPARTURE,
+              },
+            ],
+          },
         );
       }
     }
@@ -43,14 +49,19 @@ export class TripService {
 
       if (!vehicle) {
         const identifier = dto.vehicleId ?? dto.immatriculation;
-        throw new UnprocessableEntityException(
-          `Véhicule ${identifier} introuvable.`,
+        throw new AppException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          ErrorCode.VEHICLE_NOT_FOUND,
+          `Vehicle ${identifier} not found`,
         );
       }
 
       if (vehicle.statut !== 'ACTIF') {
-        throw new UnprocessableEntityException(
-          `Le véhicule ${vehicle.immatriculation} n'est pas actif.`,
+        throw new AppException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          ErrorCode.VEHICLE_NOT_ACTIVE,
+          `Vehicle ${vehicle.immatriculation} is not active`,
+          { params: { immatriculation: vehicle.immatriculation } },
         );
       }
 
@@ -59,7 +70,16 @@ export class TripService {
 
     const missionReference = dto.missionReference?.trim().toUpperCase();
     if (!dto.missionId && !missionReference) {
-      throw new UnprocessableEntityException('Le trajet est requis.');
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.TRIP_MISSION_REQUIRED,
+        'Mission is required',
+        {
+          fields: [
+            { field: 'missionId', code: ErrorCode.TRIP_MISSION_REQUIRED },
+          ],
+        },
+      );
     }
 
     const mission = await this.prisma.lgMission.findFirst({
@@ -73,14 +93,19 @@ export class TripService {
 
     if (!mission) {
       const identifier = dto.missionId ?? missionReference!;
-      throw new UnprocessableEntityException(
-        `Trajet ${identifier} introuvable.`,
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.TRIP_MISSION_NOT_FOUND,
+        `Mission ${identifier} not found`,
       );
     }
 
     if (!LINKABLE_MISSION_STATUSES.includes(mission.status)) {
-      throw new UnprocessableEntityException(
-        `Le trajet ${mission.reference} doit être confirmé ou en cours.`,
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.TRIP_MISSION_NOT_LINKABLE,
+        `Mission ${mission.reference} must be CONFIRMED or IN_PROGRESS`,
+        { params: { reference: mission.reference } },
       );
     }
 
@@ -160,10 +185,19 @@ export class TripService {
 
   async findById(id: string, caller: { id: number; role: string }) {
     const trip = await this.tripRepository.findById(id);
-    if (!trip) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    if (!trip)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Trip ${id} not found`,
+      );
 
     if (caller.role !== Role.ADMIN && trip.requestorId !== caller.id) {
-      throw new ForbiddenException('Accès refusé à ce dossier de trajet.');
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.TRIP_ACCESS_DENIED,
+        'Access denied to this trip file',
+      );
     }
 
     return trip;
@@ -171,15 +205,26 @@ export class TripService {
 
   async cancel(id: string, caller: { id: number; role: string }) {
     const trip = await this.tripRepository.findById(id);
-    if (!trip) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    if (!trip)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Trip ${id} not found`,
+      );
 
     if (trip.status !== 'PENDING') {
-      throw new UnprocessableEntityException('Trip is not in PENDING status');
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.TRIP_NOT_PENDING,
+        'Trip is not in PENDING status',
+      );
     }
 
     if (caller.role === Role.DEMANDEUR && trip.requestorId !== caller.id) {
-      throw new ForbiddenException(
-        'Vous ne pouvez annuler que vos propres demandes de trajet.',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.TRIP_CANCEL_OWN_ONLY,
+        'You can only cancel your own trips',
       );
     }
 

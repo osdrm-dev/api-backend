@@ -1,14 +1,10 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { PurchaseStatus, ValidatorRole } from '@prisma/client';
 import { ValidationWorkflowService } from './validation-workflow.service';
 import { WorkflowConfigService } from './workflow-config.service';
 import { PurchaseRepository } from '../../repository/purchase/purchase.repository';
 import { AuditLogRepository } from '../../repository/audit/audit-log.repository';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 export interface ValidationContext {
   purchaseId: string;
@@ -56,8 +52,10 @@ export class ValidationActionService {
         purchase.currentStep,
       );
       if (!check.canValidate || !check.validator) {
-        throw new ForbiddenException(
-          `Vous n'êtes pas autorisé à valider cette demande. Ce n'est pas encore votre tour.`,
+        throw new AppException(
+          HttpStatus.FORBIDDEN,
+          ErrorCode.VALIDATION_NOT_YOUR_TURN,
+          'Not your turn in the validation workflow',
         );
       }
       validator = check.validator;
@@ -68,8 +66,10 @@ export class ValidationActionService {
     );
 
     if (!currentWorkflow) {
-      throw new BadRequestException(
-        `Cette demande n'a pas de workflow pour l'étape ${purchase.currentStep}`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VALIDATION_NO_WORKFLOW_FOR_STEP,
+        `No validation workflow for step ${purchase.currentStep}`,
       );
     }
 
@@ -133,8 +133,10 @@ export class ValidationActionService {
       );
 
     if (!canValidate || !validator) {
-      throw new ForbiddenException(
-        `Vous n'êtes pas autorisé à rejeter cette demande.`,
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.VALIDATION_NOT_AUTHORIZED,
+        'Not authorized to perform this validation action',
       );
     }
 
@@ -187,8 +189,10 @@ export class ValidationActionService {
       );
 
     if (!canValidate || !validator) {
-      throw new ForbiddenException(
-        `Vous n'êtes pas autorisé à demander des modifications.`,
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.VALIDATION_NOT_AUTHORIZED,
+        'Not authorized to perform this validation action',
       );
     }
 
@@ -228,8 +232,10 @@ export class ValidationActionService {
   private async getPurchaseWithWorkflow(purchaseId: string) {
     const purchase = await this.purchaseRepo.findById(purchaseId);
     if (!purchase) {
-      throw new NotFoundException(
-        `Demande d'achat #${purchaseId} non trouvée.`,
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Purchase ${purchaseId} not found`,
       );
     }
     return purchase;
@@ -243,8 +249,10 @@ export class ValidationActionService {
     ];
 
     if (!validStatuses.includes(purchase.status)) {
-      throw new BadRequestException(
-        `La demande #${purchase.id} n'est pas en attente de validation (status: ${purchase.status})`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VALIDATION_NOT_PENDING,
+        `Purchase ${purchase.id} is not awaiting validation`,
       );
     }
 
@@ -253,8 +261,10 @@ export class ValidationActionService {
     );
 
     if (!currentWorkflow) {
-      throw new BadRequestException(
-        `Cette demande n'a pas de workflow de validation pour l'étape ${purchase.currentStep}`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VALIDATION_NO_WORKFLOW_FOR_STEP,
+        `No validation workflow for step ${purchase.currentStep}`,
       );
     }
   }

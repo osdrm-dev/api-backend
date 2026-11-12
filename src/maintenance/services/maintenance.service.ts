@@ -1,9 +1,5 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { MaintenanceStatus } from '@prisma/client';
 import { PrismaService } from 'prisma/prisma.service';
 import {
@@ -40,14 +36,19 @@ export class MaintenanceService {
 
       if (!vehicle) {
         const identifier = dto.vehicleId ?? dto.immatriculation;
-        throw new UnprocessableEntityException(
-          `Véhicule ${identifier} introuvable.`,
+        throw new AppException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          ErrorCode.VEHICLE_NOT_FOUND,
+          `Vehicle ${identifier} not found`,
         );
       }
 
       if (vehicle.statut !== 'ACTIF') {
-        throw new UnprocessableEntityException(
-          `Le véhicule ${vehicle.immatriculation} n'est pas actif.`,
+        throw new AppException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          ErrorCode.VEHICLE_NOT_ACTIVE,
+          `Vehicle ${vehicle.immatriculation} is not active`,
+          { params: { immatriculation: vehicle.immatriculation } },
         );
       }
 
@@ -97,11 +98,19 @@ export class MaintenanceService {
     const request = await this.repository.findById(id);
 
     if (!request || request.deletedAt !== null) {
-      throw new NotFoundException('Demande de maintenance introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Maintenance request not found',
+      );
     }
 
     if (request.requestorId !== requestorId) {
-      throw new NotFoundException('Demande de maintenance introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Maintenance request not found',
+      );
     }
 
     return request;
@@ -111,7 +120,11 @@ export class MaintenanceService {
     const request = await this.repository.findById(id);
 
     if (!request || request.deletedAt !== null) {
-      throw new NotFoundException('Demande de maintenance introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Maintenance request not found',
+      );
     }
 
     return request;
@@ -199,15 +212,27 @@ export class MaintenanceService {
     const request = await this.repository.findById(id);
 
     if (!request || request.deletedAt !== null) {
-      throw new NotFoundException('Demande de maintenance introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Maintenance request not found',
+      );
     }
 
     if (request.requestorId !== requestorId) {
-      throw new NotFoundException('Demande de maintenance introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Maintenance request not found',
+      );
     }
 
     if (request.status !== MaintenanceStatus.PENDING) {
-      throw new ForbiddenException('Cette demande ne peut plus être modifiée.');
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.MAINTENANCE_NOT_EDITABLE,
+        'Maintenance request can no longer be modified',
+      );
     }
 
     let vehicleId: string | null | undefined;
@@ -222,14 +247,19 @@ export class MaintenanceService {
 
       if (!vehicle) {
         const identifier = dto.vehicleId ?? dto.immatriculation;
-        throw new UnprocessableEntityException(
-          `Véhicule ${identifier} introuvable.`,
+        throw new AppException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          ErrorCode.VEHICLE_NOT_FOUND,
+          `Vehicle ${identifier} not found`,
         );
       }
 
       if (vehicle.statut !== 'ACTIF') {
-        throw new UnprocessableEntityException(
-          `Le véhicule ${vehicle.immatriculation} n'est pas actif.`,
+        throw new AppException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          ErrorCode.VEHICLE_NOT_ACTIVE,
+          `Vehicle ${vehicle.immatriculation} is not active`,
+          { params: { immatriculation: vehicle.immatriculation } },
         );
       }
 
@@ -251,15 +281,27 @@ export class MaintenanceService {
     const request = await this.repository.findById(id);
 
     if (!request || request.deletedAt !== null) {
-      throw new NotFoundException('Demande de maintenance introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Maintenance request not found',
+      );
     }
 
     if (request.requestorId !== requestorId) {
-      throw new NotFoundException('Demande de maintenance introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Maintenance request not found',
+      );
     }
 
     if (request.status !== MaintenanceStatus.PENDING) {
-      throw new ForbiddenException('Cette demande ne peut plus être modifiée.');
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.MAINTENANCE_NOT_EDITABLE,
+        'Maintenance request can no longer be modified',
+      );
     }
 
     return this.repository.softDelete(id);

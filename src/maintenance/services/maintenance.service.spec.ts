@@ -1,9 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import {
   MaintenanceInterventionType,
   MaintenanceStatus,
@@ -12,6 +8,7 @@ import {
 import { MaintenanceService } from './maintenance.service';
 import { MaintenanceRepository } from 'src/repository/maintenance/maintenance.repository';
 import { PrismaService } from 'prisma/prisma.service';
+import { ErrorCode } from 'src/common/errors';
 
 const makeRequest = (overrides: Record<string, unknown> = {}) => ({
   id: 'req-1',
@@ -116,7 +113,9 @@ describe('MaintenanceService - Reference Generation', () => {
           { ...baseDto, data: { attachmentIds: [7] } } as any,
           42,
         ),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.STORAGE_ATTACHMENTS_NOT_FOUND,
+      });
       expect(mockRepository.create).not.toHaveBeenCalled();
     });
 
@@ -157,7 +156,7 @@ describe('MaintenanceService - Reference Generation', () => {
 
       await expect(
         service.getRequestForRequestor('req-1', 999),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
 
     it('should throw NotFoundException when request is soft-deleted', async () => {
@@ -165,9 +164,9 @@ describe('MaintenanceService - Reference Generation', () => {
         makeRequest({ deletedAt: new Date() }),
       );
 
-      await expect(service.getRequestForRequestor('req-1', 42)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.getRequestForRequestor('req-1', 42),
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
   });
 
@@ -179,7 +178,7 @@ describe('MaintenanceService - Reference Generation', () => {
 
       await expect(
         service.updateRequestor('req-1', { title: 'New title' } as any, 42),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({ code: ErrorCode.MAINTENANCE_NOT_EDITABLE });
     });
 
     it('should update when status is PENDING and owner matches', async () => {
@@ -214,9 +213,9 @@ describe('MaintenanceService - Reference Generation', () => {
         makeRequest({ status: MaintenanceStatus.VALIDATED }),
       );
 
-      await expect(service.softDeleteRequest('req-1', 42)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.softDeleteRequest('req-1', 42),
+      ).rejects.toMatchObject({ code: ErrorCode.MAINTENANCE_NOT_EDITABLE });
     });
   });
 });

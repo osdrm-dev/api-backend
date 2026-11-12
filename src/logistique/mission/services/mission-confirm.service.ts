@@ -1,8 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { Prisma, LgMissionStatus } from '@prisma/client';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
@@ -18,11 +15,18 @@ export class MissionConfirmService {
 
   async confirm(id: string, dto: ConfirmMissionDto, managerId: number) {
     const mission = await this.repository.findById(id);
-    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    if (!mission)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Mission ${id} not found`,
+      );
 
     if (mission.status !== LgMissionStatus.VEHICLE_ASSIGNED) {
-      throw new UnprocessableEntityException(
-        `Impossible de confirmer un trajet en statut ${mission.status}. Le véhicule doit d'abord être attribué.`,
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.MISSION_CONFIRM_VEHICLE_REQUIRED,
+        `Cannot confirm mission in status ${mission.status}: vehicle must be assigned first`,
       );
     }
 

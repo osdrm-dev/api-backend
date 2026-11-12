@@ -1,5 +1,26 @@
 import { INestApplication } from '@nestjs/common';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import {
+  ApiProperty,
+  ApiPropertyOptional,
+  DocumentBuilder,
+  SwaggerModule,
+} from '@nestjs/swagger';
+
+/** Shared error body returned by AllExceptionsFilter (registered as a component in main.ts). */
+export class ApiErrorResponse {
+  @ApiProperty({ example: 400 }) statusCode: number;
+  @ApiProperty({ example: 'VALIDATION_FAILED' }) code: string;
+  @ApiProperty({ example: 'Validation failed: status isNotEmpty' })
+  message: string;
+  @ApiPropertyOptional({
+    example: [{ field: 'items.0.quantity', code: 'isPositive' }],
+  })
+  fields?: { field: string; code: string }[];
+  @ApiPropertyOptional({ example: { id: 3 } })
+  params?: Record<string, string | number>;
+  @ApiProperty({ example: '/suppliers' }) path: string;
+  @ApiProperty({ example: '2026-01-01T00:00:00.000Z' }) timestamp: string;
+}
 
 export class SwaggerConfig {
   static setup(app: INestApplication): void {

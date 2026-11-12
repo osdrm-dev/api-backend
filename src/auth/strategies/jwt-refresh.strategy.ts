@@ -1,4 +1,5 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
@@ -26,7 +27,11 @@ export class JwtRefreshStrategy extends PassportStrategy(
     const refreshToken = req.body.refreshToken;
 
     if (!refreshToken) {
-      throw new UnauthorizedException('Refresh token not provided');
+      throw new AppException(
+        HttpStatus.UNAUTHORIZED,
+        ErrorCode.UNAUTHORIZED,
+        'Refresh token not provided',
+      );
     }
 
     const storedToken = await this.prisma.refreshToken.findUnique({
@@ -35,15 +40,27 @@ export class JwtRefreshStrategy extends PassportStrategy(
     });
 
     if (!storedToken || storedToken.revokedAt) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new AppException(
+        HttpStatus.UNAUTHORIZED,
+        ErrorCode.UNAUTHORIZED,
+        'Invalid refresh token',
+      );
     }
 
     if (storedToken.expiresAt < new Date()) {
-      throw new UnauthorizedException('Refresh token expired');
+      throw new AppException(
+        HttpStatus.UNAUTHORIZED,
+        ErrorCode.UNAUTHORIZED,
+        'Refresh token expired',
+      );
     }
 
     if (!storedToken.user.isActive) {
-      throw new UnauthorizedException('User account is inactive');
+      throw new AppException(
+        HttpStatus.UNAUTHORIZED,
+        ErrorCode.AUTH_ACCOUNT_DISABLED,
+        'Account is disabled',
+      );
     }
 
     return {

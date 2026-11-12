@@ -1,8 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateSatisfactionDto } from '../dto/create-satisfaction.dto';
@@ -18,12 +15,18 @@ export class SatisfactionService {
     });
 
     if (!purchase) {
-      throw new NotFoundException('Achat non trouvé');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Purchase ${purchaseId} not found`,
+      );
     }
 
     if (purchase.status !== 'VALIDATED' && purchase.currentStep !== 'DONE') {
-      throw new BadRequestException(
-        "L'achat doit être terminé pour soumettre une enquête",
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.SATISFACTION_PURCHASE_NOT_COMPLETED,
+        'Purchase must be completed to submit a survey',
       );
     }
 
@@ -32,7 +35,11 @@ export class SatisfactionService {
     });
 
     if (existing) {
-      throw new BadRequestException('Une enquête existe déjà pour cet achat');
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.SATISFACTION_ALREADY_EXISTS,
+        'A survey already exists for this purchase',
+      );
     }
 
     // Vérifier que les fichiers existent si fournis
@@ -42,8 +49,18 @@ export class SatisfactionService {
       });
 
       if (files.length !== dto.fileIds.length) {
-        throw new BadRequestException(
-          'Un ou plusieurs fichiers sont introuvables',
+        throw new AppException(
+          HttpStatus.BAD_REQUEST,
+          ErrorCode.SATISFACTION_FILES_NOT_FOUND,
+          'One or more files were not found',
+          {
+            fields: [
+              {
+                field: 'fileIds',
+                code: ErrorCode.SATISFACTION_FILES_NOT_FOUND,
+              },
+            ],
+          },
         );
       }
     }
@@ -221,7 +238,11 @@ export class SatisfactionService {
     });
 
     if (!survey) {
-      throw new NotFoundException('Enquête de satisfaction introuvable');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Satisfaction survey not found',
+      );
     }
 
     const retainedPvSupplier = survey.purchase.pv?.suppliers?.[0];

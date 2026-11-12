@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException } from '@nestjs/common';
 import { EquipmentDemandService } from './equipment-demand.service';
 import { EquipmentDemandRepository } from 'src/repository/inventory/equipment-demand.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
+import { ErrorCode } from 'src/common/errors';
 
 const repository = {
   generateReference: jest.fn(),
@@ -49,7 +49,9 @@ describe('EquipmentDemandService.create', () => {
 
     await expect(
       service.create({ ...dto, fileIds: [10, 99] }, 7),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toMatchObject({
+      code: ErrorCode.EQUIPMENT_DEMAND_FILES_NOT_FOUND,
+    });
     expect(repository.create).not.toHaveBeenCalled();
   });
 

@@ -1,14 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  ForbiddenException,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { LgTripStatus, LgTransportMode } from '@prisma/client';
 import { TripService } from '../trip.service';
 import { TripRepository } from 'src/repository/trip/trip.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { PrismaService } from 'prisma/prisma.service';
+import { ErrorCode } from 'src/common/errors';
 
 const mockRepository = {
   generateNextReference: jest.fn(),
@@ -96,7 +93,9 @@ describe('TripService', () => {
     it('throws 422 when arrivalDate < departureDate', async () => {
       await expect(
         service.create({ ...dto, arrivalDate: '2026-05-19' }, 10),
-      ).rejects.toThrow(UnprocessableEntityException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.TRIP_ARRIVAL_BEFORE_DEPARTURE,
+      });
     });
 
     it('does not throw when arrivalDate equals departureDate', async () => {
@@ -121,9 +120,9 @@ describe('TripService', () => {
 
     it('rejects when neither missionId nor missionReference', async () => {
       const { missionId: _m, ...noMission } = dto;
-      await expect(service.create(noMission, 10)).rejects.toThrow(
-        new UnprocessableEntityException('Le trajet est requis.'),
-      );
+      await expect(service.create(noMission, 10)).rejects.toMatchObject({
+        code: ErrorCode.TRIP_MISSION_REQUIRED,
+      });
     });
 
     it('resolves missionReference case/space-insensitively', async () => {
@@ -143,9 +142,7 @@ describe('TripService', () => {
       const { missionId: _m, ...noId } = dto;
       await expect(
         service.create({ ...noId, missionReference: '   ' }, 10),
-      ).rejects.toThrow(
-        new UnprocessableEntityException('Le trajet est requis.'),
-      );
+      ).rejects.toMatchObject({ code: ErrorCode.TRIP_MISSION_REQUIRED });
     });
 
     it('accepts a mission with status IN_PROGRESS', async () => {
@@ -163,9 +160,7 @@ describe('TripService', () => {
       const { missionId: _m, ...noId } = dto;
       await expect(
         service.create({ ...noId, missionReference: 'TRJ-2026-0003' }, 10),
-      ).rejects.toThrow(
-        new UnprocessableEntityException('Trajet TRJ-2026-0003 introuvable.'),
-      );
+      ).rejects.toMatchObject({ code: ErrorCode.TRIP_MISSION_NOT_FOUND });
     });
 
     it('rejects mission with status PENDING', async () => {
@@ -177,11 +172,10 @@ describe('TripService', () => {
       const { missionId: _m, ...noId } = dto;
       await expect(
         service.create({ ...noId, missionReference: 'TRJ-2026-0003' }, 10),
-      ).rejects.toThrow(
-        new UnprocessableEntityException(
-          'Le trajet TRJ-2026-0003 doit être confirmé ou en cours.',
-        ),
-      );
+      ).rejects.toMatchObject({
+        code: ErrorCode.TRIP_MISSION_NOT_LINKABLE,
+        params: { reference: 'TRJ-2026-0003' },
+      });
     });
 
     it('prefers missionId when both are sent', async () => {
@@ -226,14 +220,14 @@ describe('TripService', () => {
       mockRepository.findById.mockResolvedValue(BASE_TRIP);
       await expect(
         service.findById('trip-1', { id: 99, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({ code: ErrorCode.TRIP_ACCESS_DENIED });
     });
 
     it('throws NotFoundException when trip does not exist', async () => {
       mockRepository.findById.mockResolvedValue(null);
       await expect(
         service.findById('trip-999', { id: 10, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
   });
 
@@ -264,7 +258,7 @@ describe('TripService', () => {
       });
       await expect(
         service.cancel('trip-1', { id: 10, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(UnprocessableEntityException);
+      ).rejects.toMatchObject({ code: ErrorCode.TRIP_NOT_PENDING });
     });
 
     it('throws 422 when trip status is CANCELLED', async () => {
@@ -274,14 +268,14 @@ describe('TripService', () => {
       });
       await expect(
         service.cancel('trip-1', { id: 10, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(UnprocessableEntityException);
+      ).rejects.toMatchObject({ code: ErrorCode.TRIP_NOT_PENDING });
     });
 
     it('throws ForbiddenException when DEMANDEUR is not the owner', async () => {
       mockRepository.findById.mockResolvedValue(BASE_TRIP);
       await expect(
         service.cancel('trip-1', { id: 99, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({ code: ErrorCode.TRIP_CANCEL_OWN_ONLY });
     });
 
     it('allows ADMIN to cancel any PENDING trip', async () => {

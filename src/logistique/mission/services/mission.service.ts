@@ -1,9 +1,5 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { LINKABLE_MISSION_STATUSES } from '../constants/mission.constants';
 import { PrismaService } from 'prisma/prisma.service';
 import { Role } from '@prisma/client';
@@ -31,14 +27,26 @@ export class MissionService {
     const returnDate = new Date(dto.returnDate);
 
     if (returnDate < departureDate) {
-      throw new UnprocessableEntityException(
-        'La date de retour doit être postérieure ou égale à la date de départ.',
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.MISSION_RETURN_BEFORE_DEPARTURE,
+        'Return date must be on or after departure date',
+        {
+          fields: [
+            {
+              field: 'returnDate',
+              code: ErrorCode.MISSION_RETURN_BEFORE_DEPARTURE,
+            },
+          ],
+        },
       );
     }
 
     if (!bypassDeadline && isAfterDeadline(departureDate)) {
-      throw new UnprocessableEntityException(
-        'La date limite de soumission est dépassée. Les demandes doivent être soumises avant le jeudi de la semaine précédant le départ (23h59 heure Madagascar).',
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.MISSION_DEADLINE_PASSED,
+        'Submission deadline passed',
       );
     }
 
@@ -118,14 +126,23 @@ export class MissionService {
 
   async findById(id: string, currentUser: { id: number; role: string }) {
     const mission = await this.repository.findById(id);
-    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    if (!mission)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Mission ${id} not found`,
+      );
 
     if (
       currentUser.role !== Role.ADMIN &&
       currentUser.role !== Role.GESTIONNAIRE_PARC &&
       mission.requestorId !== currentUser.id
     ) {
-      throw new ForbiddenException('Accès refusé à ce dossier de trajet.');
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.MISSION_ACCESS_DENIED,
+        'Access denied to this mission file',
+      );
     }
 
     return mission;
@@ -133,19 +150,28 @@ export class MissionService {
 
   async cancel(id: string, currentUser: { id: number; role: string }) {
     const mission = await this.repository.findById(id);
-    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    if (!mission)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Mission ${id} not found`,
+      );
 
     const TERMINAL = ['REJECTED', 'SETTLED', 'CANCELLED'];
     if (TERMINAL.includes(mission.status)) {
-      throw new UnprocessableEntityException(
-        `Impossible d'annuler un dossier en statut ${mission.status}.`,
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.MISSION_CANCEL_TERMINAL,
+        `Cannot cancel a mission in status ${mission.status}`,
       );
     }
 
     if (mission.status === 'CONFIRMED' || mission.status === 'IN_PROGRESS') {
       if (currentUser.role !== Role.ADMIN) {
-        throw new ForbiddenException(
-          'Seul un administrateur peut annuler un trajet confirmé ou en cours.',
+        throw new AppException(
+          HttpStatus.FORBIDDEN,
+          ErrorCode.MISSION_CANCEL_ADMIN_ONLY,
+          'Only an admin can cancel a confirmed or in-progress mission',
         );
       }
     } else if (
@@ -153,8 +179,10 @@ export class MissionService {
       currentUser.role !== Role.GESTIONNAIRE_PARC &&
       mission.requestorId !== currentUser.id
     ) {
-      throw new ForbiddenException(
-        'Vous ne pouvez annuler que vos propres demandes.',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.MISSION_CANCEL_OWN_ONLY,
+        'You can only cancel your own requests',
       );
     }
 

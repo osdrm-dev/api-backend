@@ -1,10 +1,5 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  ConflictException,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -36,8 +31,15 @@ export class AuthService {
     });
 
     if (existingUser) {
-      throw new ConflictException(
-        'Un compte existe déjà avec cette adresse email.',
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.USER_EMAIL_ALREADY_EXISTS,
+        'A user with this email already exists',
+        {
+          fields: [
+            { field: 'email', code: ErrorCode.USER_EMAIL_ALREADY_EXISTS },
+          ],
+        },
       );
     }
 
@@ -67,22 +69,28 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new UnauthorizedException(
-        'Adresse email ou mot de passe incorrect.',
+      throw new AppException(
+        HttpStatus.UNAUTHORIZED,
+        ErrorCode.AUTH_INVALID_CREDENTIALS,
+        'Invalid credentials',
       );
     }
 
     if (!user.isActive) {
-      throw new UnauthorizedException(
-        'Votre compte a été désactivé. Veuillez contacter un administrateur.',
+      throw new AppException(
+        HttpStatus.UNAUTHORIZED,
+        ErrorCode.AUTH_ACCOUNT_DISABLED,
+        'Account is disabled',
       );
     }
 
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
     if (!isPasswordValid) {
-      throw new UnauthorizedException(
-        'Adresse email ou mot de passe incorrect.',
+      throw new AppException(
+        HttpStatus.UNAUTHORIZED,
+        ErrorCode.AUTH_INVALID_CREDENTIALS,
+        'Invalid credentials',
       );
     }
 
@@ -131,13 +139,29 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundException('Aucun compte trouvé pour cet identifiant.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'User not found',
+      );
     }
 
     const isOldPasswordValid = await bcrypt.compare(oldPassword, user.password);
 
     if (!isOldPasswordValid) {
-      throw new BadRequestException('Le mot de passe actuel est incorrect.');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.AUTH_CURRENT_PASSWORD_INCORRECT,
+        'Current password is incorrect',
+        {
+          fields: [
+            {
+              field: 'oldPassword',
+              code: ErrorCode.AUTH_CURRENT_PASSWORD_INCORRECT,
+            },
+          ],
+        },
+      );
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12);
@@ -162,8 +186,13 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundException(
-        'Aucun compte associé à cette adresse email.',
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.AUTH_ACCOUNT_NOT_FOUND,
+        'No account found for this email',
+        {
+          fields: [{ field: 'email', code: ErrorCode.AUTH_ACCOUNT_NOT_FOUND }],
+        },
       );
     }
 
@@ -211,7 +240,11 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundException('Aucun compte trouvé pour cet identifiant.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'User not found',
+      );
     }
 
     return this.excludePassword(user);
@@ -249,8 +282,15 @@ export class AuthService {
       });
 
       if (existingUser && existingUser.id !== userId) {
-        throw new ConflictException(
-          'Cette adresse email est déjà utilisée par un autre compte.',
+        throw new AppException(
+          HttpStatus.CONFLICT,
+          ErrorCode.USER_EMAIL_ALREADY_EXISTS,
+          'A user with this email already exists',
+          {
+            fields: [
+              { field: 'email', code: ErrorCode.USER_EMAIL_ALREADY_EXISTS },
+            ],
+          },
         );
       }
     }
@@ -272,7 +312,11 @@ export class AuthService {
     });
 
     if (!user) {
-      throw new NotFoundException('Utilisateur introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'User not found',
+      );
     }
 
     const { email, ...otherData } = updateUserDto;
@@ -283,8 +327,15 @@ export class AuthService {
       });
 
       if (existingUser && existingUser.id !== userId) {
-        throw new ConflictException(
-          'Cette adresse email est déjà utilisée par un autre compte.',
+        throw new AppException(
+          HttpStatus.CONFLICT,
+          ErrorCode.USER_EMAIL_ALREADY_EXISTS,
+          'A user with this email already exists',
+          {
+            fields: [
+              { field: 'email', code: ErrorCode.USER_EMAIL_ALREADY_EXISTS },
+            ],
+          },
         );
       }
     }

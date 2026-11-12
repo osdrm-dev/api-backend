@@ -1,13 +1,10 @@
-import {
-  Injectable,
-  Logger,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, Logger, HttpStatus } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 import * as Handlebars from 'handlebars';
 import * as fs from 'fs';
 import * as path from 'path';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { ResendTemplate } from './resend.constants';
 
 @Injectable()
@@ -34,7 +31,11 @@ export class ResendService {
       this.logger.log(`Email envoyé à ${to} — ${subject}`);
     } catch (error) {
       this.logger.error('Erreur envoi email simple', (error as Error).stack);
-      throw new InternalServerErrorException();
+      throw new AppException(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        ErrorCode.INTERNAL_ERROR,
+        'Failed to send email',
+      );
     }
   }
 
@@ -61,7 +62,11 @@ export class ResendService {
         'Erreur envoi email avec pièce jointe',
         (error as Error).stack,
       );
-      throw new InternalServerErrorException();
+      throw new AppException(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        ErrorCode.INTERNAL_ERROR,
+        'Failed to send email',
+      );
     }
   }
 
@@ -81,7 +86,11 @@ export class ResendService {
         `Erreur envoi email template ${template}`,
         (error as Error).stack,
       );
-      throw new InternalServerErrorException();
+      throw new AppException(
+        HttpStatus.INTERNAL_SERVER_ERROR,
+        ErrorCode.INTERNAL_ERROR,
+        'Failed to send email',
+      );
     }
   }
 

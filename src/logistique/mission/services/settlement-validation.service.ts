@@ -1,10 +1,5 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import {
   LgMissionStatus,
   LgSettlementValidationStatus,
@@ -66,9 +61,17 @@ export class SettlementValidationService {
   async getValidationDetail(missionId: string) {
     const mission = await this.missionRepository.findById(missionId);
     if (!mission)
-      throw new NotFoundException(`Trajet ${missionId} introuvable.`);
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Mission ${missionId} not found`,
+      );
     if (!mission.settlement)
-      throw new NotFoundException('Aucune liquidation soumise pour ce trajet.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.MISSION_SETTLEMENT_NOT_SUBMITTED,
+        'No settlement submitted for this mission',
+      );
     return this.validationRepository.findValidationsBySettlementId(
       mission.settlement.id,
     );
@@ -84,8 +87,18 @@ export class SettlementValidationService {
   ): LgSettlementValidatorRole {
     if (currentUser.role === Role.ADMIN) {
       if (!explicitRole) {
-        throw new UnprocessableEntityException(
-          'Un administrateur doit préciser le rôle ciblé (DEMANDEUR, OM ou CFO).',
+        throw new AppException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          ErrorCode.SETTLEMENT_VALIDATION_ROLE_REQUIRED,
+          'An admin must specify the target role (DEMANDEUR, OM or CFO)',
+          {
+            fields: [
+              {
+                field: 'role',
+                code: ErrorCode.SETTLEMENT_VALIDATION_ROLE_REQUIRED,
+              },
+            ],
+          },
         );
       }
       return explicitRole;
@@ -99,8 +112,10 @@ export class SettlementValidationService {
       case Role.CFO:
         return LgSettlementValidatorRole.CFO;
       default:
-        throw new ForbiddenException(
-          'Votre rôle ne vous autorise pas à valider une liquidation.',
+        throw new AppException(
+          HttpStatus.FORBIDDEN,
+          ErrorCode.SETTLEMENT_VALIDATION_ROLE_NOT_ALLOWED,
+          'Your role is not allowed to validate a settlement',
         );
     }
   }
@@ -118,13 +133,17 @@ export class SettlementValidationService {
 
     if (role === LgSettlementValidatorRole.DEMANDEUR) {
       if (mission.requestorId == null) {
-        throw new UnprocessableEntityException(
-          "Le demandeur d'origine n'est plus actif, contactez un administrateur.",
+        throw new AppException(
+          HttpStatus.UNPROCESSABLE_ENTITY,
+          ErrorCode.SETTLEMENT_REQUESTOR_INACTIVE,
+          'Original requestor is no longer active',
         );
       }
       if (!isAdmin && currentUser.id !== mission.requestorId) {
-        throw new ForbiddenException(
-          "Seul l'auteur de la demande peut valider la ligne DEMANDEUR.",
+        throw new AppException(
+          HttpStatus.FORBIDDEN,
+          ErrorCode.SETTLEMENT_VALIDATE_REQUESTOR_ONLY,
+          'Only the request author can validate the DEMANDEUR line',
         );
       }
       return;
@@ -132,8 +151,10 @@ export class SettlementValidationService {
 
     if (role === LgSettlementValidatorRole.OM) {
       if (!isAdmin && currentUser.role !== Role.OM) {
-        throw new ForbiddenException(
-          'Seul un utilisateur OM peut valider la ligne OM.',
+        throw new AppException(
+          HttpStatus.FORBIDDEN,
+          ErrorCode.SETTLEMENT_VALIDATE_OM_ONLY,
+          'Only an OM user can validate the OM line',
         );
       }
       return;
@@ -141,8 +162,10 @@ export class SettlementValidationService {
 
     if (role === LgSettlementValidatorRole.CFO) {
       if (!isAdmin && currentUser.role !== Role.CFO) {
-        throw new ForbiddenException(
-          'Seul un utilisateur CFO peut valider la ligne CFO.',
+        throw new AppException(
+          HttpStatus.FORBIDDEN,
+          ErrorCode.SETTLEMENT_VALIDATE_CFO_ONLY,
+          'Only a CFO user can validate the CFO line',
         );
       }
       return;
@@ -162,23 +185,40 @@ export class SettlementValidationService {
     currentUser: CurrentUser,
   ) {
     if (!DECIDABLE_STATUSES.includes(decision)) {
-      throw new UnprocessableEntityException(
-        'La décision doit être APPROVED ou REJECTED.',
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.SETTLEMENT_DECISION_INVALID,
+        'Decision must be APPROVED or REJECTED',
+        {
+          fields: [
+            { field: 'decision', code: ErrorCode.SETTLEMENT_DECISION_INVALID },
+          ],
+        },
       );
     }
 
     const mission = await this.missionRepository.findById(missionId);
     if (!mission)
-      throw new NotFoundException(`Trajet ${missionId} introuvable.`);
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Mission ${missionId} not found`,
+      );
 
     if (BLOCKED_MISSION_STATUSES.includes(mission.status)) {
-      throw new UnprocessableEntityException(
-        `Aucune validation possible : le trajet est en statut ${mission.status}.`,
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.SETTLEMENT_MISSION_BLOCKED,
+        `No validation possible: mission is in status ${mission.status}`,
       );
     }
 
     if (!mission.settlement) {
-      throw new NotFoundException('Aucune liquidation soumise pour ce trajet.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.MISSION_SETTLEMENT_NOT_SUBMITTED,
+        'No settlement submitted for this mission',
+      );
     }
 
     this.assertCanDecide(role, currentUser, mission);
@@ -193,12 +233,18 @@ export class SettlementValidationService {
       );
       const target = rows.find((r) => r.role === role);
       if (!target) {
-        throw new NotFoundException(
-          `Ligne de validation ${role} introuvable pour cette liquidation.`,
+        throw new AppException(
+          HttpStatus.NOT_FOUND,
+          ErrorCode.NOT_FOUND,
+          `Validation line ${role} not found for this settlement`,
         );
       }
       if (target.status !== LgSettlementValidationStatus.PENDING) {
-        throw new ConflictException('Cette validation a déjà été traitée.');
+        throw new AppException(
+          HttpStatus.CONFLICT,
+          ErrorCode.SETTLEMENT_VALIDATION_ALREADY_PROCESSED,
+          'This validation was already processed',
+        );
       }
 
       await this.validationRepository.updateValidationDecision(tx, target.id, {

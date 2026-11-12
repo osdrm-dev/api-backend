@@ -1,9 +1,5 @@
-import {
-  Injectable,
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import type { File as MulterFile } from 'multer';
 import { FileStorageService } from 'src/storage/services/file-storage.service';
 import {
@@ -34,7 +30,11 @@ export class SignaturesService {
   async findActive(userId: number): Promise<SignatureSpecimenResponseDto> {
     const specimen = await this.repo.findActiveByUser(userId);
     if (!specimen) {
-      throw new NotFoundException('Aucun spécimen de signature actif');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.SIGNATURE_NO_ACTIVE_SPECIMEN,
+        'No active signature specimen',
+      );
     }
     return this.toDto(specimen);
   }
@@ -45,8 +45,11 @@ export class SignaturesService {
   ): Promise<SignatureSpecimenResponseDto> {
     const count = await this.repo.countByUser(userId);
     if (count >= MAX_SPECIMENS) {
-      throw new BadRequestException(
-        `Maximum ${MAX_SPECIMENS} spécimens autorisés`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.SIGNATURE_MAX_SPECIMENS_REACHED,
+        `Maximum ${MAX_SPECIMENS} specimens allowed`,
+        { params: { max: MAX_SPECIMENS } },
       );
     }
 
@@ -105,8 +108,10 @@ export class SignaturesService {
   ): Promise<SpecimenWithFile> {
     const specimen = await this.repo.findByIdAndUser(id, userId);
     if (!specimen) {
-      throw new ForbiddenException(
-        'Spécimen introuvable ou accès non autorisé',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.FORBIDDEN,
+        'Specimen not found or access denied',
       );
     }
     return specimen;

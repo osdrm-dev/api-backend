@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EquipmentStatus } from '@prisma/client';
 import { EquipmentAttributionService } from './equipment-attribution.service';
 import { EquipmentAttributionRepository } from 'src/repository/inventory/equipment-attribution.repository';
 import { EquipmentRepository } from 'src/repository/inventory/equipment.repository';
 import { PrismaService } from 'prisma/prisma.service';
+import { ErrorCode } from 'src/common/errors';
 
 const equipmentRepo = { findById: jest.fn() };
 const tx = { equipmentAttribution: { create: jest.fn(), count: jest.fn() } };
@@ -51,7 +51,7 @@ describe('EquipmentAttributionService.create', () => {
     });
     await expect(
       service.create({ assetId: 'e1', beneficiaryId: 3 }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toMatchObject({ code: ErrorCode.EQUIPMENT_ALREADY_ATTRIBUTED });
   });
 
   it('rejects a broken equipment', async () => {
@@ -61,7 +61,7 @@ describe('EquipmentAttributionService.create', () => {
     });
     await expect(
       service.create({ assetId: 'e1', beneficiaryId: 3 }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toMatchObject({ code: ErrorCode.EQUIPMENT_BROKEN });
   });
 
   it('rejects an archived equipment', async () => {
@@ -71,7 +71,7 @@ describe('EquipmentAttributionService.create', () => {
     });
     await expect(
       service.create({ assetId: 'e1', beneficiaryId: 3 }),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
   });
 });
 
@@ -96,7 +96,7 @@ describe('EquipmentAttributionService.create — concurrence', () => {
     tx.equipmentAttribution.count.mockResolvedValue(1);
     await expect(
       service.create({ assetId: 'e1', beneficiaryId: 3 }),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toMatchObject({ code: ErrorCode.EQUIPMENT_ALREADY_ATTRIBUTED });
     expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
       isolationLevel: 'Serializable',
     });

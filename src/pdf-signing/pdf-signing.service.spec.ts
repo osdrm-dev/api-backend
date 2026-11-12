@@ -1,5 +1,14 @@
-import { NotFoundException } from '@nestjs/common';
+import { ErrorCode } from 'src/common/errors';
 import { PdfSigningService, PDF_SIGNING_JOB } from './pdf-signing.service';
+
+const SIGN_PARAMS = {
+  signedById: 7,
+  specimenId: 3,
+  pageNumber: 1,
+  positionX: 0.1,
+  positionY: 0.2,
+  signatureWidth: 0.2,
+};
 
 describe('PdfSigningService', () => {
   let service: PdfSigningService;
@@ -16,17 +25,18 @@ describe('PdfSigningService', () => {
     it('adds a job with the correct name and payload', async () => {
       mockQueue.add.mockResolvedValue({ id: 'job-42' });
 
-      await service.enqueue('att-1');
+      await service.enqueue('att-1', SIGN_PARAMS);
 
       expect(mockQueue.add).toHaveBeenCalledWith(PDF_SIGNING_JOB, {
         attachmentId: 'att-1',
+        ...SIGN_PARAMS,
       });
     });
 
     it('returns the job id as a string', async () => {
       mockQueue.add.mockResolvedValue({ id: 123 });
 
-      const jobId = await service.enqueue('att-1');
+      const jobId = await service.enqueue('att-1', SIGN_PARAMS);
 
       expect(jobId).toBe('123');
       expect(typeof jobId).toBe('string');
@@ -58,12 +68,12 @@ describe('PdfSigningService', () => {
       expect(result.jobId).toBeNull();
     });
 
-    it('throws NotFoundException when attachment does not exist', async () => {
+    it('throws NOT_FOUND when attachment does not exist', async () => {
       mockPrisma.attachment.findUnique.mockResolvedValue(null);
 
-      await expect(service.getStatus('att-unknown')).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(service.getStatus('att-unknown')).rejects.toMatchObject({
+        code: ErrorCode.NOT_FOUND,
+      });
     });
 
     it('queries by the correct attachmentId', async () => {

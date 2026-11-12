@@ -1,8 +1,5 @@
-import {
-  Injectable,
-  UnauthorizedException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'prisma/prisma.service';
@@ -68,15 +65,27 @@ export class TokenService {
     });
 
     if (!storedToken || storedToken.revokedAt) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new AppException(
+        HttpStatus.UNAUTHORIZED,
+        ErrorCode.UNAUTHORIZED,
+        'Invalid refresh token',
+      );
     }
 
     if (storedToken.expiresAt < new Date()) {
-      throw new UnauthorizedException('Refresh token expired');
+      throw new AppException(
+        HttpStatus.UNAUTHORIZED,
+        ErrorCode.UNAUTHORIZED,
+        'Refresh token expired',
+      );
     }
 
     if (!storedToken.user.isActive) {
-      throw new UnauthorizedException('Account is deactivated');
+      throw new AppException(
+        HttpStatus.UNAUTHORIZED,
+        ErrorCode.AUTH_ACCOUNT_DISABLED,
+        'Account is disabled',
+      );
     }
 
     const newAccessToken = this.jwtService.sign({
@@ -112,11 +121,19 @@ export class TokenService {
     });
 
     if (!storedToken) {
-      throw new BadRequestException('Invalid refresh token');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.BAD_REQUEST,
+        'Invalid refresh token',
+      );
     }
 
     if (storedToken.revokedAt) {
-      throw new BadRequestException('Token already revoked');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.BAD_REQUEST,
+        'Token already revoked',
+      );
     }
 
     await this.prisma.refreshToken.update({

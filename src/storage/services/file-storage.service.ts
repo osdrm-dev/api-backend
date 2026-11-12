@@ -1,9 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Logger,
-} from '@nestjs/common';
+import { Injectable, HttpStatus, Logger } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'prisma/prisma.service';
 import { FileOptimizationService } from 'src/storage/services/file-otpimizations.service';
@@ -56,14 +52,19 @@ export class FileStorageService {
     const maxSize = options.maxSize || this.defaultMaxFileSize;
 
     if (file.size > maxSize) {
-      throw new BadRequestException(
-        `File size exceeds maximum allowed size of ${maxSize / 1048576}MB`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.STORAGE_FILE_TOO_LARGE,
+        'File size exceeds the maximum allowed size',
+        { params: { maxSizeMb: maxSize / 1048576 } },
       );
     }
 
     if (options.allowedTypes && !options.allowedTypes.includes(file.mimetype)) {
-      throw new BadRequestException(
-        `File type ${file.mimetype} is not allowed`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.STORAGE_FILE_TYPE_NOT_ALLOWED,
+        'File type is not allowed',
       );
     }
 
@@ -166,7 +167,11 @@ export class FileStorageService {
     });
 
     if (!file) {
-      throw new NotFoundException('File not found');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'File not found',
+      );
     }
 
     return file;
@@ -186,7 +191,11 @@ export class FileStorageService {
       return await fs.readFile(resolvedPath);
     } catch (error) {
       this.logger.error(`Error reading file ${fileId}:`, error);
-      throw new NotFoundException('File not found on disk');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'File not found on disk',
+      );
     }
   }
 
@@ -265,7 +274,11 @@ export class FileStorageService {
     const file = await this.prisma.file.findUnique({ where: { storedName } });
 
     if (!file) {
-      throw new NotFoundException('File not found');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'File not found',
+      );
     }
 
     return file;

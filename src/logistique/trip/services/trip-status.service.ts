@@ -1,8 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { LgTripStatus } from '@prisma/client';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
@@ -22,10 +19,17 @@ export class TripStatusService {
 
   async updateStatus(id: string, newStatus: LgTripStatus) {
     const trip = await this.tripRepository.findById(id);
-    if (!trip) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    if (!trip)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Trip ${id} not found`,
+      );
 
     if (TERMINAL_STATUSES.includes(trip.status)) {
-      throw new UnprocessableEntityException(
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.TRIP_STATUS_TERMINAL,
         'Cannot transition from a terminal status',
       );
     }

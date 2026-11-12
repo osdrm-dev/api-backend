@@ -1,12 +1,8 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { CreateAttachmentDto } from '../dto/attachment.dto';
 import { Role } from '@prisma/client';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 @Injectable()
 export class AttachmentService {
@@ -22,7 +18,11 @@ export class AttachmentService {
     });
 
     if (!user) {
-      throw new NotFoundException('Utilisateur non trouve');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'User not found',
+      );
     }
 
     const purchase = await this.prisma.purchase.findUnique({
@@ -30,18 +30,26 @@ export class AttachmentService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     if (dto.type === 'PURCHASE_ORDER' && user.role !== Role.ACHETEUR) {
-      throw new ForbiddenException(
-        'Seul un ACHETEUR peut ajouter un bon de commande',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_BUYER_ONLY,
+        'Only a buyer can perform this action',
       );
     }
 
     if (dto.type === 'PURCHASE_ORDER' && purchase.currentStep !== 'BC') {
-      throw new BadRequestException(
-        "La DA doit être à l'étape BC pour ajouter un bon de commande",
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_NOT_AT_STEP_BC,
+        'Purchase is not at step BC',
       );
     }
 
@@ -51,7 +59,11 @@ export class AttachmentService {
 
     console.log('file here');
     if (!file) {
-      throw new NotFoundException('Fichier non trouve');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'File not found',
+      );
     }
 
     const attachment = await this.prisma.attachment.create({
@@ -87,7 +99,11 @@ export class AttachmentService {
     });
 
     if (!user) {
-      throw new NotFoundException('Utilisateur non trouve');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'User not found',
+      );
     }
 
     const attachment = await this.prisma.attachment.findUnique({
@@ -95,12 +111,18 @@ export class AttachmentService {
     });
 
     if (!attachment || attachment.purchaseId !== purchaseId) {
-      throw new NotFoundException('Document non trouve');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Attachment not found',
+      );
     }
 
     if (attachment.type === 'PURCHASE_ORDER' && user.role !== Role.ACHETEUR) {
-      throw new ForbiddenException(
-        'Seul un ACHETEUR peut supprimer un bon de commande',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_BUYER_ONLY,
+        'Only a buyer can perform this action',
       );
     }
 
@@ -119,7 +141,11 @@ export class AttachmentService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     const attachments = await this.prisma.attachment.findMany({

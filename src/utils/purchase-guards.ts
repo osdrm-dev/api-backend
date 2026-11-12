@@ -1,4 +1,5 @@
-import { ForbiddenException } from '@nestjs/common';
+import { HttpStatus } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 /**
  * Vérifie que l'utilisateur connecté est bien l'acheteur responsable de la DA.
@@ -9,8 +10,10 @@ export function assertIsOwningBuyer(
   userId: number,
 ): void {
   if (purchase.acheteurId !== userId) {
-    throw new ForbiddenException(
-      "Vous n'êtes pas l'acheteur responsable de cette demande.",
+    throw new AppException(
+      HttpStatus.FORBIDDEN,
+      ErrorCode.PURCHASE_NOT_OWNING_BUYER,
+      'User is not the buyer responsible for this purchase',
     );
   }
 }

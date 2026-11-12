@@ -1,8 +1,5 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { PrismaService } from 'prisma/prisma.service';
 import {
   OperationType,
@@ -31,10 +28,18 @@ export class EquipmentTriggerDaService {
   ) {
     const asset = await this.assetRepository.findById(assetId);
     if (!asset || asset.archivedAt !== null) {
-      throw new NotFoundException('Matériel introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Equipment not found',
+      );
     }
     if (asset.linkedPurchaseId) {
-      throw new ConflictException('Une DA est déjà liée à cet actif.');
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.EQUIPMENT_DA_ALREADY_LINKED,
+        'A purchase request is already linked to this asset',
+      );
     }
 
     const acheteur = await this.prisma.user.findUnique({
@@ -42,8 +47,15 @@ export class EquipmentTriggerDaService {
       select: { id: true, role: true, isActive: true },
     });
     if (!acheteur || acheteur.role !== Role.ACHETEUR || !acheteur.isActive) {
-      throw new NotFoundException(
-        "L'acheteur spécifié est introuvable ou inactif.",
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.PURCHASE_BUYER_INVALID,
+        'Specified buyer not found or inactive',
+        {
+          fields: [
+            { field: 'acheteurId', code: ErrorCode.PURCHASE_BUYER_INVALID },
+          ],
+        },
       );
     }
 
@@ -100,10 +112,18 @@ export class EquipmentTriggerDaService {
   ) {
     const demand = await this.demandRepository.findById(demandId);
     if (!demand) {
-      throw new NotFoundException('Demande de matériel introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Equipment demand not found',
+      );
     }
     if (demand.linkedPurchaseId) {
-      throw new ConflictException('Une DA est déjà liée à cette demande.');
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.EQUIPMENT_DEMAND_DA_ALREADY_LINKED,
+        'A purchase request is already linked to this demand',
+      );
     }
 
     const acheteur = await this.prisma.user.findUnique({
@@ -111,8 +131,15 @@ export class EquipmentTriggerDaService {
       select: { id: true, role: true, isActive: true },
     });
     if (!acheteur || acheteur.role !== Role.ACHETEUR || !acheteur.isActive) {
-      throw new NotFoundException(
-        "L'acheteur spécifié est introuvable ou inactif.",
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.PURCHASE_BUYER_INVALID,
+        'Specified buyer not found or inactive',
+        {
+          fields: [
+            { field: 'acheteurId', code: ErrorCode.PURCHASE_BUYER_INVALID },
+          ],
+        },
       );
     }
 

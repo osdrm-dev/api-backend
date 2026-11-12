@@ -1,11 +1,8 @@
-import {
-  Injectable,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { WorkflowConfigService } from '../../purchaseValidation/services/workflow-config.service';
 import { PurchaseStep, PurchaseStatus, AttachmentType } from '@prisma/client';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 @Injectable()
 export class SubmitService {
@@ -24,7 +21,11 @@ export class SubmitService {
     });
 
     if (!purchase) {
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     }
 
     const totalAmount = purchase.items.reduce(
@@ -35,8 +36,10 @@ export class SubmitService {
     // Logique selon le currentStep
     switch (purchase.currentStep) {
       case PurchaseStep.QR:
-        throw new BadRequestException(
-          'Utilisez POST /purchases/:id/quotations/submit pour soumettre les devis QR',
+        throw new AppException(
+          HttpStatus.BAD_REQUEST,
+          ErrorCode.PURCHASE_SUBMIT_USE_QUOTATIONS,
+          'Use the quotations submit endpoint for step QR',
         );
       case PurchaseStep.PV:
         return this.submitPV(purchase, userId, totalAmount);
@@ -51,8 +54,10 @@ export class SubmitService {
       case PurchaseStep.PROOF_OF_PAYMENT:
         return this.submitProofOfPayment(purchase, userId, totalAmount);
       default:
-        throw new BadRequestException(
-          `Impossible de soumettre a l'etape ${purchase.currentStep}`,
+        throw new AppException(
+          HttpStatus.BAD_REQUEST,
+          ErrorCode.PURCHASE_SUBMIT_NOT_ALLOWED,
+          `Cannot submit at step ${purchase.currentStep}`,
         );
     }
   }
@@ -65,12 +70,18 @@ export class SubmitService {
     });
 
     if (!pv) {
-      throw new BadRequestException('Aucun PV cree');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_PV_REQUIRED,
+        'No PV created',
+      );
     }
 
     if (pv.suppliers.length === 0) {
-      throw new BadRequestException(
-        'Ajoutez au moins un fournisseur avant de soumettre le PV',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_PV_NO_SUPPLIER,
+        'Add at least one supplier before submitting the PV',
       );
     }
 
@@ -119,7 +130,11 @@ export class SubmitService {
     );
 
     if (!bc) {
-      throw new BadRequestException('Aucun bon de commande uploade');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_DOCUMENT_MISSING_BC,
+        'No purchase order uploaded',
+      );
     }
 
     // Créer le workflow BC
@@ -167,7 +182,11 @@ export class SubmitService {
     );
 
     if (!br) {
-      throw new BadRequestException('Aucun bon de reception uploade');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_DOCUMENT_MISSING_BR,
+        'No goods receipt uploaded',
+      );
     }
 
     // BR n'a pas de circuit de validation, passage direct à INVOICE
@@ -199,7 +218,11 @@ export class SubmitService {
     );
 
     if (!invoice) {
-      throw new BadRequestException('Aucune facture uploadee');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_DOCUMENT_MISSING_INVOICE,
+        'No invoice uploaded',
+      );
     }
 
     await this.prisma.purchase.update({
@@ -227,7 +250,11 @@ export class SubmitService {
     );
 
     if (!dap) {
-      throw new BadRequestException('Aucun DAP uploade');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_DOCUMENT_MISSING_DAP,
+        'No DAP uploaded',
+      );
     }
 
     // Créer le workflow DAP
@@ -279,7 +306,11 @@ export class SubmitService {
     );
 
     if (!proof) {
-      throw new BadRequestException('Aucune preuve de paiement uploadee');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_DOCUMENT_MISSING_PROOF_OF_PAYMENT,
+        'No proof of payment uploaded',
+      );
     }
 
     // PROOF_OF_PAYMENT n'a pas de circuit de validation, passage direct à DONE

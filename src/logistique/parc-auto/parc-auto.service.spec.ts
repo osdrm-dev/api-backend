@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Role, VehicleAssignmentStatus, VehicleStatut } from '@prisma/client';
 import { ParcAutoService } from './parc-auto.service';
 import { ParcAutoRepository } from 'src/repository/parc-auto/parc-auto.repository';
 import { UserRepository } from 'src/repository/user/user.repository';
 import { FileStorageService } from 'src/storage/services/file-storage.service';
+import { ErrorCode } from 'src/common/errors';
 
 const repo = {
   findById: jest.fn(),
@@ -47,7 +47,9 @@ describe('ParcAutoService — affectations', () => {
     it('rejects missing file', async () => {
       await expect(
         service.createAssignment('veh-1', undefined, { driverId: 7 }, 1),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.VEHICLE_ASSIGNMENT_FORM_REQUIRED,
+      });
       expect(fileStorage.upload).not.toHaveBeenCalled();
     });
 
@@ -58,21 +60,23 @@ describe('ParcAutoService — affectations', () => {
       });
       await expect(
         service.createAssignment('veh-1', pdf, { driverId: 7 }, 1),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.VEHICLE_ARCHIVED_CANNOT_ASSIGN,
+      });
     });
 
     it('rejects user that is not DRIVER', async () => {
       userRepo.findById.mockResolvedValue({ ...driver, role: Role.ACHETEUR });
       await expect(
         service.createAssignment('veh-1', pdf, { driverId: 7 }, 1),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ code: ErrorCode.VEHICLE_DRIVER_INVALID });
     });
 
     it('rejects inactive driver', async () => {
       userRepo.findById.mockResolvedValue({ ...driver, isActive: false });
       await expect(
         service.createAssignment('veh-1', pdf, { driverId: 7 }, 1),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ code: ErrorCode.VEHICLE_DRIVER_INVALID });
     });
 
     it('rejects future startDate', async () => {
@@ -84,7 +88,9 @@ describe('ParcAutoService — affectations', () => {
           { driverId: 7, startDate: future },
           1,
         ),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.VEHICLE_ASSIGNMENT_START_IN_FUTURE,
+      });
       expect(fileStorage.upload).not.toHaveBeenCalled();
     });
 
@@ -97,7 +103,7 @@ describe('ParcAutoService — affectations', () => {
           { driverId: 7, startDate: '2026-10-10' },
           1,
         ),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({ code: ErrorCode.VEHICLE_ASSIGNMENT_OVERLAP });
       expect(repo.findConflictingAssignment).toHaveBeenCalledWith(
         'veh-1',
         7,
@@ -137,16 +143,20 @@ describe('ParcAutoService — affectations', () => {
         ...active,
         status: VehicleAssignmentStatus.TERMINEE,
       });
-      await expect(service.endAssignment('veh-1', 'as-1', {})).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.endAssignment('veh-1', 'as-1', {}),
+      ).rejects.toMatchObject({
+        code: ErrorCode.VEHICLE_ASSIGNMENT_ALREADY_ENDED,
+      });
     });
 
     it('rejects endDate < startDate', async () => {
       repo.findAssignmentById.mockResolvedValue(active);
       await expect(
         service.endAssignment('veh-1', 'as-1', { endDate: '2026-09-01' }),
-      ).rejects.toThrow(BadRequestException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.VEHICLE_ASSIGNMENT_END_BEFORE_START,
+      });
     });
 
     it('rejects assignment of another vehicle', async () => {
@@ -154,9 +164,9 @@ describe('ParcAutoService — affectations', () => {
         ...active,
         vehicleId: 'veh-2',
       });
-      await expect(service.endAssignment('veh-1', 'as-1', {})).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.endAssignment('veh-1', 'as-1', {}),
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
 
     it('ends active assignment at given date', async () => {

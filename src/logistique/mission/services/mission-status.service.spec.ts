@@ -1,12 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
 import { MissionStatusService } from './mission-status.service';
 import { MissionRepository } from 'src/repository/mission/mission.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { LgMissionStatus, LgMissionType } from '@prisma/client';
+import { ErrorCode } from 'src/common/errors';
 
 const mockRepository = {
   findById: jest.fn(),
@@ -49,7 +46,7 @@ describe('MissionStatusService', () => {
         { status: LgMissionStatus.REJECTED },
         1,
       ),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
   });
 
   it('throws 422 for invalid transition (PENDING → IN_PROGRESS)', async () => {
@@ -60,7 +57,9 @@ describe('MissionStatusService', () => {
         { status: LgMissionStatus.IN_PROGRESS },
         1,
       ),
-    ).rejects.toThrow(UnprocessableEntityException);
+    ).rejects.toMatchObject({
+      code: ErrorCode.MISSION_STATUS_TRANSITION_INVALID,
+    });
   });
 
   it('throws 422 when REJECTED without rejectionReason', async () => {
@@ -71,7 +70,9 @@ describe('MissionStatusService', () => {
         { status: LgMissionStatus.REJECTED },
         1,
       ),
-    ).rejects.toThrow(UnprocessableEntityException);
+    ).rejects.toMatchObject({
+      code: ErrorCode.MISSION_REJECTION_REASON_REQUIRED,
+    });
   });
 
   it('allows valid transition PENDING → REJECTED with rejectionReason', async () => {
@@ -125,7 +126,9 @@ describe('MissionStatusService', () => {
         { status: LgMissionStatus.CANCELLED },
         1,
       ),
-    ).rejects.toThrow(UnprocessableEntityException);
+    ).rejects.toMatchObject({
+      code: ErrorCode.MISSION_STATUS_TRANSITION_INVALID,
+    });
   });
 
   it('does not fire notification for IN_PROGRESS transition', async () => {

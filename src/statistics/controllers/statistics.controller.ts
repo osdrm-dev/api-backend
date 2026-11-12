@@ -4,8 +4,9 @@ import {
   Query,
   Req,
   UseGuards,
-  UnauthorizedException,
+  HttpStatus,
 } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { StatisticsService } from '../services/statistics.service';
 import { KpiService } from '../services/kpi.service';
 import { KpiQueryDto } from '../dto/kpi-query.dto';
@@ -42,7 +43,11 @@ export class StatisticsController {
     const user = req.user;
 
     if (!user) {
-      throw new UnauthorizedException('Authentication required');
+      throw new AppException(
+        HttpStatus.UNAUTHORIZED,
+        ErrorCode.UNAUTHORIZED,
+        'Authentication required',
+      );
     }
 
     return this.statisticsService.getPurchaseCount(user);

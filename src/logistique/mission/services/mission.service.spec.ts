@@ -1,15 +1,11 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  ForbiddenException,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
 import { MissionService } from './mission.service';
 import { MissionRepository } from 'src/repository/mission/mission.repository';
 import { PrismaService } from 'prisma/prisma.service';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { LgMissionStatus, LgMissionType } from '@prisma/client';
 import * as deadlineUtil from '../utils/thursday-deadline.util';
+import { ErrorCode } from 'src/common/errors';
 
 const mockRepository = {
   generateNextReference: jest.fn(),
@@ -94,14 +90,16 @@ describe('MissionService', () => {
     it('throws 422 when returnDate < departureDate', async () => {
       await expect(
         service.create({ ...dto, returnDate: '2026-05-10' }, 10, false),
-      ).rejects.toThrow(UnprocessableEntityException);
+      ).rejects.toMatchObject({
+        code: ErrorCode.MISSION_RETURN_BEFORE_DEPARTURE,
+      });
     });
 
     it('throws 422 when deadline is exceeded', async () => {
       jest.spyOn(deadlineUtil, 'isAfterDeadline').mockReturnValue(true);
-      await expect(service.create(dto, 10, false)).rejects.toThrow(
-        UnprocessableEntityException,
-      );
+      await expect(service.create(dto, 10, false)).rejects.toMatchObject({
+        code: ErrorCode.MISSION_DEADLINE_PASSED,
+      });
     });
 
     it('bypasses deadline check when bypassDeadline=true', async () => {
@@ -129,14 +127,14 @@ describe('MissionService', () => {
       mockRepository.findById.mockResolvedValue(null);
       await expect(
         service.findById('mission-999', { id: 10, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(NotFoundException);
+      ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
     });
 
     it("throws 403 when DEMANDEUR accesses another user's request", async () => {
       mockRepository.findById.mockResolvedValue(BASE_MISSION);
       await expect(
         service.findById('mission-1', { id: 99, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({ code: ErrorCode.MISSION_ACCESS_DENIED });
     });
 
     it('allows GESTIONNAIRE_PARC to access any request', async () => {
@@ -169,7 +167,7 @@ describe('MissionService', () => {
       mockRepository.findById.mockResolvedValue(BASE_MISSION);
       await expect(
         service.cancel('mission-1', { id: 99, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({ code: ErrorCode.MISSION_CANCEL_OWN_ONLY });
     });
 
     it('throws 422 when trying to cancel a terminal SETTLED request', async () => {
@@ -179,7 +177,7 @@ describe('MissionService', () => {
       });
       await expect(
         service.cancel('mission-1', { id: 10, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(UnprocessableEntityException);
+      ).rejects.toMatchObject({ code: ErrorCode.MISSION_CANCEL_TERMINAL });
     });
 
     it('throws 403 when DEMANDEUR tries to cancel a CONFIRMED request', async () => {
@@ -189,7 +187,7 @@ describe('MissionService', () => {
       });
       await expect(
         service.cancel('mission-1', { id: 10, role: 'DEMANDEUR' }),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toMatchObject({ code: ErrorCode.MISSION_CANCEL_ADMIN_ONLY });
     });
 
     it('allows ADMIN to cancel a CONFIRMED request', async () => {

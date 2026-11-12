@@ -1,8 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { LgCarburantStatus } from '@prisma/client';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
@@ -23,14 +20,18 @@ export class CarburantStatusService {
   async updateStatus(id: string, newStatus: LgCarburantStatus) {
     const carburant = await this.carburantRepository.findById(id);
     if (!carburant) {
-      throw new NotFoundException(
-        `Approvisionnement carburant ${id} introuvable.`,
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Fuel supply ${id} not found`,
       );
     }
 
     if (TERMINAL_STATUSES.includes(carburant.status)) {
-      throw new UnprocessableEntityException(
-        'Impossible de modifier le statut : la demande est déjà dans un état terminal.',
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.CARBURANT_STATUS_TERMINAL,
+        'Cannot change status: fuel supply is already in a terminal status',
       );
     }
 

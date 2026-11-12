@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, NotFoundException } from '@nestjs/common';
 import { MissionTriggerDaService } from './mission-trigger-da.service';
 import { MissionRepository } from 'src/repository/mission/mission.repository';
 import { PrismaService } from 'prisma/prisma.service';
 import { BudgetTableService } from 'src/budget/services/budget-table.service';
 import { LgMissionStatus, LgMissionType } from '@prisma/client';
+import { ErrorCode } from 'src/common/errors';
 
 const mockRepository = {
   findById: jest.fn(),
@@ -75,7 +75,7 @@ describe('MissionTriggerDaService', () => {
         { activityCode: 'ACT', acheteurId: 5 },
         1,
       ),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
   });
 
   it('throws 409 when DA already linked', async () => {
@@ -85,7 +85,7 @@ describe('MissionTriggerDaService', () => {
     });
     await expect(
       service.triggerDA('mission-1', { activityCode: 'ACT', acheteurId: 5 }, 1),
-    ).rejects.toThrow(ConflictException);
+    ).rejects.toMatchObject({ code: ErrorCode.MISSION_DA_ALREADY_LINKED });
   });
 
   it('throws 404 when acheteur is inactive or wrong role', async () => {
@@ -97,7 +97,7 @@ describe('MissionTriggerDaService', () => {
     });
     await expect(
       service.triggerDA('mission-1', { activityCode: 'ACT', acheteurId: 5 }, 1),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toMatchObject({ code: ErrorCode.PURCHASE_BUYER_INVALID });
   });
 
   it('creates Purchase and updates mission in a transaction', async () => {

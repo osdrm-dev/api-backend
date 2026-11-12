@@ -3,12 +3,14 @@ import {
   Controller,
   Delete,
   Get,
+  HttpStatus,
   Param,
   Patch,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -26,7 +28,6 @@ import { CreateEquipmentDto } from '../dto/create-equipment.dto';
 import { UpdateEquipmentDto } from '../dto/update-equipment.dto';
 import { FilterEquipmentDto } from '../dto/filter-equipment.dto';
 import { TriggerDaDto } from '../dto/trigger-da.dto';
-import { NotFoundException } from '@nestjs/common';
 
 @ApiTags('Logistique - Inventaire matériel - Actifs')
 @ApiBearerAuth()
@@ -84,7 +85,11 @@ export class EquipmentController {
   async getAmortissement(@Param('id') id: string) {
     const asset = await this.assetService.findById(id);
     if (!asset) {
-      throw new NotFoundException('Matériel introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Equipment not found',
+      );
     }
     const duree =
       asset.depreciationOverrideYears ?? asset.category?.depreciationYears ?? 3;

@@ -1,8 +1,5 @@
-import {
-  Injectable,
-  ConflictException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import * as bcrypt from 'bcrypt';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from 'prisma/prisma.service';
@@ -65,7 +62,11 @@ export class UserService {
     const user = await this.userRepository.findById(id);
 
     if (!user) {
-      throw new NotFoundException('Utilisateur introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'User not found',
+      );
     }
 
     return this.excludePassword(user);
@@ -76,8 +77,15 @@ export class UserService {
 
     const existing = await this.userRepository.findByEmail(email);
     if (existing) {
-      throw new ConflictException(
-        'Un compte existe déjà avec cette adresse email.',
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.USER_EMAIL_ALREADY_EXISTS,
+        'A user with this email already exists',
+        {
+          fields: [
+            { field: 'email', code: ErrorCode.USER_EMAIL_ALREADY_EXISTS },
+          ],
+        },
       );
     }
 
@@ -104,14 +112,25 @@ export class UserService {
   async update(id: number, dto: UpdateUserAdminDto) {
     const user = await this.userRepository.findById(id);
     if (!user) {
-      throw new NotFoundException('Utilisateur introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'User not found',
+      );
     }
 
     if (dto.email && dto.email !== user.email) {
       const existing = await this.userRepository.findByEmail(dto.email);
       if (existing) {
-        throw new ConflictException(
-          'Cette adresse email est déjà utilisée par un autre compte.',
+        throw new AppException(
+          HttpStatus.CONFLICT,
+          ErrorCode.USER_EMAIL_ALREADY_EXISTS,
+          'A user with this email already exists',
+          {
+            fields: [
+              { field: 'email', code: ErrorCode.USER_EMAIL_ALREADY_EXISTS },
+            ],
+          },
         );
       }
     }
@@ -135,7 +154,11 @@ export class UserService {
   async remove(id: number) {
     const user = await this.userRepository.findById(id);
     if (!user) {
-      throw new NotFoundException('Utilisateur introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'User not found',
+      );
     }
 
     await this.prisma.refreshToken.deleteMany({ where: { userId: id } });
@@ -147,7 +170,11 @@ export class UserService {
   async toggleActive(id: number) {
     const user = await this.userRepository.findById(id);
     if (!user) {
-      throw new NotFoundException('Utilisateur introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'User not found',
+      );
     }
 
     const updated = await this.userRepository.toggleActive(id, !user.isActive);
@@ -175,7 +202,11 @@ export class UserService {
   async resetPassword(id: number) {
     const user = await this.userRepository.findById(id);
     if (!user) {
-      throw new NotFoundException('Utilisateur introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'User not found',
+      );
     }
 
     const plainPassword = this.resolvePassword();

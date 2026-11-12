@@ -1,4 +1,5 @@
-import { BadRequestException } from '@nestjs/common';
+import { HttpStatus } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { parse } from 'csv-parse/sync';
 
 export interface ParsedSupplierRow {
@@ -108,8 +109,10 @@ function readRecords(text: string): {
     );
     if (headerIndex >= 0) return { records, headerIndex };
   }
-  throw new BadRequestException(
-    'Colonne « FOURNISSEUR » introuvable : utilisez le modèle « Liste des fournisseurs ».',
+  throw new AppException(
+    HttpStatus.BAD_REQUEST,
+    ErrorCode.SUPPLIER_IMPORT_COLUMN_MISSING,
+    'Supplier name column is missing from the CSV file',
   );
 }
 

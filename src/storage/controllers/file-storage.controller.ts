@@ -5,7 +5,6 @@ import {
   Delete,
   Param,
   Res,
-  NotFoundException,
   ParseIntPipe,
   StreamableFile,
   UseGuards,
@@ -16,6 +15,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import {
   ApiTags,
   ApiOperation,
@@ -129,7 +129,11 @@ export class FileStorageController {
     );
 
     if (!existsSync(resolvedPath)) {
-      throw new NotFoundException('File not found on disk');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'File not found on disk',
+      );
     }
 
     res.set({
@@ -177,7 +181,11 @@ export class FileStorageController {
     );
 
     if (!existsSync(resolvedPath)) {
-      throw new NotFoundException('File not found on disk');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'File not found on disk',
+      );
     }
 
     res.set({

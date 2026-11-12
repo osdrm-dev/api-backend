@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from 'prisma/prisma.service';
 import { WorkflowConfigService } from 'src/purchaseValidation/services/workflow-config.service';
 import { PdfSigningService } from 'src/pdf-signing/pdf-signing.service';
@@ -16,8 +11,23 @@ import {
 } from '@prisma/client';
 import { RequestSigningDto } from '../dto/request-signing.dto';
 import { assertIsOwningBuyer } from 'src/utils/purchase-guards';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 export type DocStep = 'BR' | 'INVOICE' | 'DAP' | 'PROOF_OF_PAYMENT';
+
+const NOT_AT_STEP_CODE: Record<DocStep, ErrorCode> = {
+  BR: ErrorCode.PURCHASE_NOT_AT_STEP_BR,
+  INVOICE: ErrorCode.PURCHASE_NOT_AT_STEP_INVOICE,
+  DAP: ErrorCode.PURCHASE_NOT_AT_STEP_DAP,
+  PROOF_OF_PAYMENT: ErrorCode.PURCHASE_NOT_AT_STEP_PROOF_OF_PAYMENT,
+};
+
+const DOCUMENT_MISSING_CODE: Record<DocStep, ErrorCode> = {
+  BR: ErrorCode.PURCHASE_DOCUMENT_MISSING_BR,
+  INVOICE: ErrorCode.PURCHASE_DOCUMENT_MISSING_INVOICE,
+  DAP: ErrorCode.PURCHASE_DOCUMENT_MISSING_DAP,
+  PROOF_OF_PAYMENT: ErrorCode.PURCHASE_DOCUMENT_MISSING_PROOF_OF_PAYMENT,
+};
 
 type CfgEntry = {
   step: PurchaseStep;
@@ -71,8 +81,10 @@ export class DocumentStepService {
   private async assertAcheteur(userId: number) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user || user.role !== Role.ACHETEUR) {
-      throw new ForbiddenException(
-        'Seul un ACHETEUR peut effectuer cette action',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_BUYER_ONLY,
+        'Only a buyer can perform this action',
       );
     }
     return user;
@@ -97,18 +109,29 @@ export class DocumentStepService {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
     });
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
 
     assertIsOwningBuyer(purchase, userId);
 
     if (purchase.currentStep !== cfg.step) {
-      throw new BadRequestException(`La DA n'est pas a l'etape ${docStep}`);
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        NOT_AT_STEP_CODE[docStep],
+        `Purchase is not at step ${docStep}`,
+      );
     }
 
     // Bloquer si un workflow est déjà en cours
     if (purchase.status === PurchaseStatus.PENDING_APPROVAL) {
-      throw new BadRequestException(
-        'Un workflow de validation est deja en cours. Impossible de re-uploader.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_WORKFLOW_IN_PROGRESS,
+        'A validation workflow is already in progress for this step',
       );
     }
 
@@ -117,8 +140,10 @@ export class DocumentStepService {
       purchase.status !== PurchaseStatus.AWAITING_DOCUMENTS &&
       purchase.status !== PurchaseStatus.PUBLISHED
     ) {
-      throw new BadRequestException(
-        'La DA doit etre en statut AWAITING_DOCUMENTS ou PUBLISHED',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_NOT_ACCEPTING_DOCUMENTS,
+        'Purchase must be PUBLISHED or AWAITING_DOCUMENTS',
       );
     }
 
@@ -127,7 +152,11 @@ export class DocumentStepService {
         where: { id: dto.fileId },
       });
       if (!file) {
-        throw new NotFoundException('Fichier non trouve');
+        throw new AppException(
+          HttpStatus.NOT_FOUND,
+          ErrorCode.NOT_FOUND,
+          'File not found',
+        );
       }
     }
 
@@ -172,24 +201,37 @@ export class DocumentStepService {
       where: { id: purchaseId },
       include: { items: true },
     });
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
 
     assertIsOwningBuyer(purchase, userId);
 
     if (purchase.currentStep !== cfg.step) {
-      throw new BadRequestException(`La DA n'est pas a l'etape ${docStep}`);
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        NOT_AT_STEP_CODE[docStep],
+        `Purchase is not at step ${docStep}`,
+      );
     }
 
     // Bloquer si un workflow est déjà en cours pour cette étape
     if (purchase.status === PurchaseStatus.PENDING_APPROVAL) {
-      throw new BadRequestException(
-        'Un workflow de validation est deja en cours pour cette etape. Attendez la decision des validateurs.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_WORKFLOW_IN_PROGRESS,
+        'A validation workflow is already in progress for this step',
       );
     }
 
     if (purchase.status !== PurchaseStatus.AWAITING_DOCUMENTS) {
-      throw new BadRequestException(
-        "Uploadez d'abord le document avant de soumettre",
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        DOCUMENT_MISSING_CODE[docStep],
+        `No document uploaded for step ${docStep}`,
       );
     }
 
@@ -197,8 +239,10 @@ export class DocumentStepService {
       where: { purchaseId, type: cfg.type },
     });
     if (!doc) {
-      throw new BadRequestException(
-        `Aucun document trouve pour l'etape ${docStep}. Uploadez d'abord.`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        DOCUMENT_MISSING_CODE[docStep],
+        `No document uploaded for step ${docStep}`,
       );
     }
 
@@ -290,7 +334,11 @@ export class DocumentStepService {
     dto: RequestSigningDto,
   ): Promise<{ jobId: string; attachmentId: string }> {
     if (!CFG[docStep]) {
-      throw new BadRequestException(`Étape inconnue : ${docStep}`);
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.BAD_REQUEST,
+        `Unknown step ${docStep}`,
+      );
     }
     const cfg = CFG[docStep];
 
@@ -300,7 +348,11 @@ export class DocumentStepService {
       select: { acheteurId: true },
     });
     if (!purchaseForGuard)
-      throw new NotFoundException("Demande d'achat non trouvee");
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
     assertIsOwningBuyer(purchaseForGuard, userId);
 
     // 1. Load attachment + file (for checksum) and verify ownership + step type
@@ -314,8 +366,10 @@ export class DocumentStepService {
       attachment.purchaseId !== purchaseId ||
       attachment.type !== cfg.type
     ) {
-      throw new ForbiddenException(
-        'Pièce jointe inaccessible pour cette étape',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.PURCHASE_ATTACHMENT_INACCESSIBLE,
+        'Attachment is not accessible for this step',
       );
     }
 
@@ -324,7 +378,12 @@ export class DocumentStepService {
       where: { id: userId },
       select: { role: true },
     });
-    if (!user) throw new ForbiddenException('Utilisateur introuvable');
+    if (!user)
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.FORBIDDEN,
+        'User not found',
+      );
 
     // const validatorRole = this.workflowConfig.roleToValidatorRole(user.role);
 
@@ -344,8 +403,10 @@ export class DocumentStepService {
       where: { userId, isActive: true },
     });
     if (!specimen) {
-      throw new BadRequestException(
-        'Aucun spécimen de signature actif. Configurez votre signature dans votre profil.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.SIGNATURE_NO_ACTIVE_SPECIMEN,
+        'No active signature specimen',
       );
     }
 
@@ -400,7 +461,12 @@ export class DocumentStepService {
       },
     });
 
-    if (!purchase) throw new NotFoundException("Demande d'achat non trouvee");
+    if (!purchase)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Purchase not found',
+      );
 
     const workflow = purchase.validationWorkflows[0] ?? null;
 

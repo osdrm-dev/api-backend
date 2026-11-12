@@ -1,10 +1,5 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import {
   Prisma,
   LgMissionStatus,
@@ -38,17 +33,26 @@ export class MissionSettlementService {
 
   async submit(id: string, dto: CreateSettlementDto, submittedById: number) {
     const mission = await this.repository.findById(id);
-    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    if (!mission)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Mission ${id} not found`,
+      );
 
     if (!SETTLEMENT_ALLOWED_STATUSES.includes(mission.status)) {
-      throw new UnprocessableEntityException(
-        `La liquidation n'est possible que pour les trajets en statut CONFIRMED ou IN_PROGRESS (statut actuel : ${mission.status}).`,
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.MISSION_SETTLEMENT_NOT_ALLOWED,
+        `Settlement only allowed for CONFIRMED or IN_PROGRESS missions (current: ${mission.status})`,
       );
     }
 
     if (mission.settlement) {
-      throw new ConflictException(
-        'Une liquidation a déjà été soumise pour ce trajet.',
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.MISSION_SETTLEMENT_ALREADY_SUBMITTED,
+        'A settlement was already submitted for this mission',
       );
     }
 
@@ -128,10 +132,19 @@ export class MissionSettlementService {
     currentUser: CurrentUser,
   ) {
     const mission = await this.repository.findById(id);
-    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    if (!mission)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Mission ${id} not found`,
+      );
 
     if (!mission.settlement) {
-      throw new NotFoundException('Aucune liquidation soumise pour ce trajet.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.MISSION_SETTLEMENT_NOT_SUBMITTED,
+        'No settlement submitted for this mission',
+      );
     }
 
     // Seul l'auteur (requestor) ou un ADMIN peut resoumettre.
@@ -139,8 +152,10 @@ export class MissionSettlementService {
       currentUser.role !== Role.ADMIN &&
       mission.requestorId !== currentUser.id
     ) {
-      throw new ForbiddenException(
-        'Seul le demandeur peut resoumettre sa liquidation.',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.MISSION_SETTLEMENT_RESUBMIT_REQUESTOR_ONLY,
+        'Only the requestor can resubmit the settlement',
       );
     }
 
@@ -149,8 +164,10 @@ export class MissionSettlementService {
       (v) => v.status === LgSettlementValidationStatus.REJECTED,
     );
     if (!hasRejection) {
-      throw new UnprocessableEntityException(
-        'La liquidation est en cours de validation, aucune resoumission possible.',
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.MISSION_SETTLEMENT_IN_VALIDATION,
+        'Settlement is under validation, resubmission not possible',
       );
     }
 
@@ -200,9 +217,18 @@ export class MissionSettlementService {
 
   async getSettlement(id: string) {
     const mission = await this.repository.findById(id);
-    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    if (!mission)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Mission ${id} not found`,
+      );
     if (!mission.settlement)
-      throw new NotFoundException('Aucune liquidation soumise pour ce trajet.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.MISSION_SETTLEMENT_NOT_SUBMITTED,
+        'No settlement submitted for this mission',
+      );
     return mission.settlement;
   }
 }

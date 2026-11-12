@@ -1,5 +1,6 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { parse } from 'csv-parse/sync';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 export interface ParsedBudgetRow {
   projectName: string;
@@ -40,20 +41,29 @@ export class CsvParserService {
         relax_column_count: true,
       });
     } catch (err) {
-      throw new BadRequestException(
-        `Le fichier CSV est invalide: ${(err as Error).message}`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.BUDGET_CSV_INVALID,
+        `Invalid CSV file: ${(err as Error).message}`,
       );
     }
 
     if (records.length === 0) {
-      throw new BadRequestException('Le fichier CSV est vide.');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.BUDGET_CSV_EMPTY,
+        'CSV file is empty',
+      );
     }
 
     const headers = Object.keys(records[0]);
     const missing = REQUIRED_COLUMNS.filter((c) => !headers.includes(c));
     if (missing.length > 0) {
-      throw new BadRequestException(
-        `Colonnes requises manquantes: ${missing.join(', ')}`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.BUDGET_CSV_COLUMNS_MISSING,
+        `Missing required columns: ${missing.join(', ')}`,
+        { params: { columns: missing.join(', ') } },
       );
     }
 
@@ -75,20 +85,29 @@ export class CsvParserService {
       const projectCode = String(raw['code_projet'] ?? '').trim();
       const projectName = String(raw['nom_projet'] ?? '').trim();
       if (!projectCode) {
-        throw new BadRequestException(
-          `Ligne ${lineNumber}: le code_projet est obligatoire.`,
+        throw new AppException(
+          HttpStatus.BAD_REQUEST,
+          ErrorCode.BUDGET_CSV_ROW_FIELD_REQUIRED,
+          `Line ${lineNumber}: code_projet is required`,
+          { params: { line: lineNumber, field: 'code_projet' } },
         );
       }
       if (!projectName) {
-        throw new BadRequestException(
-          `Ligne ${lineNumber}: le nom_projet est obligatoire.`,
+        throw new AppException(
+          HttpStatus.BAD_REQUEST,
+          ErrorCode.BUDGET_CSV_ROW_FIELD_REQUIRED,
+          `Line ${lineNumber}: nom_projet is required`,
+          { params: { line: lineNumber, field: 'nom_projet' } },
         );
       }
 
       const activityCode = String(raw['code_activite'] ?? '').trim();
       if (!activityCode) {
-        throw new BadRequestException(
-          `Ligne ${lineNumber}: le code_activite est obligatoire.`,
+        throw new AppException(
+          HttpStatus.BAD_REQUEST,
+          ErrorCode.BUDGET_CSV_ROW_FIELD_REQUIRED,
+          `Line ${lineNumber}: code_activite is required`,
+          { params: { line: lineNumber, field: 'code_activite' } },
         );
       }
 
@@ -108,8 +127,16 @@ export class CsvParserService {
         !Number.isFinite(threshold) ||
         threshold < 0
       ) {
-        throw new BadRequestException(
-          `Ligne ${lineNumber}: seuil_budgetaire invalide ("${raw['seuil_budgetaire']}").`,
+        throw new AppException(
+          HttpStatus.BAD_REQUEST,
+          ErrorCode.BUDGET_CSV_ROW_THRESHOLD_INVALID,
+          `Line ${lineNumber}: invalid seuil_budgetaire ("${raw['seuil_budgetaire']}")`,
+          {
+            params: {
+              line: lineNumber,
+              value: String(raw['seuil_budgetaire']),
+            },
+          },
         );
       }
 
@@ -126,16 +153,19 @@ export class CsvParserService {
     }
 
     if (duplicates.size > 0) {
-      throw new BadRequestException(
-        `Codes activite en doublon dans le fichier: ${Array.from(
-          duplicates,
-        ).join(', ')}`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.BUDGET_CSV_DUPLICATE_ACTIVITY_CODES,
+        `Duplicate activity codes in file: ${Array.from(duplicates).join(', ')}`,
+        { params: { codes: Array.from(duplicates).join(', ') } },
       );
     }
 
     if (rows.length === 0) {
-      throw new BadRequestException(
-        'Aucune ligne de projet valide dans le fichier CSV.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.BUDGET_CSV_NO_VALID_ROWS,
+        'No valid project row in the CSV file',
       );
     }
 

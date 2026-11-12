@@ -1,8 +1,5 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import {
   EquipmentAttributionStatus,
   EquipmentStatus,
@@ -32,14 +29,20 @@ export class EquipmentRepairService {
       },
     });
     if (!equipment || equipment.archivedAt !== null) {
-      throw new NotFoundException('Matériel introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Equipment not found',
+      );
     }
     const isHolder = equipment.attributions.some(
       (a) => a.beneficiaryId === user.id,
     );
     if (user.role !== 'ADMIN' && !isHolder) {
-      throw new ForbiddenException(
-        'Vous ne pouvez déclarer une panne que sur un matériel qui vous est attribué.',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.EQUIPMENT_REPAIR_NOT_HOLDER,
+        'You can only report a breakdown on equipment attributed to you',
       );
     }
 

@@ -1,9 +1,5 @@
-import {
-  Injectable,
-  NestMiddleware,
-  HttpException,
-  HttpStatus,
-} from '@nestjs/common';
+import { Injectable, NestMiddleware, HttpStatus } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { Request, Response, NextFunction } from 'express';
 
 interface RateLimitStore {
@@ -46,13 +42,11 @@ export class RateLimitMiddleware implements NestMiddleware {
     res.setHeader('X-RateLimit-Reset', new Date(resetTime).toISOString());
 
     if (count > this.limit) {
-      throw new HttpException(
-        {
-          statusCode: HttpStatus.TOO_MANY_REQUESTS,
-          message: 'Too many requests, please try again later',
-          retryAfter: Math.ceil((resetTime - now) / 1000),
-        },
+      throw new AppException(
         HttpStatus.TOO_MANY_REQUESTS,
+        ErrorCode.RATE_LIMITED,
+        'Too many requests, please try again later',
+        { params: { retryAfter: Math.ceil((resetTime - now) / 1000) } },
       );
     }
 

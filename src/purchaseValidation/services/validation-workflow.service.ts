@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { OperationType, ValidatorRole, PurchaseStep } from '@prisma/client';
 import { WorkflowConfigService } from './workflow-config.service';
 import { ValidationWorkflowRepository } from '../../repository/purchase/validation-workflow.repository';
 import { ValidatorRepository } from '../../repository/purchase/validator.repository';
 import { UserRepository } from '../../repository/user/user.repository';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 @Injectable()
 export class ValidationWorkflowService {
@@ -51,8 +52,10 @@ export class ValidationWorkflowService {
         step,
       );
       if (!workflow) {
-        throw new NotFoundException(
-          `Workflow de validation non trouvé pour la DA #${purchaseId} à l'étape ${step}`,
+        throw new AppException(
+          HttpStatus.NOT_FOUND,
+          ErrorCode.NOT_FOUND,
+          `Validation workflow not found for purchase ${purchaseId} at step ${step}`,
         );
       }
       return workflow;
@@ -60,8 +63,10 @@ export class ValidationWorkflowService {
 
     const workflow = await this.workflowRepo.findByPurchaseId(purchaseId);
     if (!workflow) {
-      throw new NotFoundException(
-        `Workflow de validation non trouvé pour la DA #${purchaseId}`,
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Validation workflow not found for purchase ${purchaseId}`,
       );
     }
 
@@ -89,7 +94,12 @@ export class ValidationWorkflowService {
 
   async advanceWorkflow(workflowId: string): Promise<void> {
     const workflow = await this.workflowRepo.findById(workflowId);
-    if (!workflow) throw new NotFoundException('Workflow non trouvé');
+    if (!workflow)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Validation workflow not found',
+      );
 
     const isComplete = this.workflowConfig.isWorkflowComplete(
       workflow.validators,
@@ -139,7 +149,12 @@ export class ValidationWorkflowService {
 
   async resetWorkflow(purchaseId: string): Promise<void> {
     const workflow = await this.workflowRepo.findByPurchaseId(purchaseId);
-    if (!workflow) throw new NotFoundException('Workflow non trouvé');
+    if (!workflow)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Validation workflow not found',
+      );
 
     await this.validatorRepo.resetByWorkflow(workflow.id);
     await this.workflowRepo.reset(workflow.id);

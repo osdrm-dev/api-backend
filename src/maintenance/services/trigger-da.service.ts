@@ -1,8 +1,5 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { PrismaService } from 'prisma/prisma.service';
 import {
   OperationType,
@@ -26,16 +23,26 @@ export class TriggerDaService {
     const request = await this.repository.findById(requestId);
 
     if (!request || request.deletedAt !== null) {
-      throw new NotFoundException('Demande de maintenance introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Maintenance request not found',
+      );
     }
 
     if (request.linkedPurchaseId) {
-      throw new ConflictException('Une DA est déjà liée à cette demande.');
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.MAINTENANCE_DA_ALREADY_LINKED,
+        'A purchase request is already linked to this demand',
+      );
     }
 
     if (!request.requestorId) {
-      throw new ConflictException(
-        'Impossible de créer une DA : le demandeur de cette demande a été supprimé.',
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.MAINTENANCE_REQUESTOR_DELETED,
+        'Cannot create a purchase request: the requestor was deleted',
       );
     }
 
@@ -46,8 +53,15 @@ export class TriggerDaService {
     });
 
     if (!acheteur || acheteur.role !== Role.ACHETEUR || !acheteur.isActive) {
-      throw new NotFoundException(
-        "L'acheteur spécifié est introuvable ou inactif.",
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.PURCHASE_BUYER_INVALID,
+        'Specified buyer not found or inactive',
+        {
+          fields: [
+            { field: 'acheteurId', code: ErrorCode.PURCHASE_BUYER_INVALID },
+          ],
+        },
       );
     }
 

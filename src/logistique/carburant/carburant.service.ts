@@ -1,9 +1,5 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { PrismaService } from 'prisma/prisma.service';
 import { Role } from '@prisma/client';
 import { NotificationService } from 'src/notification/services/nofitication.service';
@@ -30,14 +26,19 @@ export class CarburantService {
 
     if (!vehicle) {
       const identifier = dto.vehicleId ?? dto.immatriculation;
-      throw new UnprocessableEntityException(
-        `Véhicule ${identifier} introuvable.`,
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.VEHICLE_NOT_FOUND,
+        `Vehicle ${identifier} not found`,
       );
     }
 
     if (vehicle.statut !== 'ACTIF') {
-      throw new UnprocessableEntityException(
-        `Le véhicule ${vehicle.immatriculation} n'est pas actif.`,
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.VEHICLE_NOT_ACTIVE,
+        `Vehicle ${vehicle.immatriculation} is not active`,
+        { params: { immatriculation: vehicle.immatriculation } },
       );
     }
 
@@ -125,14 +126,18 @@ export class CarburantService {
   async findById(id: string, caller: { id: number; role: string }) {
     const carburant = await this.carburantRepository.findById(id);
     if (!carburant) {
-      throw new NotFoundException(
-        `Approvisionnement carburant ${id} introuvable.`,
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Fuel supply ${id} not found`,
       );
     }
 
     if (caller.role !== Role.ADMIN && carburant.requestorId !== caller.id) {
-      throw new ForbiddenException(
-        'Accès refusé à cet approvisionnement carburant.',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.CARBURANT_ACCESS_DENIED,
+        'Access denied to this fuel supply',
       );
     }
 
@@ -142,20 +147,26 @@ export class CarburantService {
   async cancel(id: string, caller: { id: number; role: string }) {
     const carburant = await this.carburantRepository.findById(id);
     if (!carburant) {
-      throw new NotFoundException(
-        `Approvisionnement carburant ${id} introuvable.`,
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Fuel supply ${id} not found`,
       );
     }
 
     if (carburant.status !== 'PENDING') {
-      throw new UnprocessableEntityException(
-        'Seul un approvisionnement en statut PENDING peut être annulé.',
+      throw new AppException(
+        HttpStatus.UNPROCESSABLE_ENTITY,
+        ErrorCode.CARBURANT_NOT_PENDING,
+        'Only a PENDING fuel supply can be cancelled',
       );
     }
 
     if (caller.role === Role.DEMANDEUR && carburant.requestorId !== caller.id) {
-      throw new ForbiddenException(
-        'Vous ne pouvez annuler que vos propres approvisionnements.',
+      throw new AppException(
+        HttpStatus.FORBIDDEN,
+        ErrorCode.CARBURANT_CANCEL_OWN_ONLY,
+        'You can only cancel your own fuel supplies',
       );
     }
 

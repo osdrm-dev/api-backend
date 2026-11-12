@@ -1,9 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-  BadRequestException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { FileStorageService } from 'src/storage/services/file-storage.service';
 import { ParcAutoRepository } from 'src/repository/parc-auto/parc-auto.repository';
 import type { File as MulterFile } from 'multer';
@@ -59,32 +55,57 @@ export class ParcAutoService {
     userId: number,
   ) {
     if (!file) {
-      throw new BadRequestException("La fiche d'attribution est obligatoire.");
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VEHICLE_ASSIGNMENT_FORM_REQUIRED,
+        'Assignment form is required',
+      );
     }
     if (!ALLOWED_DOCUMENT_TYPES.includes(file.mimetype)) {
-      throw new BadRequestException(
-        `Type de fichier non autorisé : ${file.mimetype}.`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VEHICLE_FILE_TYPE_UNSUPPORTED,
+        `Unsupported file type: ${file.mimetype}`,
       );
     }
 
     const vehicle = await this.getById(vehicleId);
     if (vehicle.statut === VehicleStatut.ARCHIVE) {
-      throw new BadRequestException(
-        "Impossible d'affecter un véhicule archivé.",
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VEHICLE_ARCHIVED_CANNOT_ASSIGN,
+        'Cannot assign an archived vehicle',
       );
     }
 
     const driver = await this.userRepository.findById(dto.driverId);
     if (!driver || driver.role !== Role.DRIVER || !driver.isActive) {
-      throw new BadRequestException(
-        "L'utilisateur sélectionné n'est pas un chauffeur actif.",
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VEHICLE_DRIVER_INVALID,
+        'Selected user is not an active driver',
+        {
+          fields: [
+            { field: 'driverId', code: ErrorCode.VEHICLE_DRIVER_INVALID },
+          ],
+        },
       );
     }
 
     const startDate = dto.startDate ? new Date(dto.startDate) : new Date();
     if (startDate.getTime() > Date.now()) {
-      throw new BadRequestException(
-        'La date de début ne peut pas être dans le futur.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VEHICLE_ASSIGNMENT_START_IN_FUTURE,
+        'Start date cannot be in the future',
+        {
+          fields: [
+            {
+              field: 'startDate',
+              code: ErrorCode.VEHICLE_ASSIGNMENT_START_IN_FUTURE,
+            },
+          ],
+        },
       );
     }
 
@@ -94,8 +115,15 @@ export class ParcAutoService {
       startDate,
     );
     if (conflict) {
-      throw new BadRequestException(
-        'La date de début chevauche une affectation existante du véhicule ou du chauffeur.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VEHICLE_ASSIGNMENT_OVERLAP,
+        'Start date overlaps an existing vehicle or driver assignment',
+        {
+          fields: [
+            { field: 'startDate', code: ErrorCode.VEHICLE_ASSIGNMENT_OVERLAP },
+          ],
+        },
       );
     }
 
@@ -116,8 +144,10 @@ export class ParcAutoService {
     } catch (e) {
       // P2034 : conflit de sérialisation (affectation concurrente).
       if ((e as { code?: string })?.code === 'P2034') {
-        throw new ConflictException(
-          'Une autre affectation vient d’être enregistrée. Rechargez et réessayez.',
+        throw new AppException(
+          HttpStatus.CONFLICT,
+          ErrorCode.VEHICLE_ASSIGNMENT_CONCURRENT,
+          'Another assignment was just recorded',
         );
       }
       throw e;
@@ -131,16 +161,34 @@ export class ParcAutoService {
   ) {
     const assignment = await this.repository.findAssignmentById(assignmentId);
     if (!assignment || assignment.vehicleId !== vehicleId) {
-      throw new NotFoundException('Affectation introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Vehicle assignment not found',
+      );
     }
     if (assignment.status !== VehicleAssignmentStatus.ACTIVE) {
-      throw new BadRequestException('Cette affectation est déjà terminée.');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VEHICLE_ASSIGNMENT_ALREADY_ENDED,
+        'Assignment is already ended',
+      );
     }
 
     const endDate = dto.endDate ? new Date(dto.endDate) : new Date();
     if (endDate < assignment.startDate) {
-      throw new BadRequestException(
-        'La date de fin doit être postérieure à la date de début.',
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VEHICLE_ASSIGNMENT_END_BEFORE_START,
+        'End date must be after start date',
+        {
+          fields: [
+            {
+              field: 'endDate',
+              code: ErrorCode.VEHICLE_ASSIGNMENT_END_BEFORE_START,
+            },
+          ],
+        },
       );
     }
 
@@ -174,7 +222,11 @@ export class ParcAutoService {
   async getById(id: string) {
     const vehicle = await this.repository.findById(id);
     if (!vehicle) {
-      throw new NotFoundException('Véhicule introuvable.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Vehicle not found',
+      );
     }
     return vehicle;
   }
@@ -184,8 +236,18 @@ export class ParcAutoService {
       dto.immatriculation,
     );
     if (existing) {
-      throw new ConflictException(
-        'Cette immatriculation est déjà enregistrée.',
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.VEHICLE_REGISTRATION_ALREADY_EXISTS,
+        'Registration number already exists',
+        {
+          fields: [
+            {
+              field: 'immatriculation',
+              code: ErrorCode.VEHICLE_REGISTRATION_ALREADY_EXISTS,
+            },
+          ],
+        },
       );
     }
     return this.repository.create({
@@ -218,15 +280,19 @@ export class ParcAutoService {
   ) {
     const vehicle = await this.getById(vehicleId);
     if (vehicle.statut === VehicleStatut.ARCHIVE) {
-      throw new BadRequestException(
-        "Impossible d'ajouter des photos à un véhicule archivé.",
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VEHICLE_ARCHIVED_CANNOT_ADD_PHOTOS,
+        'Cannot add photos to an archived vehicle',
       );
     }
 
     for (const file of files) {
       if (!ALLOWED_PHOTO_TYPES.includes(file.mimetype)) {
-        throw new BadRequestException(
-          `Type de fichier non autorisé : ${file.mimetype}. Seules les images sont acceptées.`,
+        throw new AppException(
+          HttpStatus.BAD_REQUEST,
+          ErrorCode.VEHICLE_PHOTO_TYPE_UNSUPPORTED,
+          `Unsupported file type: ${file.mimetype}. Only images are accepted`,
         );
       }
     }
@@ -245,7 +311,11 @@ export class ParcAutoService {
   async deletePhoto(vehicleId: string, fileId: number) {
     const vehicle = await this.getById(vehicleId);
     if (!vehicle.photoFileIds.includes(fileId)) {
-      throw new NotFoundException('Photo introuvable pour ce véhicule.');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Photo not found for this vehicle',
+      );
     }
 
     await this.repository.removePhoto(vehicleId, fileId);
@@ -283,14 +353,18 @@ export class ParcAutoService {
   ) {
     const vehicle = await this.getById(vehicleId);
     if (vehicle.statut === VehicleStatut.ARCHIVE) {
-      throw new BadRequestException(
-        "Impossible d'ajouter un document à un véhicule archivé.",
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VEHICLE_ARCHIVED_CANNOT_ADD_DOCUMENT,
+        'Cannot add a document to an archived vehicle',
       );
     }
 
     if (!ALLOWED_DOCUMENT_TYPES.includes(file.mimetype)) {
-      throw new BadRequestException(
-        `Type de fichier non autorisé : ${file.mimetype}.`,
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.VEHICLE_FILE_TYPE_UNSUPPORTED,
+        `Unsupported file type: ${file.mimetype}`,
       );
     }
 

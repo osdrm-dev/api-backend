@@ -1,4 +1,3 @@
-import { BadRequestException } from '@nestjs/common';
 import { SupplierActiveStatus } from '@prisma/client';
 import { SupplierImportService } from './supplier-import.service';
 
@@ -78,6 +77,6 @@ describe('SupplierImportService', () => {
         ),
         { potential: false, dryRun: true },
       ),
-    ).rejects.toThrow(BadRequestException);
+    ).rejects.toMatchObject({ code: 'SUPPLIER_IMPORT_FILE_TYPE_UNSUPPORTED' });
   });
 });

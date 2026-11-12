@@ -1,8 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable, HttpStatus } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ValidateDerogationDto } from '../dto/derogation.dto';
 import { DerogationStatus, PurchaseStatus } from '@prisma/client';
@@ -11,6 +7,7 @@ import {
   buildPaginatedResponse,
   PaginationParams,
 } from 'src/common/pagination.utils';
+import { AppException, ErrorCode } from 'src/common/errors';
 
 @Injectable()
 export class DerogationService {
@@ -35,7 +32,11 @@ export class DerogationService {
     });
 
     if (!derogation) {
-      throw new NotFoundException('Derogation non trouvee');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Derogation not found',
+      );
     }
 
     return derogation;
@@ -47,7 +48,11 @@ export class DerogationService {
     });
 
     if (!user) {
-      throw new NotFoundException('Utilisateur non trouve');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'User not found',
+      );
     }
 
     // Parser et valider les paramètres de pagination
@@ -104,11 +109,19 @@ export class DerogationService {
     });
 
     if (!derogation) {
-      throw new NotFoundException('Derogation non trouvee');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Derogation not found',
+      );
     }
 
     if (derogation.status !== DerogationStatus.PENDING) {
-      throw new BadRequestException('Cette derogation a deja ete traitee');
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_DEROGATION_ALREADY_PROCESSED,
+        'Derogation was already processed',
+      );
     }
 
     const user = await this.prisma.user.findUnique({
@@ -116,7 +129,11 @@ export class DerogationService {
     });
 
     if (!user) {
-      throw new NotFoundException('Utilisateur non trouve');
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'User not found',
+      );
     }
 
     // Mettre a jour la derogation

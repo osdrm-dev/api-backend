@@ -1,8 +1,5 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
+import { AppException, ErrorCode } from 'src/common/errors';
 import { PrismaService } from 'prisma/prisma.service';
 import { VehicleStatut } from '@prisma/client';
 import { NotificationService } from 'src/notification/services/nofitication.service';
@@ -20,15 +17,30 @@ export class MissionAssignService {
 
   async assignVehicle(id: string, dto: AssignVehicleDto, managerId: number) {
     const mission = await this.repository.findById(id);
-    if (!mission) throw new NotFoundException(`Trajet ${id} introuvable.`);
+    if (!mission)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        `Mission ${id} not found`,
+      );
 
     const vehicle = await this.prisma.vehicle.findUnique({
       where: { id: dto.vehicleId },
       select: { id: true, immatriculation: true, statut: true },
     });
-    if (!vehicle) throw new NotFoundException('Véhicule introuvable.');
+    if (!vehicle)
+      throw new AppException(
+        HttpStatus.NOT_FOUND,
+        ErrorCode.NOT_FOUND,
+        'Vehicle not found',
+      );
     if (vehicle.statut !== VehicleStatut.ACTIF) {
-      throw new ConflictException("Le véhicule sélectionné n'est pas actif.");
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.VEHICLE_NOT_ACTIVE,
+        'Selected vehicle is not active',
+        { params: { immatriculation: vehicle.immatriculation } },
+      );
     }
 
     const conflict = await this.repository.findVehicleConflict(
@@ -38,8 +50,11 @@ export class MissionAssignService {
       id,
     );
     if (conflict) {
-      throw new ConflictException(
-        `Le véhicule est déjà affecté à un autre trajet sur cette période (${conflict.reference}).`,
+      throw new AppException(
+        HttpStatus.CONFLICT,
+        ErrorCode.MISSION_VEHICLE_CONFLICT,
+        `Vehicle already assigned to mission ${conflict.reference} in this period`,
+        { params: { reference: conflict.reference } },
       );
     }
 

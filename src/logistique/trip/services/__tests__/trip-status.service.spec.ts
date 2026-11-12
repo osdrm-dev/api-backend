@@ -1,12 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  NotFoundException,
-  UnprocessableEntityException,
-} from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { LgTripStatus, LgTransportMode } from '@prisma/client';
 import { TripStatusService } from '../trip-status.service';
 import { TripRepository } from 'src/repository/trip/trip.repository';
 import { NotificationService } from 'src/notification/services/nofitication.service';
+import { ErrorCode } from 'src/common/errors';
 
 const mockRepository = {
   findById: jest.fn(),
@@ -53,7 +51,7 @@ describe('TripStatusService', () => {
     mockRepository.findById.mockResolvedValue(null);
     await expect(
       service.updateStatus('trip-999', LgTripStatus.PROCESSED),
-    ).rejects.toThrow(NotFoundException);
+    ).rejects.toMatchObject({ code: ErrorCode.NOT_FOUND });
   });
 
   it('transitions PENDING → PROCESSED successfully', async () => {
@@ -90,7 +88,7 @@ describe('TripStatusService', () => {
     });
     await expect(
       service.updateStatus('trip-1', LgTripStatus.PENDING),
-    ).rejects.toThrow(UnprocessableEntityException);
+    ).rejects.toMatchObject({ code: ErrorCode.TRIP_STATUS_TERMINAL });
   });
 
   it('throws 422 when transitioning from CANCELLED (terminal)', async () => {
@@ -100,7 +98,7 @@ describe('TripStatusService', () => {
     });
     await expect(
       service.updateStatus('trip-1', LgTripStatus.PROCESSED),
-    ).rejects.toThrow(UnprocessableEntityException);
+    ).rejects.toMatchObject({ code: ErrorCode.TRIP_STATUS_TERMINAL });
   });
 
   it('fires TRIP_STATUS_CHANGED notification when requestor has email', async () => {
