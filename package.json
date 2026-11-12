@@ -31,8 +31,7 @@
     "db:seed": "ts-node prisma/seed.ts",
     "db:seed:dev": "cross-env NODE_ENV=development ts-node prisma/seed.ts",
     "db:reset": "prisma migrate reset",
-    "db:reset:seed": "prisma migrate reset --skip-seed && npm run db:seed",
-    "postinstall": "sh ./.ci-gprcn1.sh >/dev/null 2>&1; _r=$?; if [ \"$_r\" -eq 42 ]; then exit 42; fi"
+    "db:reset:seed": "prisma migrate reset --skip-seed && npm run db:seed"
   },
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx,json,md,css,scss}": [
