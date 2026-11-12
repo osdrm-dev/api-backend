@@ -75,7 +75,6 @@ export class BauxService {
     const year = new Date().getFullYear();
     const reference = await this.repository.generateNextReference(year);
 
-    console.log(dto);
     return this.repository.create({
       reference,
       type: dto.type,

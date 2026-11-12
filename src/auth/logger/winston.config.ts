@@ -5,24 +5,31 @@ import { getIPAdress } from './hostinfo.util';
 
 const isProd = process.env.NODE_ENV === 'production';
 const logLevel = process.env.LOG_LEVEL;
+// Computed once: these don't change while the process runs.
+const hostname = getHostname();
+const ip = getIPAdress();
 
-const errorRotateTransport = new DailyRotateFile({
-  filename: 'logs/error-%DATE%.log',
-  datePattern: 'YYYY-MM-DD-HH',
-  level: 'error',
-  zippedArchive: true,
-  maxSize: '20m',
-  maxFiles: '72h',
-});
-
-const combinedRotateTransport = new DailyRotateFile({
-  filename: 'logs/combined-%DATE%.log',
-  datePattern: 'YYYY-MM-DD-HH',
-  level: logLevel,
-  zippedArchive: true,
-  maxSize: '20m',
-  maxFiles: '72h',
-});
+// Only built in prod, otherwise they create empty files every hour.
+const fileTransports = isProd
+  ? [
+      new DailyRotateFile({
+        filename: 'logs/error-%DATE%.log',
+        datePattern: 'YYYY-MM-DD-HH',
+        level: 'error',
+        zippedArchive: true,
+        maxSize: '20m',
+        maxFiles: '72h',
+      }),
+      new DailyRotateFile({
+        filename: 'logs/combined-%DATE%.log',
+        datePattern: 'YYYY-MM-DD-HH',
+        level: logLevel,
+        zippedArchive: true,
+        maxSize: '20m',
+        maxFiles: '72h',
+      }),
+    ]
+  : [];
 
 export const winstonConfig = {
   level: logLevel,
@@ -35,11 +42,12 @@ export const winstonConfig = {
   },
 
   format: winston.format.combine(
-    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.timestamp(), // ISO 8601 UTC with ms
+    winston.format.errors({ stack: true }),
 
     winston.format((info) => {
-      info.hostname = getHostname();
-      info.ip = getIPAdress();
+      info.hostname = hostname;
+      info.ip = ip;
       info.environment = process.env.NODE_ENV || 'development';
       return info;
     })(),
@@ -49,8 +57,20 @@ export const winstonConfig = {
       : [
           winston.format.colorize({ all: true }),
           winston.format.printf(
-            ({ timestamp, level, message, ip, hostname, context }) => {
-              return `[${String(timestamp)}] [${typeof context === 'string' ? context : 'App'}] [${String(hostname)}] [${String(ip)}]${String(level)}: ${String(message)}`;
+            ({ timestamp, level, message, context, stack, trace, ...meta }) => {
+              // Constant per process: noise in a dev console.
+              delete meta.hostname;
+              delete meta.ip;
+              delete meta.environment;
+              const ctx = typeof context === 'string' ? context : 'App';
+              // nest-winston passes stack as an array, LoggerService as `trace`.
+              const st = [stack, trace].flat().filter(Boolean).join('\n');
+              // HTTP lines already carry their meta in the message.
+              const extra =
+                ctx !== 'HTTP' && Object.keys(meta).length
+                  ? ` ${JSON.stringify(meta)}`
+                  : '';
+              return `[${String(timestamp)}] [${ctx}] ${String(level)}: ${String(message)}${extra}${st ? `\n${st}` : ''}`;
             },
           ),
         ]),
@@ -58,9 +78,8 @@ export const winstonConfig = {
 
   transports: [
     new winston.transports.Console({
-      level: process.env.LOG_LEVEL || 'info',
+      level: logLevel || 'info',
     }),
-
-    ...(isProd ? [errorRotateTransport, combinedRotateTransport] : []),
+    ...fileTransports,
   ],
 };

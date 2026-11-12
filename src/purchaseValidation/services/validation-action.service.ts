@@ -1,4 +1,4 @@
-import { Injectable, HttpStatus } from '@nestjs/common';
+import { Injectable, HttpStatus, Logger } from '@nestjs/common';
 import { PurchaseStatus, ValidatorRole } from '@prisma/client';
 import { ValidationWorkflowService } from './validation-workflow.service';
 import { WorkflowConfigService } from './workflow-config.service';
@@ -23,6 +23,8 @@ export interface ValidationResult {
 
 @Injectable()
 export class ValidationActionService {
+  private readonly logger = new Logger(ValidationActionService.name);
+
   constructor(
     private purchaseRepo: PurchaseRepository,
     private auditLogRepo: AuditLogRepository,
@@ -110,7 +112,12 @@ export class ValidationActionService {
           isComplete,
         },
       })
-      .catch((err) => console.error('Audit log failed:', err));
+      .catch((err) =>
+        this.logger.error(
+          `Audit log failed for purchase ${purchaseId}`,
+          (err as Error)?.stack,
+        ),
+      );
 
     return {
       purchase: { id: purchaseId, status: newStatus },

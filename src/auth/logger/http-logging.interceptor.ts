@@ -14,35 +14,29 @@ export class HttpLoggingInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest();
-    const { method, url, body, headers } = request;
+    const { method, url, body } = request;
     const startTime = Date.now();
-
-    this.logger.log(`Incoming ${method} ${url}`, 'HTTP');
 
     if (process.env.NODE_ENV !== 'production' && body) {
       const sanitizedBody = { ...body };
-      if (sanitizedBody.password) sanitizedBody.password = '***';
-      if (sanitizedBody.oldPassword) sanitizedBody.oldPassword = '***';
-      if (sanitizedBody.newPassword) sanitizedBody.newPassword = '***';
+      for (const k of Object.keys(sanitizedBody)) {
+        if (/password|token|secret/i.test(k)) sanitizedBody[k] = '***';
+      }
       this.logger.debug(`Body: ${JSON.stringify(sanitizedBody)}`, 'HTTP');
     }
 
+    // Errors are logged once by AllExceptionsFilter (with traceId), not here.
     return next.handle().pipe(
-      tap({
-        next: () => {
-          const response = context.switchToHttp().getResponse();
-          const duration = Date.now() - startTime;
-
-          this.logger.logHttp(method, url, response.statusCode, duration);
-        },
-        error: (error) => {
-          const duration = Date.now() - startTime;
-          this.logger.error(
-            `${method} ${url} failed after ${duration}ms: ${error.message}`,
-            error.stack,
-            'HTTP',
-          );
-        },
+      tap(() => {
+        const response = context.switchToHttp().getResponse();
+        this.logger.logHttp(
+          method,
+          url,
+          response.statusCode,
+          Date.now() - startTime,
+          request.user?.id,
+          request.traceId,
+        );
       }),
     );
   }

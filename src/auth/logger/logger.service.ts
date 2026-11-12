@@ -30,38 +30,26 @@ export class LoggerService implements NestLoggerService {
     this.logger.debug(message, { context });
   }
 
-  // Méthodes personnalisées pour l'audit
-  logAuth(action: string, userId?: number, details?: any) {
-    this.logger.info(`[AUTH] ${action}`, {
-      context: 'Auth',
-      userId,
-      ...details,
-    });
-  }
-
-  logHttp(method: string, url: string, statusCode: number, duration: number) {
-    this.logger.http(`${method} ${url} ${statusCode} - ${duration}ms`, {
-      context: 'HTTP',
-      method,
-      url,
-      statusCode,
-      duration,
-    });
-  }
-
-  logDatabase(query: string, duration?: number) {
-    this.logger.debug(`[DB] ${query}${duration ? ` (${duration}ms)` : ''}`, {
-      context: 'Database',
-      query,
-      duration,
-    });
-  }
-
-  logError(error: Error, context?: string) {
-    this.logger.error(error.message, {
-      context: context || 'Error',
-      stack: error.stack,
-      name: error.name,
-    });
+  // info (not http) so the response line survives LOG_LEVEL=info in prod.
+  logHttp(
+    method: string,
+    url: string,
+    statusCode: number,
+    duration: number,
+    userId?: number | string,
+    traceId?: string,
+  ) {
+    this.logger.info(
+      `${method} ${url} ${statusCode} - ${duration}ms [user=${userId ?? 'anonymous'} trace=${traceId ?? '-'}]`,
+      {
+        context: 'HTTP',
+        method,
+        url,
+        statusCode,
+        duration,
+        userId,
+        traceId,
+      },
+    );
   }
 }

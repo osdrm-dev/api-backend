@@ -12,52 +12,30 @@ export class AuditMiddleware implements NestMiddleware {
     const startTime = Date.now();
     const traceId = randomUUID();
     req['traceId'] = traceId;
+    res.setHeader('X-Request-Id', traceId);
 
-    const shouldLog = this.shouldLogRequest(req.method, req.path);
+    if (!this.shouldLogRequest(req.method, req.path)) return next();
 
-    if (shouldLog) {
-      const user = req['user'];
-      const eventType = resolveAuditEventType(req.method, req.path);
+    // One row per request, written once it ends: by then guards have set
+    // req.user and multer has parsed multipart bodies.
+    res.on('close', () => {
+      const { resource, resourceId } = this.extractResource(req.path);
       this.auditService.log({
-        userId: (user as any)?.id,
+        userId: (req['user'] as any)?.id,
         action: `${req.method}_${req.path}`,
-        resource: this.extractResource(req.path),
-        resourceId: this.extractResourceId(req.path),
-        details: {
-          method: req.method,
-          path: req.path,
-          phase: 'START',
-          traceId,
-          type: eventType,
-          body: this.sanitizeBody(req.body),
-        },
-        ipAddress: this.getClientIp(req),
-        userAgent: req.headers['user-agent'],
-      });
-    }
-
-    res.on('finish', () => {
-      if (!shouldLog) return;
-
-      const duration = Date.now() - startTime;
-      const user = req['user'];
-      const eventType = resolveAuditEventType(req.method, req.path);
-
-      this.auditService.log({
-        userId: (user as any)?.id,
-        action: `${req.method}_${req.path}`,
-        resource: this.extractResource(req.path),
-        resourceId: this.extractResourceId(req.path),
+        resource,
+        resourceId,
         details: {
           method: req.method,
           path: req.path,
           statusCode: res.statusCode,
-          duration,
-          phase: 'FINISH',
+          duration: Date.now() - startTime,
+          aborted: !res.writableFinished || undefined,
           traceId,
-          type: eventType,
+          type: resolveAuditEventType(req.method, req.path),
+          body: this.sanitizeBody(req.body),
         },
-        ipAddress: this.getClientIp(req),
+        ipAddress: req.ip ?? 'unknown',
         userAgent: req.headers['user-agent'],
       });
     });
@@ -75,34 +53,27 @@ export class AuditMiddleware implements NestMiddleware {
     );
   }
 
-  private extractResource(path: string): string {
+  // Ids are cuid strings or autoincrement ints. The resource is the segment
+  // right before the first id: /logistique/parc-auto/vehicles/<id>/docs -> vehicles.
+  private extractResource(path: string): {
+    resource: string;
+    resourceId?: string;
+  } {
     const parts = path.split('/').filter(Boolean);
-    return parts[0] || 'unknown';
-  }
-
-  private extractResourceId(path: string): string | undefined {
-    const parts = path.split('/').filter(Boolean);
-    if (parts[1] && /^\d+$/.test(parts[1])) {
-      return parts[1];
-    }
-    return undefined;
-  }
-
-  private getClientIp(req: Request): string {
-    return (
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
-      req.socket.remoteAddress ||
-      'unknown'
-    );
+    const i = parts.findIndex((p) => /^(\d+|c[a-z0-9]{20,})$/.test(p));
+    if (i > 0) return { resource: parts[i - 1], resourceId: parts[i] };
+    return { resource: parts[0] || 'unknown' };
   }
 
   private sanitizeBody(body: any): any {
     if (!body || typeof body !== 'object') return undefined;
-    const sensitive = ['password', 'token', 'secret', 'authorization'];
+    // Substring match: catches oldPassword, newPassword, refreshToken, etc.
+    // shortcut: top-level keys only, recurse if nested secrets ever appear in a DTO.
+    const sensitive = /password|token|secret|authorization/i;
     return Object.fromEntries(
       Object.entries(body).map(([k, v]) => [
         k,
-        sensitive.includes(k.toLowerCase()) ? '[REDACTED]' : v,
+        sensitive.test(k) ? '[REDACTED]' : v,
       ]),
     );
   }
