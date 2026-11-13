@@ -2,6 +2,8 @@ export const RESEND_TEMPLATES = {
   DA_CREATED: 'da-created',
   BC_UPLOADED: 'bc-uploaded',
   PV_UPLOADED: 'pv-uploaded',
+  PV_EVALUATION_REQUESTED: 'pv-evaluation-requested',
+  PV_EVALUATIONS_COMPLETE: 'pv-evaluations-complete',
   QR_UPLOADED: 'qr-uploaded',
   DAP_CREATED: 'dap-created',
   CONFIRMATION: 'confirmation',
