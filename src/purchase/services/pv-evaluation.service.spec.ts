@@ -183,6 +183,17 @@ describe('PVEvaluationService', () => {
     await expect(service.assertAllDone('p1')).resolves.toBeUndefined();
   });
 
+  it('waive when DA not PUBLISHED -> LOCKED', async () => {
+    purchase.status = 'PENDING_APPROVAL';
+    expect(
+      await code(
+        service.waive('p1', { id: 5, role: 'ADMIN' as any }, 2, {
+          reason: 'x',
+        }),
+      ),
+    ).toBe('PURCHASE_PV_LOCKED');
+  });
+
   it('assertAllDone with 1 of 2 submitted -> EVALUATIONS_INCOMPLETE', async () => {
     evals.push({ id: 'e1', userId: 1, status: 'SUBMITTED', answers: FULL });
     expect(await code(service.assertAllDone('p1'))).toBe(

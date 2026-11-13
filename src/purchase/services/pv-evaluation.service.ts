@@ -75,16 +75,20 @@ export class PVEvaluationService {
     return { purchase, pv, expected, supplierIds, users };
   }
 
-  // Common guard for the evaluator's own routes.
-  private async loadForEvaluator(purchaseId: string, userId: number) {
-    const ctx = await this.load(purchaseId);
-    if (ctx.purchase.status !== PurchaseStatus.PUBLISHED) {
+  private assertPublished(purchase: { status: PurchaseStatus }) {
+    if (purchase.status !== PurchaseStatus.PUBLISHED) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
         ErrorCode.PURCHASE_PV_LOCKED,
         'PV can no longer be modified because it was already submitted',
       );
     }
+  }
+
+  // Common guard for the evaluator's own routes.
+  private async loadForEvaluator(purchaseId: string, userId: number) {
+    const ctx = await this.load(purchaseId);
+    this.assertPublished(ctx.purchase);
     if (!ctx.expected.includes(userId)) {
       throw new AppException(
         HttpStatus.FORBIDDEN,
@@ -228,7 +232,8 @@ export class PVEvaluationService {
         'Only an admin can waive an evaluation',
       );
     }
-    const { pv, expected } = await this.load(purchaseId);
+    const { purchase, pv, expected } = await this.load(purchaseId);
+    this.assertPublished(purchase);
     const existing = pv.evaluations.find((e) => e.userId === targetUserId);
     if (
       !expected.includes(targetUserId) ||
