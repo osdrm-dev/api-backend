@@ -27,6 +27,13 @@ describe('PVService', () => {
   const evaluations = {
     assertAllDone: jest.fn(),
     resetAfterSupplierChange: jest.fn(),
+    getExpectedEvaluatorUsers: jest.fn(async () => ({
+      reference: 'DA-1',
+      users: [
+        { id: 1, email: 'a@x.com' },
+        { id: 2, email: 'b@x.com' },
+      ],
+    })),
   };
   const notification = { createNotification: jest.fn() };
 
@@ -69,7 +76,10 @@ describe('PVService', () => {
         { provide: PVRepository, useValue: pvRepository },
         { provide: PVEvaluationService, useValue: evaluations },
         { provide: NotificationService, useValue: notification },
-        { provide: WINSTON_MODULE_PROVIDER, useValue: { info: jest.fn() } },
+        {
+          provide: WINSTON_MODULE_PROVIDER,
+          useValue: { info: jest.fn(), warn: jest.fn() },
+        },
       ],
     }).compile();
     service = module.get(PVService);
@@ -114,5 +124,25 @@ describe('PVService', () => {
       plainToInstance(CreatePVSupplierDto, { order: 1 }),
     );
     expect(errors.map((e) => e.property)).toContain('supplierId');
+  });
+
+  it('CreatePVSupplierDto accepts offreFinanciere', async () => {
+    const errors = await validate(
+      plainToInstance(CreatePVSupplierDto, {
+        supplierId: 's1',
+        order: 1,
+        offreFinanciere: 5000,
+      }),
+    );
+    expect(errors).toHaveLength(0);
+  });
+
+  it('updatePV still succeeds when a notification fails', async () => {
+    notification.createNotification.mockRejectedValueOnce(new Error('mail'));
+    await expect(
+      service.updatePV('p1', 9, {
+        suppliers: [{ supplierId: 's1', order: 1 }],
+      } as any),
+    ).resolves.toBeDefined();
   });
 });

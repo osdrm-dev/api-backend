@@ -61,6 +61,7 @@ export class PVController {
               supplierId: 'supplier-123',
               name: 'Fournisseur A',
               rang: 1,
+              offreFinanciere: 5000000,
               items: [
                 {
                   purchaseItemId: 'item-1',
@@ -76,6 +77,7 @@ export class PVController {
               order: 2,
               name: 'Fournisseur B',
               rang: 2,
+              offreFinanciere: 5500000,
               items: [
                 {
                   designation: 'Ordinateur portable',

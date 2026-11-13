@@ -39,7 +39,9 @@ export class PVEvaluationService {
         validationWorkflows: {
           where: { step: PurchaseStep.DA },
           include: {
-            validators: { include: { user: { select: USER_SELECT } } },
+            validators: {
+              include: { user: { select: { ...USER_SELECT, email: true } } },
+            },
           },
         },
         pv: {
@@ -69,7 +71,10 @@ export class PVEvaluationService {
     const supplierIds = pv.suppliers
       .map((s) => s.supplierId)
       .filter((id): id is string => !!id);
-    const users = new Map<number, { name: string; role: Role }>();
+    const users = new Map<
+      number,
+      { name: string; role: Role; email?: string | null }
+    >();
     if (purchase.acheteur) users.set(purchase.acheteur.id, purchase.acheteur);
     validators.forEach((v) => v.user && users.set(v.user.id, v.user));
     return { purchase, pv, expected, supplierIds, users };
@@ -257,6 +262,17 @@ export class PVEvaluationService {
     });
     await this.notifyIfComplete(purchaseId);
     return result;
+  }
+
+  async getExpectedEvaluatorUsers(purchaseId: string) {
+    const { expected, users, purchase } = await this.load(purchaseId);
+    return {
+      reference: purchase.reference,
+      users: expected.map((id) => ({
+        id,
+        email: users.get(id)?.email ?? null,
+      })),
+    };
   }
 
   async assertAllDone(purchaseId: string) {

@@ -37,6 +37,7 @@ export class PVService {
       ...(supplier.supplierId && {
         supplier: { connect: { id: supplier.supplierId } },
       }),
+      offreFinanciere: supplier.offreFinanciere,
       items: supplier.items
         ? {
             create: supplier.items.map((item: any) => ({
@@ -148,15 +149,6 @@ export class PVService {
       where: { id: purchaseId },
       include: {
         pv: { include: { suppliers: { select: { supplierId: true } } } },
-        acheteur: { select: { id: true, email: true } },
-        validationWorkflows: {
-          where: { step: PurchaseStep.DA },
-          include: {
-            validators: {
-              include: { user: { select: { id: true, email: true } } },
-            },
-          },
-        },
       },
     });
 
@@ -220,7 +212,14 @@ export class PVService {
 
     if (suppliersChanged) {
       await this.pvEvaluationService.resetAfterSupplierChange(pv.id, newIds);
-      await this.requestEvaluations(purchase);
+      try {
+        await this.requestEvaluations(purchaseId);
+      } catch (error) {
+        this.logger.warn('PV evaluation notifications failed', {
+          purchaseId,
+          error: (error as Error).message,
+        });
+      }
     }
 
     this.logger.info('PV mis à jour', { pvId: pv.id, purchaseId, userId });
@@ -228,29 +227,16 @@ export class PVService {
     return { ...pv, message: 'PV mis a jour avec succes' };
   }
 
-  private async requestEvaluations(purchase: any) {
-    const validators = purchase.validationWorkflows.flatMap(
-      (w: any) => w.validators,
-    );
-    const expected = getExpectedEvaluatorIds({
-      daEvaluationsRequired: purchase.pv.daEvaluationsRequired,
-      acheteurId: purchase.acheteurId,
-      daValidators: validators,
-    });
-    const emails = new Map<number, string | null>();
-    if (purchase.acheteur)
-      emails.set(purchase.acheteur.id, purchase.acheteur.email);
-    validators.forEach(
-      (v: any) => v.user && emails.set(v.user.id, v.user.email),
-    );
-    for (const id of expected) {
-      const email = emails.get(id);
+  private async requestEvaluations(purchaseId: string) {
+    const { reference, users } =
+      await this.pvEvaluationService.getExpectedEvaluatorUsers(purchaseId);
+    for (const { email } of users) {
       if (!email) continue;
       await this.notificationService.createNotification(
         OSDRM_PROCESS_EVENT.PV_EVALUATION_REQUESTED,
         [email],
-        purchase.id,
-        { reference: purchase.reference },
+        purchaseId,
+        { reference },
         true,
       );
     }

@@ -51,6 +51,10 @@ export class CreatePVSupplierDto {
   rang?: number;
 
   @IsOptional()
+  @IsNumber()
+  offreFinanciere?: number;
+
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => CreatePVSupplierItemDto)
