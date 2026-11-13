@@ -109,6 +109,8 @@ model User {
   carburantComments     LgCarburantComment[]     @relation("CarburantCommentAuthor")
   comments              LgComment[]              @relation("CommentAuthor")
   vehicleAssignments    LgVehicleAssignment[]    @relation("VehicleAssignmentDriver")
+  pvEvaluations         PVEvaluation[]
+  pvEvaluationsWaived   PVEvaluation[]           @relation("PVEvaluationWaivedBy")
 
   @@index([email])
   @@index([role])
@@ -456,6 +458,38 @@ enum SupplierActiveStatus {
   POTENTIAL
 }
 
+enum PVEvaluationStatus {
+  DRAFT
+  SUBMITTED
+  WAIVED // waived by an ADMIN
+}
+
+model PVEvaluation {
+  id     String @id @default(cuid())
+  pvId   String
+  userId Int
+
+  // { "<supplierId>": { "<criterionKey>": "Oui" | "Non" | "Partiel" | "N/A" } }
+  answers          Json?
+  // { "<criterionKey>": "comment" }
+  criteriaComments Json?
+  status           PVEvaluationStatus @default(DRAFT)
+  submittedAt      DateTime?
+  waivedById       Int?
+  waivedReason     String?            @db.Text
+
+  pv       PV    @relation(fields: [pvId], references: [id], onDelete: Cascade)
+  user     User  @relation(fields: [userId], references: [id])
+  waivedBy User? @relation("PVEvaluationWaivedBy", fields: [waivedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pvId, userId])
+  @@index([userId])
+  @@map("pv_evaluations")
+}
+
 enum PVStatus {
   DRAFT
   SUBMITTED
@@ -467,15 +501,18 @@ model PV {
   id         String @id @default(cuid())
   purchaseId String @unique
 
-  evaluateur       String?
-  dateEvaluation   DateTime?
-  natureObjet      String?
-  decisionFinale   String?   @db.Text
-  criteriaComments Json?
-  status           PVStatus  @default(DRAFT)
+  evaluateur     String?
+  dateEvaluation DateTime?
+  natureObjet    String?
+  decisionFinale String?   @db.Text
+  status         PVStatus  @default(DRAFT)
 
-  purchase  Purchase     @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  suppliers PVSupplier[]
+  // true = evaluators are the DA validators; false = legacy PV, buyer is the only evaluator
+  daEvaluationsRequired Boolean @default(true)
+
+  purchase    Purchase       @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  suppliers   PVSupplier[]
+  evaluations PVEvaluation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -493,24 +530,7 @@ model PVSupplier {
   name  String?
   rang  Int?
 
-  reponseDansDelai         String?
-  annexe1                  String?
-  devisSpecifications      String?
-  regulariteFiscale        String?
-  copiecin                 String?
-  conformiteSpecs          String?
-  distanceBureaux          String?
-  delaiLivraison           String?
-  sav                      String?
-  disponibiliteArticles    String?
-  qualiteArticles          String?
-  experienceAnterieure     String?
-  producteurOuSousTraitant String?
-  echantillonBat           String?
-  validiteOffre            String?
-  modePaiement             String?
-  delaiPaiement            String?
-  offreFinanciere          Decimal? @db.Decimal(15, 2)
+  offreFinanciere Decimal? @db.Decimal(15, 2)
 
   pv       PV               @relation(fields: [pvId], references: [id], onDelete: Cascade)
   supplier Supplier?        @relation(fields: [supplierId], references: [id], onDelete: SetNull)
