@@ -453,7 +453,7 @@ async function main() {
 
     if (pd.pv) {
       const pv = pd.pv;
-      await prisma.pV.create({
+      const createdPV = await prisma.pV.create({
         data: {
           purchaseId: purchase.id,
           evaluateur: userMap[pv.evaluateurKey].name,
@@ -501,6 +501,27 @@ async function main() {
           },
         },
       });
+      // Mirror the app's freeze (first supplier save): one row per DA
+      // validator with a userId; the ones not in the JSON start as empty DRAFT.
+      if (pv.daEvaluationsRequired) {
+        const daValidators = await prisma.validator.findMany({
+          where: {
+            workflow: { purchaseId: purchase.id, step: PurchaseStep.DA },
+            userId: { not: null },
+          },
+          select: { userId: true },
+        });
+        await prisma.pVEvaluation.createMany({
+          data: daValidators.map((v) => ({
+            pvId: createdPV.id,
+            userId: v.userId as number,
+            status: PVEvaluationStatus.DRAFT,
+            answers: {},
+            criteriaComments: {},
+          })),
+          skipDuplicates: true,
+        });
+      }
     }
   }
 
