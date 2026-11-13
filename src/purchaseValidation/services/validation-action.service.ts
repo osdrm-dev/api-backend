@@ -1,5 +1,6 @@
 import { Injectable, HttpStatus, Logger } from '@nestjs/common';
-import { PurchaseStatus, ValidatorRole } from '@prisma/client';
+import { PurchaseStatus, PurchaseStep, ValidatorRole } from '@prisma/client';
+import { PrismaService } from '../../../prisma/prisma.service';
 import { ValidationWorkflowService } from './validation-workflow.service';
 import { WorkflowConfigService } from './workflow-config.service';
 import { PurchaseRepository } from '../../repository/purchase/purchase.repository';
@@ -30,6 +31,7 @@ export class ValidationActionService {
     private auditLogRepo: AuditLogRepository,
     private workflowService: ValidationWorkflowService,
     private workflowConfig: WorkflowConfigService,
+    private prisma: PrismaService,
   ) {}
 
   async validate(context: ValidationContext): Promise<ValidationResult> {
@@ -209,6 +211,13 @@ export class ValidationActionService {
       decision: 'CHANGE_REQUESTED',
       comment: reason,
     });
+
+    if (purchase.currentStep === PurchaseStep.PV) {
+      await this.prisma.pVEvaluation.updateMany({
+        where: { pv: { purchaseId }, status: 'SUBMITTED' },
+        data: { status: 'DRAFT', submittedAt: null },
+      });
+    }
 
     const updatedPurchase = await this.purchaseRepo.update({
       where: { id: purchaseId },
