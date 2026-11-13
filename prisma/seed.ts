@@ -18,6 +18,9 @@ import {
   ValidatorRole,
   PVStatus,
   DerogationStatus,
+  FileType,
+  FileStatus,
+  PVEvaluationStatus,
 } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaClient } from '@prisma/client';
@@ -25,6 +28,7 @@ import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as crypto from 'crypto';
 
 const connectionString = process.env.DATABASE_URL;
 if (!connectionString) {
@@ -384,19 +388,56 @@ async function main() {
     }
 
     if (pd.attachments?.length) {
-      await prisma.attachment.createMany({
-        data: pd.attachments.map((a: any) => ({
-          purchaseId: purchase.id,
-          type: a.type as AttachmentType,
-          fileName: a.fileName,
-          fileUrl: a.fileUrl,
-          fileSize: a.fileSize,
-          mimeType: 'application/pdf',
-          uploadedBy: userMap[a.uploadedByKey].name,
-          ...(a.description && { description: a.description }),
-          ...(a.receivedAt && { receivedAt: new Date(a.receivedAt) }),
-        })),
-      });
+      const uploadDir = process.env.UPLOAD_DIR ?? './uploads';
+      for (const a of pd.attachments) {
+        let fileId: number | undefined;
+        if (a.fixture) {
+          // Same layout as FileStorageService: path = storedName, url = /files/<storedName>.
+          const buffer = fs.readFileSync(
+            path.join(__dirname, 'data', 'fixtures', a.fixture),
+          );
+          const storedName = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${path.extname(a.fixture)}`;
+          fs.mkdirSync(uploadDir, { recursive: true });
+          fs.writeFileSync(path.resolve(uploadDir, storedName), buffer);
+          const fileType = a.mimeType.startsWith('image/')
+            ? FileType.IMAGE
+            : a.mimeType === 'application/pdf'
+              ? FileType.PDF
+              : FileType.SPREADSHEET;
+          const file = await prisma.file.create({
+            data: {
+              originalName: a.fileName,
+              storedName,
+              mimeType: a.mimeType,
+              fileType,
+              size: buffer.length,
+              path: storedName,
+              url: `/files/${storedName}`,
+              status: FileStatus.OPTIMIZED,
+              uploadedById: userMap['acheteur'].id,
+              checksum: crypto
+                .createHash('sha256')
+                .update(buffer)
+                .digest('hex'),
+            },
+          });
+          fileId = file.id;
+        }
+        await prisma.attachment.create({
+          data: {
+            purchaseId: purchase.id,
+            type: a.type as AttachmentType,
+            fileName: a.fileName,
+            fileUrl: a.fileUrl,
+            fileSize: a.fileSize,
+            mimeType: a.mimeType ?? 'application/pdf',
+            uploadedBy: userMap[a.uploadedByKey].name,
+            ...(fileId && { fileId }),
+            ...(a.description && { description: a.description }),
+            ...(a.receivedAt && { receivedAt: new Date(a.receivedAt) }),
+          },
+        });
+      }
     }
 
     if (pd.derogation) {
@@ -420,6 +461,22 @@ async function main() {
           natureObjet: pv.natureObjet,
           decisionFinale: pv.decisionFinale,
           status: pv.status as PVStatus,
+          daEvaluationsRequired: pv.daEvaluationsRequired,
+          evaluations: {
+            create: pv.evaluations.map((e: any) => ({
+              userId: userMap[e.userKey].id,
+              status: e.status as PVEvaluationStatus,
+              ...(e.status === 'SUBMITTED' && { submittedAt: new Date() }),
+              // answers keyed by supplier ref in the JSON -> Supplier.id
+              answers: Object.fromEntries(
+                Object.entries(e.answers).map(([ref, grid]) => [
+                  supplierMap[ref].id,
+                  grid,
+                ]),
+              ),
+              criteriaComments: e.criteriaComments,
+            })),
+          },
           suppliers: {
             create: pv.suppliers.map((s: any) => ({
               ...(s.supplierKey && {
@@ -430,23 +487,6 @@ async function main() {
                 s.supplierKey && { name: supplierMap[s.supplierKey].name }),
               order: s.order,
               rang: s.rang,
-              reponseDansDelai: s.reponseDansDelai,
-              annexe1: s.annexe1,
-              devisSpecifications: s.devisSpecifications,
-              regulariteFiscale: s.regulariteFiscale,
-              copiecin: s.copiecin,
-              conformiteSpecs: s.conformiteSpecs,
-              distanceBureaux: s.distanceBureaux,
-              delaiLivraison: s.delaiLivraison,
-              sav: s.sav,
-              disponibiliteArticles: s.disponibiliteArticles,
-              qualiteArticles: s.qualiteArticles,
-              experienceAnterieure: s.experienceAnterieure,
-              producteurOuSousTraitant: s.producteurOuSousTraitant,
-              echantillonBat: s.echantillonBat,
-              validiteOffre: s.validiteOffre,
-              modePaiement: s.modePaiement,
-              delaiPaiement: s.delaiPaiement,
               offreFinanciere: s.offreFinanciere,
               items: {
                 create: s.items.map((i: any) => ({
@@ -486,7 +526,7 @@ async function main() {
   await seedComment(prisma, userMap);
 
   console.log(
-    'Seeding termine: 11 users | 4 fournisseurs | 23 dossiers achat (19 + 4 DAP) | 10 demandes entretien | parc informatique | 11 baux | 13 trajets (4 liquidations) | 10 déplacements | 10 carburants | 4 chauffeurs + 6 affectations | commentaires unifiés',
+    'Seeding termine: 11 users | 6 fournisseurs | 23 dossiers achat (19 + 4 DAP) | 10 demandes entretien | parc informatique | 11 baux | 13 trajets (4 liquidations) | 10 déplacements | 10 carburants | 4 chauffeurs + 6 affectations | commentaires unifiés',
   );
 }
 

@@ -759,7 +759,8 @@
       "dpKey": "dp",
       "cfoKey": "cfo",
       "ceoKey": "ceo",
-      "baseDate": "2026-02-10"
+      "baseDate": "2026-02-10",
+      "omKey": "om"
     },
     "qrWorkflowApproved": true,
     "attachments": [
@@ -769,25 +770,186 @@
         "fileUrl": "s3://osdrm-bucket/qr/p10_devis_1.pdf",
         "fileSize": 250000,
         "description": "Devis BoisMada Menuiserie",
-        "uploadedByKey": "acheteur"
+        "uploadedByKey": "acheteur",
+        "mimeType": "application/pdf",
+        "fixture": "devis-sample.pdf"
       },
       {
         "type": "QUOTE",
-        "fileName": "devis_mob_mobischool.pdf",
+        "fileName": "devis_mob_mobischool.png",
         "fileUrl": "s3://osdrm-bucket/qr/p10_devis_2.pdf",
         "fileSize": 270000,
         "description": "Devis MobiSchool SARL",
-        "uploadedByKey": "acheteur"
+        "uploadedByKey": "acheteur",
+        "mimeType": "image/png",
+        "fixture": "devis-sample.png"
       },
       {
         "type": "QUOTE",
-        "fileName": "devis_mob_menuiserie.pdf",
+        "fileName": "devis_mob_menuiserie.xlsx",
         "fileUrl": "s3://osdrm-bucket/qr/p10_devis_3.pdf",
         "fileSize": 240000,
         "description": "Devis Menuiserie Nationale",
-        "uploadedByKey": "acheteur"
+        "uploadedByKey": "acheteur",
+        "mimeType": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "fixture": "devis-sample.xlsx"
       }
-    ]
+    ],
+    "pv": {
+      "evaluateurKey": "acheteur",
+      "dateEvaluation": "2026-03-10",
+      "natureObjet": "Mobilier scolaire EPP Analamanga Centre",
+      "decisionFinale": "A definir apres evaluations des validateurs DA",
+      "status": "DRAFT",
+      "daEvaluationsRequired": true,
+      "suppliers": [
+        {
+          "supplierKey": "sup4",
+          "order": 1,
+          "rang": 1,
+          "offreFinanciere": 17000000,
+          "items": [
+            {
+              "designation": "Table double eleve",
+              "quantity": 100,
+              "unitPrice": 170000,
+              "amount": 17000000,
+              "disponibilite": "Oui"
+            }
+          ]
+        },
+        {
+          "supplierKey": "sup5",
+          "order": 2,
+          "rang": 2,
+          "offreFinanciere": 18500000,
+          "items": [
+            {
+              "designation": "Table double eleve",
+              "quantity": 100,
+              "unitPrice": 185000,
+              "amount": 18500000,
+              "disponibilite": "Oui"
+            }
+          ]
+        },
+        {
+          "supplierKey": "sup6",
+          "order": 3,
+          "rang": 3,
+          "offreFinanciere": 19200000,
+          "items": [
+            {
+              "designation": "Table double eleve",
+              "quantity": 100,
+              "unitPrice": 192000,
+              "amount": 19200000,
+              "disponibilite": "Oui"
+            }
+          ]
+        }
+      ],
+      "evaluations": [
+        {
+          "userKey": "demandeur1",
+          "status": "SUBMITTED",
+          "answers": {
+            "sup4": {
+              "reponseDansDelai": "Oui",
+              "annexe1": "Oui",
+              "devisSpecifications": "Oui",
+              "regulariteFiscale": "Oui",
+              "copiecin": "Oui",
+              "conformiteSpecs": "Oui",
+              "distanceBureaux": "Oui",
+              "delaiLivraison": "Oui",
+              "sav": "Partiel",
+              "disponibiliteArticles": "Oui",
+              "qualiteArticles": "Oui",
+              "experienceAnterieure": "Oui",
+              "producteurOuSousTraitant": "Oui",
+              "echantillonBat": "N/A",
+              "validiteOffre": "Oui",
+              "modePaiement": "Oui",
+              "delaiPaiement": "Oui"
+            },
+            "sup5": {
+              "reponseDansDelai": "Oui",
+              "annexe1": "Oui",
+              "devisSpecifications": "Oui",
+              "regulariteFiscale": "Oui",
+              "copiecin": "Oui",
+              "conformiteSpecs": "Oui",
+              "distanceBureaux": "Oui",
+              "delaiLivraison": "Oui",
+              "sav": "Partiel",
+              "disponibiliteArticles": "Oui",
+              "qualiteArticles": "Oui",
+              "experienceAnterieure": "Oui",
+              "producteurOuSousTraitant": "Oui",
+              "echantillonBat": "N/A",
+              "validiteOffre": "Oui",
+              "modePaiement": "Oui",
+              "delaiPaiement": "Oui"
+            },
+            "sup6": {
+              "reponseDansDelai": "Oui",
+              "annexe1": "Oui",
+              "devisSpecifications": "Oui",
+              "regulariteFiscale": "Oui",
+              "copiecin": "Oui",
+              "conformiteSpecs": "Oui",
+              "distanceBureaux": "Oui",
+              "delaiLivraison": "Oui",
+              "sav": "Partiel",
+              "disponibiliteArticles": "Oui",
+              "qualiteArticles": "Oui",
+              "experienceAnterieure": "Oui",
+              "producteurOuSousTraitant": "Oui",
+              "echantillonBat": "N/A",
+              "validiteOffre": "Oui",
+              "modePaiement": "Oui",
+              "delaiPaiement": "Oui"
+            }
+          },
+          "criteriaComments": {
+            "sav": "SAV a confirmer par ecrit",
+            "delaiLivraison": "Delai conforme au calendrier scolaire"
+          }
+        },
+        {
+          "userKey": "om",
+          "status": "DRAFT",
+          "answers": {
+            "sup4": {
+              "reponseDansDelai": "Oui",
+              "annexe1": "Oui",
+              "devisSpecifications": "Oui",
+              "regulariteFiscale": "Oui",
+              "copiecin": "Oui",
+              "conformiteSpecs": "Oui"
+            },
+            "sup5": {
+              "reponseDansDelai": "Oui",
+              "annexe1": "Oui",
+              "devisSpecifications": "Oui",
+              "regulariteFiscale": "Oui",
+              "copiecin": "Oui",
+              "conformiteSpecs": "Oui"
+            },
+            "sup6": {
+              "reponseDansDelai": "Oui",
+              "annexe1": "Oui",
+              "devisSpecifications": "Oui",
+              "regulariteFiscale": "Oui",
+              "copiecin": "Oui",
+              "conformiteSpecs": "Oui"
+            }
+          },
+          "criteriaComments": {}
+        }
+      ]
+    }
   },
   {
     "reference": "DA-2026-011",
@@ -856,23 +1018,6 @@
           "supplierKey": "sup2",
           "order": 1,
           "rang": 1,
-          "reponseDansDelai": "Oui",
-          "annexe1": "Oui",
-          "devisSpecifications": "Oui",
-          "regulariteFiscale": "Oui",
-          "copiecin": "Oui",
-          "conformiteSpecs": "Oui",
-          "distanceBureaux": "Oui",
-          "delaiLivraison": "Oui",
-          "sav": "Oui",
-          "disponibiliteArticles": "Oui",
-          "qualiteArticles": "Oui",
-          "experienceAnterieure": "Oui",
-          "producteurOuSousTraitant": "Partiel",
-          "echantillonBat": "Oui",
-          "validiteOffre": "Oui",
-          "modePaiement": "Oui",
-          "delaiPaiement": "Partiel",
           "offreFinanciere": 63500000,
           "items": [
             {
@@ -902,23 +1047,6 @@
           "name": "SurgTech Madagascar",
           "order": 2,
           "rang": 2,
-          "reponseDansDelai": "Oui",
-          "annexe1": "Oui",
-          "devisSpecifications": "Partiel",
-          "regulariteFiscale": "Oui",
-          "copiecin": "Oui",
-          "conformiteSpecs": "Partiel",
-          "distanceBureaux": "Non",
-          "delaiLivraison": "Non",
-          "sav": "Non",
-          "disponibiliteArticles": "Partiel",
-          "qualiteArticles": "Partiel",
-          "experienceAnterieure": "Non",
-          "producteurOuSousTraitant": "Non",
-          "echantillonBat": "Non",
-          "validiteOffre": "Oui",
-          "modePaiement": "Oui",
-          "delaiPaiement": "Oui",
           "offreFinanciere": 71000000,
           "items": [
             {
@@ -943,6 +1071,35 @@
               "disponibilite": "Oui"
             }
           ]
+        }
+      ],
+      "daEvaluationsRequired": false,
+      "evaluations": [
+        {
+          "userKey": "acheteur",
+          "status": "SUBMITTED",
+          "answers": {
+            "sup2": {
+              "reponseDansDelai": "Oui",
+              "annexe1": "Oui",
+              "devisSpecifications": "Oui",
+              "regulariteFiscale": "Oui",
+              "copiecin": "Oui",
+              "conformiteSpecs": "Oui",
+              "distanceBureaux": "Oui",
+              "delaiLivraison": "Oui",
+              "sav": "Oui",
+              "disponibiliteArticles": "Oui",
+              "qualiteArticles": "Oui",
+              "experienceAnterieure": "Oui",
+              "producteurOuSousTraitant": "Partiel",
+              "echantillonBat": "Oui",
+              "validiteOffre": "Oui",
+              "modePaiement": "Oui",
+              "delaiPaiement": "Partiel"
+            }
+          },
+          "criteriaComments": {}
         }
       ]
     }
@@ -1012,23 +1169,6 @@
           "supplierKey": "sup1",
           "order": 1,
           "rang": 1,
-          "reponseDansDelai": "Oui",
-          "annexe1": "Oui",
-          "devisSpecifications": "Oui",
-          "regulariteFiscale": "Oui",
-          "copiecin": "Oui",
-          "conformiteSpecs": "Oui",
-          "distanceBureaux": "Oui",
-          "delaiLivraison": "Oui",
-          "sav": "Oui",
-          "disponibiliteArticles": "Oui",
-          "qualiteArticles": "Oui",
-          "experienceAnterieure": "Oui",
-          "producteurOuSousTraitant": "Non",
-          "echantillonBat": "N/A",
-          "validiteOffre": "Oui",
-          "modePaiement": "Oui",
-          "delaiPaiement": "Oui",
           "offreFinanciere": 115000000,
           "items": [
             {
@@ -1053,6 +1193,35 @@
               "disponibilite": "Oui"
             }
           ]
+        }
+      ],
+      "daEvaluationsRequired": false,
+      "evaluations": [
+        {
+          "userKey": "acheteur",
+          "status": "SUBMITTED",
+          "answers": {
+            "sup1": {
+              "reponseDansDelai": "Oui",
+              "annexe1": "Oui",
+              "devisSpecifications": "Oui",
+              "regulariteFiscale": "Oui",
+              "copiecin": "Oui",
+              "conformiteSpecs": "Oui",
+              "distanceBureaux": "Oui",
+              "delaiLivraison": "Oui",
+              "sav": "Oui",
+              "disponibiliteArticles": "Oui",
+              "qualiteArticles": "Oui",
+              "experienceAnterieure": "Oui",
+              "producteurOuSousTraitant": "Non",
+              "echantillonBat": "N/A",
+              "validiteOffre": "Oui",
+              "modePaiement": "Oui",
+              "delaiPaiement": "Oui"
+            }
+          },
+          "criteriaComments": {}
         }
       ]
     }
@@ -1520,8 +1689,6 @@
           "supplierKey": "sup2",
           "order": 1,
           "rang": 1,
-          "reponseDansDelai": "OUI",
-          "conformiteSpecs": "CONFORME",
           "items": [
             {
               "designation": "Paracetamol 500mg",
@@ -1538,6 +1705,20 @@
               "disponibilite": "Immediate"
             }
           ]
+        }
+      ],
+      "daEvaluationsRequired": false,
+      "evaluations": [
+        {
+          "userKey": "acheteur",
+          "status": "SUBMITTED",
+          "answers": {
+            "sup2": {
+              "reponseDansDelai": "Oui",
+              "conformiteSpecs": "Oui"
+            }
+          },
+          "criteriaComments": {}
         }
       ]
     },
@@ -1660,8 +1841,6 @@
           "supplierKey": "sup3",
           "order": 1,
           "rang": 1,
-          "reponseDansDelai": "OUI",
-          "conformiteSpecs": "CONFORME",
           "items": [
             {
               "designation": "Engrais NPK 15-15-15",
@@ -1678,6 +1857,20 @@
               "disponibilite": "Immediate"
             }
           ]
+        }
+      ],
+      "daEvaluationsRequired": false,
+      "evaluations": [
+        {
+          "userKey": "acheteur",
+          "status": "SUBMITTED",
+          "answers": {
+            "sup3": {
+              "reponseDansDelai": "Oui",
+              "conformiteSpecs": "Oui"
+            }
+          },
+          "criteriaComments": {}
         }
       ]
     },
@@ -1805,8 +1998,6 @@
           "supplierKey": "sup1",
           "order": 1,
           "rang": 1,
-          "reponseDansDelai": "OUI",
-          "conformiteSpecs": "CONFORME",
           "items": [
             {
               "designation": "Pompe solaire 5kW",
@@ -1823,6 +2014,20 @@
               "disponibilite": "8-10 semaines"
             }
           ]
+        }
+      ],
+      "daEvaluationsRequired": false,
+      "evaluations": [
+        {
+          "userKey": "acheteur",
+          "status": "SUBMITTED",
+          "answers": {
+            "sup1": {
+              "reponseDansDelai": "Oui",
+              "conformiteSpecs": "Oui"
+            }
+          },
+          "criteriaComments": {}
         }
       ]
     },
@@ -1958,8 +2163,6 @@
           "supplierKey": "sup4",
           "order": 1,
           "rang": 1,
-          "reponseDansDelai": "OUI",
-          "conformiteSpecs": "CONFORME",
           "items": [
             {
               "designation": "Cahiers ecolier 192 pages",
@@ -1983,6 +2186,20 @@
               "disponibilite": "Stock"
             }
           ]
+        }
+      ],
+      "daEvaluationsRequired": false,
+      "evaluations": [
+        {
+          "userKey": "acheteur",
+          "status": "SUBMITTED",
+          "answers": {
+            "sup4": {
+              "reponseDansDelai": "Oui",
+              "conformiteSpecs": "Oui"
+            }
+          },
+          "criteriaComments": {}
         }
       ]
     },
