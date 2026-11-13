@@ -115,6 +115,60 @@ export class PVEvaluationService {
     }
   }
 
+  async listPendingForUser(userId: number) {
+    const purchases = await this.prisma.purchase.findMany({
+      where: {
+        currentStep: PurchaseStep.PV,
+        status: PurchaseStatus.PUBLISHED,
+        pv: { isNot: null },
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        reference: true,
+        title: true,
+        status: true,
+        acheteurId: true,
+        validationWorkflows: {
+          where: { step: PurchaseStep.DA },
+          select: { validators: { select: { userId: true } } },
+        },
+        pv: {
+          select: {
+            daEvaluationsRequired: true,
+            suppliers: { select: { supplierId: true } },
+            evaluations: { where: { userId }, select: { status: true } },
+          },
+        },
+      },
+    });
+    return purchases.flatMap((p) => {
+      const mine = p.pv?.evaluations[0];
+      if (
+        !p.pv?.suppliers.length ||
+        mine?.status === 'SUBMITTED' ||
+        mine?.status === 'WAIVED'
+      )
+        return [];
+      const expected = getExpectedEvaluatorIds({
+        daEvaluationsRequired: p.pv.daEvaluationsRequired,
+        acheteurId: p.acheteurId,
+        daValidators: p.validationWorkflows.flatMap((w) => w.validators),
+      });
+      if (!expected.includes(userId)) return [];
+      const { id, reference, title, status } = p;
+      return [
+        {
+          id,
+          reference,
+          title,
+          status,
+          myEvaluationStatus: mine ? 'DRAFT' : 'PENDING',
+        },
+      ];
+    });
+  }
+
   async getMine(purchaseId: string, userId: number) {
     const { mine } = await this.loadForEvaluator(purchaseId, userId);
     return mine ?? { ...EMPTY_GRID };

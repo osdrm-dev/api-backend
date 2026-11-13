@@ -19,6 +19,13 @@ describe('PVEvaluationService', () => {
 
   const prisma = {
     purchase: {
+      findMany: jest.fn(async () => [
+        {
+          ...purchase,
+          title: 'T',
+          pv: { ...purchase.pv, evaluations: evals },
+        },
+      ]),
       findUnique: jest.fn(async () => ({
         ...purchase,
         pv: { ...purchase.pv, evaluations: evals },
@@ -217,5 +224,34 @@ describe('PVEvaluationService', () => {
     expect(evals[0].status).toBe('DRAFT');
     expect(evals[0].submittedAt).toBeNull();
     expect(evals[1].status).toBe('WAIVED');
+  });
+
+  describe('listPendingForUser', () => {
+    it('lists DA with DRAFT grid, drops it once submitted', async () => {
+      evals.push({ id: 'e1', userId: 1, status: 'DRAFT' });
+      expect(await service.listPendingForUser(1)).toEqual([
+        {
+          id: 'p1',
+          reference: 'DA-1',
+          title: 'T',
+          status: 'PUBLISHED',
+          myEvaluationStatus: 'DRAFT',
+        },
+      ]);
+      evals[0].status = 'SUBMITTED';
+      expect(await service.listPendingForUser(1)).toEqual([]);
+    });
+
+    it('PENDING when no row; not listed for non evaluator', async () => {
+      expect((await service.listPendingForUser(2))[0].myEvaluationStatus).toBe(
+        'PENDING',
+      );
+      expect(await service.listPendingForUser(3)).toEqual([]);
+    });
+
+    it('PV without supplier is not listed', async () => {
+      purchase.pv.suppliers = [];
+      expect(await service.listPendingForUser(1)).toEqual([]);
+    });
   });
 });

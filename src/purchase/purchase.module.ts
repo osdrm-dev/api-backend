@@ -28,6 +28,7 @@ import { SubmitService } from './services/submit.service';
 import { BCService } from './services/bc.service';
 import { DocumentStepService } from 'src/purchase/services/step.service';
 import { PVEvaluationController } from './controllers/pv-evaluation.controller';
+import { PendingPVEvaluationController } from './controllers/pending-pv-evaluation.controller';
 import { PVEvaluationService } from './services/pv-evaluation.service';
 import { NotificationModule } from '../notification/notification.module';
 import { PVRepository } from '../repository/purchase/pv.repository';
@@ -46,6 +47,7 @@ import { PVRepository } from '../repository/purchase/pv.repository';
     DerogationController,
     PVController,
     PVEvaluationController,
+    PendingPVEvaluationController,
     AttachmentController,
     BCController,
     BRController,
