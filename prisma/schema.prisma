@@ -467,11 +467,12 @@ model PV {
   id         String @id @default(cuid())
   purchaseId String @unique
 
-  evaluateur     String?
-  dateEvaluation DateTime?
-  natureObjet    String?
-  decisionFinale String?   @db.Text
-  status         PVStatus  @default(DRAFT)
+  evaluateur       String?
+  dateEvaluation   DateTime?
+  natureObjet      String?
+  decisionFinale   String?   @db.Text
+  criteriaComments Json?
+  status           PVStatus  @default(DRAFT)
 
   purchase  Purchase     @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
   suppliers PVSupplier[]

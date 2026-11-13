@@ -145,6 +145,7 @@ export class PVService {
       dateEvaluation: dto.dateEvaluation ? new Date(dto.dateEvaluation) : null,
       natureObjet: dto.natureObjet,
       decisionFinale: dto.decisionFinale,
+      criteriaComments: dto.criteriaComments,
       suppliers: {
         create: dto.suppliers.map((s) => this.buildSupplierData(s)),
       },
@@ -207,6 +208,7 @@ export class PVService {
           : undefined,
         natureObjet: dto.natureObjet,
         decisionFinale: dto.decisionFinale,
+        criteriaComments: dto.criteriaComments,
         suppliers: dto.suppliers
           ? { create: dto.suppliers.map((s) => this.buildSupplierData(s)) }
           : undefined,

@@ -6,6 +6,7 @@ import {
   IsInt,
   IsNumber,
   IsArray,
+  IsObject,
   ValidateNested,
   Min,
   Max,
@@ -149,6 +150,11 @@ export class CreatePVDto {
   @IsOptional()
   @IsString()
   decisionFinale?: string;
+
+  // { "<criterionKey>": "comment" } — one comment per criterion, shared by all suppliers
+  @IsOptional()
+  @IsObject()
+  criteriaComments?: Record<string, string>;
 
   @IsArray()
   @ValidateNested({ each: true })
