@@ -8,10 +8,17 @@ import {
   buildEmptyMonthlySeries,
   round1,
 } from '../utils/date-utils';
+import type { PVAnswers } from '../../purchase/utils/pv-criteria';
 import { sumBy, percentageOf, median } from '../../utils/data-helpers';
 
 /** Délai cible de soumission : ~5 jours ouvrables exprimés en jours calendaires */
 const SUBMISSION_TARGET_DAYS = 7;
+
+const COMPLIANCE_KEYS = [
+  'regulariteFiscale',
+  'devisSpecifications',
+  'conformiteSpecs',
+] as const;
 
 @Injectable()
 export class KpiService {
@@ -313,8 +320,8 @@ export class KpiService {
   // ---------------------------------------------------------------------------
   // KPI 5 — Évaluation fournisseur
   // Jointure : SatisfactionSurvey → Purchase → PV → PVSupplier → Supplier.
-  // Score de conformité = ratio des champs renseignés parmi
-  // regulariteFiscale, devisSpecifications, conformiteSpecs.
+  // Score de conformité = moyenne, sur les grilles PVEvaluation SUBMITTED,
+  // du ratio de réponses parmi regulariteFiscale, devisSpecifications, conformiteSpecs.
   // ---------------------------------------------------------------------------
   private async getSupplierEvaluation(
     purchaseWhere: Prisma.PurchaseWhereInput,
@@ -343,11 +350,12 @@ export class KpiService {
                 : { supplierId: { not: null } },
               select: {
                 supplierId: true,
-                regulariteFiscale: true,
-                devisSpecifications: true,
-                conformiteSpecs: true,
                 supplier: { select: { id: true, name: true } },
               },
+            },
+            evaluations: {
+              where: { status: 'SUBMITTED' },
+              select: { answers: true },
             },
           },
         },
@@ -389,14 +397,14 @@ export class KpiService {
         if (qualityRating != null) entry.qualityRatings.push(qualityRating);
         if (serviceRating != null) entry.serviceRatings.push(serviceRating);
 
-        // Score de conformité documentaire
-        const fields = [
-          pvs.regulariteFiscale,
-          pvs.devisSpecifications,
-          pvs.conformiteSpecs,
-        ];
-        const filled = fields.filter((f) => f != null && f !== '').length;
-        entry.complianceScores.push(filled / fields.length);
+        // Un score par grille soumise ; la moyenne en est faite plus bas.
+        for (const ev of p.pv.evaluations) {
+          const grid = (ev.answers as PVAnswers | null)?.[sid] ?? {};
+          const filled = COMPLIANCE_KEYS.filter(
+            (k) => grid[k] != null && grid[k] !== '',
+          ).length;
+          entry.complianceScores.push(filled / COMPLIANCE_KEYS.length);
+        }
       }
     }
 
