@@ -4,6 +4,7 @@ export const RESEND_TEMPLATES = {
   PV_UPLOADED: 'pv-uploaded',
   PV_EVALUATION_REQUESTED: 'pv-evaluation-requested',
   PV_EVALUATIONS_COMPLETE: 'pv-evaluations-complete',
+  PV_EVALUATION_WAIVED: 'pv-evaluation-waived',
   QR_UPLOADED: 'qr-uploaded',
   DAP_CREATED: 'dap-created',
   CONFIRMATION: 'confirmation',

@@ -9,13 +9,21 @@ const full = (id: string) => ({
 });
 const FULL = { ...full('s1'), ...full('s2') };
 
-const user = (id: number, name: string, role = 'OM') => ({ id, name, role });
+const user = (id: number, name: string, role = 'OM') => ({
+  id,
+  name,
+  role,
+  email: `u${id}@x.com`,
+});
 
 describe('PVEvaluationService', () => {
   let service: PVEvaluationService;
   let purchase: any;
   let evals: any[];
-  const notification = { createNotification: jest.fn() };
+  const notification = {
+    createNotification: jest.fn(),
+    stopActiveReminders: jest.fn(),
+  };
 
   const prisma = {
     purchase: {
@@ -41,6 +49,11 @@ describe('PVEvaluationService', () => {
         const row = { id: `e${create.userId}`, ...create };
         evals.push(row);
         return row;
+      }),
+      createMany: jest.fn(async ({ data }: any) => {
+        data
+          .filter((d: any) => !evals.some((e) => e.userId === d.userId))
+          .forEach((d: any) => evals.push({ id: `e${d.userId}`, ...d }));
       }),
       update: jest.fn(async ({ where, data }: any) =>
         Object.assign(
@@ -149,12 +162,14 @@ describe('PVEvaluationService', () => {
 
   it('submitMine does not notify while others are pending', async () => {
     evals.push({ id: 'e1', userId: 1, status: 'DRAFT', answers: FULL });
+    evals.push({ id: 'e2', userId: 2, status: 'DRAFT', answers: {} }); // frozen list
     await service.submitMine('p1', 1);
     expect(notification.createNotification).not.toHaveBeenCalled();
   });
 
   it('getStatus never exposes answers', async () => {
     evals.push({ id: 'e1', userId: 1, status: 'DRAFT', answers: FULL });
+    evals.push({ id: 'e2', userId: 2, status: 'DRAFT', answers: {} }); // frozen list
     const result = await service.getStatus('p1', { id: 1, role: 'OM' as any });
     expect(JSON.stringify(result)).not.toContain('answers');
     expect(result).toMatchObject({ expected: 2, done: 0 });
@@ -175,6 +190,7 @@ describe('PVEvaluationService', () => {
 
   it('waive: non admin forbidden; admin waives and assertAllDone passes', async () => {
     evals.push({ id: 'e1', userId: 1, status: 'SUBMITTED', answers: FULL });
+    evals.push({ id: 'e2', userId: 2, status: 'DRAFT', answers: {} }); // frozen list
     expect(
       await code(
         service.waive('p1', { id: 5, role: 'OM' as any }, 2, { reason: 'x' }),
@@ -203,6 +219,7 @@ describe('PVEvaluationService', () => {
 
   it('assertAllDone with 1 of 2 submitted -> EVALUATIONS_INCOMPLETE', async () => {
     evals.push({ id: 'e1', userId: 1, status: 'SUBMITTED', answers: FULL });
+    evals.push({ id: 'e2', userId: 2, status: 'DRAFT', answers: {} }); // frozen list
     expect(await code(service.assertAllDone('p1'))).toBe(
       'PURCHASE_PV_EVALUATIONS_INCOMPLETE',
     );
@@ -224,6 +241,116 @@ describe('PVEvaluationService', () => {
     expect(evals[0].status).toBe('DRAFT');
     expect(evals[0].submittedAt).toBeNull();
     expect(evals[1].status).toBe('WAIVED');
+  });
+
+  describe('frozen evaluator list', () => {
+    const shrinkWorkflow = () => {
+      // Republish after a change request: only order 0 keeps a userId.
+      purchase.validationWorkflows = [
+        {
+          validators: [
+            { userId: 1, user: user(1, 'One') },
+            { userId: null, user: null },
+          ],
+        },
+      ];
+    };
+
+    it('freezeEvaluators creates a DRAFT row per expected evaluator, never overwrites', async () => {
+      await service.freezeEvaluators('p1');
+      expect(evals.map((e) => [e.userId, e.status])).toEqual([
+        [1, 'DRAFT'],
+        [2, 'DRAFT'],
+      ]);
+      expect(evals[1]).toMatchObject({ answers: {}, criteriaComments: {} });
+      evals[0].status = 'SUBMITTED';
+      await service.freezeEvaluators('p1');
+      expect(evals.map((e) => e.status)).toEqual(['SUBMITTED', 'DRAFT']);
+    });
+
+    it('frozen list survives a DA workflow change', async () => {
+      await service.freezeEvaluators('p1');
+      shrinkWorkflow();
+      const status = await service.getStatus('p1', {
+        id: 9,
+        role: 'ACHETEUR' as any,
+      });
+      expect(status.evaluators.map((e) => e.userId)).toEqual([1, 2]);
+      expect(await code(service.assertAllDone('p1'))).toBe(
+        'PURCHASE_PV_EVALUATIONS_INCOMPLETE',
+      );
+      expect(await code(service.saveMine('p1', 2, {}))).toBeNull();
+      expect((await service.listPendingForUser(2))[0].id).toBe('p1');
+    });
+
+    it('first saveMine without rows freezes every expected evaluator', async () => {
+      await service.saveMine('p1', 1, {});
+      shrinkWorkflow();
+      expect(evals.map((e) => e.userId).sort()).toEqual([1, 2]);
+      expect(
+        (await service.getStatus('p1', { id: 1, role: 'OM' as any })).expected,
+      ).toBe(2);
+    });
+
+    it('resetAfterSupplierChange keeps frozen rows', async () => {
+      await service.freezeEvaluators('p1');
+      await service.resetAfterSupplierChange('pv', ['s1']);
+      shrinkWorkflow();
+      expect(evals).toHaveLength(2);
+      expect(
+        (await service.getStatus('p1', { id: 1, role: 'OM' as any })).expected,
+      ).toBe(2);
+    });
+  });
+
+  it('saveMine strips legacy pvSupplier: keys instead of rejecting', async () => {
+    await service.saveMine('p1', 1, {
+      answers: { ...full('s1'), 'pvSupplier:old': { sav: 'Oui' } },
+    });
+    expect(Object.keys(evals.find((e) => e.userId === 1).answers)).toEqual([
+      's1',
+    ]);
+  });
+
+  it('submitMine stops the evaluator reminders', async () => {
+    evals.push({ id: 'e1', userId: 1, status: 'DRAFT', answers: FULL });
+    await service.submitMine('p1', 1);
+    expect(notification.stopActiveReminders).toHaveBeenCalledWith(
+      'p1',
+      'u1@x.com',
+    );
+  });
+
+  it('waive stops the target reminders and notifies the buyer (not complete)', async () => {
+    await service.waive('p1', { id: 5, role: 'ADMIN' as any }, 2, {
+      reason: 'absent',
+    });
+    expect(notification.stopActiveReminders).toHaveBeenCalledWith(
+      'p1',
+      'u2@x.com',
+    );
+    expect(notification.createNotification).toHaveBeenCalledTimes(1);
+    expect(notification.createNotification).toHaveBeenCalledWith(
+      'PV_EVALUATION_WAIVED',
+      ['buyer@x.com'],
+      'p1',
+      expect.objectContaining({ reference: 'DA-1', reason: 'absent' }),
+    );
+  });
+
+  it('waive completing the set sends a single completion notice', async () => {
+    evals.push({ id: 'e1', userId: 1, status: 'SUBMITTED', answers: FULL });
+    evals.push({ id: 'e2', userId: 2, status: 'DRAFT', answers: {} }); // frozen list
+    await service.waive('p1', { id: 5, role: 'ADMIN' as any }, 2, {
+      reason: 'absent',
+    });
+    expect(notification.createNotification).toHaveBeenCalledTimes(1);
+    expect(notification.createNotification).toHaveBeenCalledWith(
+      'PV_EVALUATIONS_COMPLETE',
+      ['buyer@x.com'],
+      'p1',
+      expect.anything(),
+    );
   });
 
   describe('listPendingForUser', () => {

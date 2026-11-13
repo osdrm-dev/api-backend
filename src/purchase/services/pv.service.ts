@@ -16,7 +16,6 @@ import { assertIsOwningBuyer } from '../../utils/purchase-guards';
 import { AppException, ErrorCode } from 'src/common/errors';
 import { NotificationService } from 'src/notification/services/nofitication.service';
 import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
-import { getExpectedEvaluatorIds } from '../utils/pv-evaluators';
 import { PVEvaluationService } from './pv-evaluation.service';
 
 @Injectable()
@@ -186,6 +185,13 @@ export class PVService {
 
     let suppliersChanged = false;
     const newIds = (dto.suppliers ?? []).map((s) => s.supplierId);
+    if (dto.suppliers?.length === 0) {
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_PV_NO_SUPPLIER,
+        'A PV must keep at least one supplier',
+      );
+    }
     if (dto.suppliers) {
       await this.validateSuppliers(dto.suppliers);
       const oldIds = new Set(purchase.pv.suppliers.map((s) => s.supplierId));
@@ -212,6 +218,7 @@ export class PVService {
 
     if (suppliersChanged) {
       await this.pvEvaluationService.resetAfterSupplierChange(pv.id, newIds);
+      await this.pvEvaluationService.freezeEvaluators(purchaseId);
       try {
         await this.requestEvaluations(purchaseId);
       } catch (error) {
@@ -232,13 +239,22 @@ export class PVService {
       await this.pvEvaluationService.getExpectedEvaluatorUsers(purchaseId);
     for (const { email } of users) {
       if (!email) continue;
-      await this.notificationService.createNotification(
-        OSDRM_PROCESS_EVENT.PV_EVALUATION_REQUESTED,
-        [email],
-        purchaseId,
-        { reference },
-        true,
-      );
+      try {
+        await this.notificationService.stopActiveReminders(purchaseId, email);
+        await this.notificationService.createNotification(
+          OSDRM_PROCESS_EVENT.PV_EVALUATION_REQUESTED,
+          [email],
+          purchaseId,
+          { reference },
+          true,
+        );
+      } catch (error) {
+        this.logger.warn('PV evaluation notification failed', {
+          purchaseId,
+          email,
+          error: (error as Error).message,
+        });
+      }
     }
   }
 

@@ -21,6 +21,16 @@ import {
   WaivePVEvaluationDto,
 } from '../dto/pv-evaluation.dto';
 
+// Once rows exist the list is frozen; before that it derives from the DA chain.
+function frozenOrComputed(
+  evaluations: { userId: number }[],
+  input: Parameters<typeof getExpectedEvaluatorIds>[0],
+) {
+  return evaluations.length
+    ? evaluations.map((e) => e.userId)
+    : getExpectedEvaluatorIds(input);
+}
+
 const EMPTY_GRID = { status: 'DRAFT', answers: {}, criteriaComments: {} };
 const USER_SELECT = { id: true, name: true, role: true } as const;
 
@@ -47,7 +57,9 @@ export class PVEvaluationService {
         pv: {
           include: {
             suppliers: true,
-            evaluations: { include: { user: { select: USER_SELECT } } },
+            evaluations: {
+              include: { user: { select: { ...USER_SELECT, email: true } } },
+            },
           },
         },
       },
@@ -63,7 +75,7 @@ export class PVEvaluationService {
     const validators = purchase.validationWorkflows.flatMap(
       (w) => w.validators,
     );
-    const expected = getExpectedEvaluatorIds({
+    const expected = frozenOrComputed(pv.evaluations, {
       daEvaluationsRequired: pv.daEvaluationsRequired,
       acheteurId: purchase.acheteurId,
       daValidators: validators,
@@ -77,6 +89,7 @@ export class PVEvaluationService {
     >();
     if (purchase.acheteur) users.set(purchase.acheteur.id, purchase.acheteur);
     validators.forEach((v) => v.user && users.set(v.user.id, v.user));
+    pv.evaluations.forEach((e) => e.user && users.set(e.user.id, e.user));
     return { purchase, pv, expected, supplierIds, users };
   }
 
@@ -137,20 +150,20 @@ export class PVEvaluationService {
           select: {
             daEvaluationsRequired: true,
             suppliers: { select: { supplierId: true } },
-            evaluations: { where: { userId }, select: { status: true } },
+            evaluations: { select: { userId: true, status: true } },
           },
         },
       },
     });
     return purchases.flatMap((p) => {
-      const mine = p.pv?.evaluations[0];
+      const mine = p.pv?.evaluations.find((e) => e.userId === userId);
       if (
         !p.pv?.suppliers.length ||
         mine?.status === 'SUBMITTED' ||
         mine?.status === 'WAIVED'
       )
         return [];
-      const expected = getExpectedEvaluatorIds({
+      const expected = frozenOrComputed(p.pv.evaluations, {
         daEvaluationsRequired: p.pv.daEvaluationsRequired,
         acheteurId: p.acheteurId,
         daValidators: p.validationWorkflows.flatMap((w) => w.validators),
@@ -175,14 +188,22 @@ export class PVEvaluationService {
   }
 
   async saveMine(purchaseId: string, userId: number, dto: SavePVEvaluationDto) {
-    const { pv, supplierIds, mine } = await this.loadForEvaluator(
+    const { pv, supplierIds, mine, expected } = await this.loadForEvaluator(
       purchaseId,
       userId,
     );
     this.assertEditable(mine);
+    // Legacy grids keyed by PVSupplier id are read-only: drop them silently.
+    const answers =
+      dto.answers && typeof dto.answers === 'object'
+        ? Object.fromEntries(
+            Object.entries(dto.answers).filter(
+              ([key]) => !key.startsWith('pvSupplier:'),
+            ),
+          )
+        : dto.answers;
     const error =
-      (dto.answers !== undefined &&
-        findAnswersError(dto.answers, supplierIds)) ||
+      (answers !== undefined && findAnswersError(answers, supplierIds)) ||
       (dto.criteriaComments !== undefined &&
         findCommentsError(dto.criteriaComments));
     if (error) {
@@ -192,8 +213,9 @@ export class PVEvaluationService {
         error,
       );
     }
+    await this.freeze(pv, expected);
     const data = {
-      ...(dto.answers !== undefined && { answers: dto.answers }),
+      ...(answers !== undefined && { answers }),
       ...(dto.criteriaComments !== undefined && {
         criteriaComments: dto.criteriaComments,
       }),
@@ -207,7 +229,7 @@ export class PVEvaluationService {
   }
 
   async submitMine(purchaseId: string, userId: number) {
-    const { pv, supplierIds, mine } = await this.loadForEvaluator(
+    const { pv, supplierIds, mine, users } = await this.loadForEvaluator(
       purchaseId,
       userId,
     );
@@ -225,6 +247,7 @@ export class PVEvaluationService {
       where: { pvId_userId: { pvId: pv.id, userId } },
       data: { status: PVEvaluationStatus.SUBMITTED, submittedAt: new Date() },
     });
+    await this.stopReminders(purchaseId, users.get(userId)?.email);
     await this.notifyIfComplete(purchaseId);
     return result;
   }
@@ -291,7 +314,7 @@ export class PVEvaluationService {
         'Only an admin can waive an evaluation',
       );
     }
-    const { purchase, pv, expected } = await this.load(purchaseId);
+    const { purchase, pv, expected, users } = await this.load(purchaseId);
     this.assertPublished(purchase);
     const existing = pv.evaluations.find((e) => e.userId === targetUserId);
     if (
@@ -309,13 +332,59 @@ export class PVEvaluationService {
       waivedById: admin.id,
       waivedReason: dto.reason,
     };
+    await this.freeze(pv, expected);
     const result = await this.prisma.pVEvaluation.upsert({
       where: { pvId_userId: { pvId: pv.id, userId: targetUserId } },
       create: { pvId: pv.id, userId: targetUserId, ...data },
       update: data,
     });
-    await this.notifyIfComplete(purchaseId);
+    await this.stopReminders(purchaseId, users.get(targetUserId)?.email);
+    // Spec: a waiver always notifies the buyer; the completion notice replaces it.
+    const completed = await this.notifyIfComplete(purchaseId);
+    const email = purchase.acheteur?.email;
+    if (!completed && email) {
+      await this.notificationService.createNotification(
+        OSDRM_PROCESS_EVENT.PV_EVALUATION_WAIVED,
+        [email],
+        purchaseId,
+        {
+          reference: purchase.reference,
+          evaluateur: users.get(targetUserId)?.name ?? null,
+          reason: dto.reason,
+        },
+      );
+    }
     return result;
+  }
+
+  // Freezes the evaluator list (spec: "la liste est figee"): one row per
+  // expected evaluator, so later DA workflow changes no longer affect it.
+  async freezeEvaluators(purchaseId: string) {
+    const { pv, expected } = await this.load(purchaseId);
+    await this.freeze(pv, expected);
+  }
+
+  private async freeze(
+    pv: { id: string; evaluations: unknown[] },
+    expected: number[],
+  ) {
+    if (pv.evaluations.length || !expected.length) return;
+    await this.prisma.pVEvaluation.createMany({
+      data: expected.map((userId) => ({
+        pvId: pv.id,
+        userId,
+        status: PVEvaluationStatus.DRAFT,
+        answers: {},
+        criteriaComments: {},
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  private async stopReminders(purchaseId: string, email?: string | null) {
+    if (email) {
+      await this.notificationService.stopActiveReminders(purchaseId, email);
+    }
   }
 
   async getExpectedEvaluatorUsers(purchaseId: string) {
@@ -375,6 +444,8 @@ export class PVEvaluationService {
         purchaseId,
         { reference: ctx.purchase.reference },
       );
+      return true;
     }
+    return false;
   }
 }

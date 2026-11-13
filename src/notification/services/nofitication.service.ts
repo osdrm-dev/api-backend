@@ -258,6 +258,19 @@ export class NotificationService {
           variables: { isReminder, reference: ref },
         };
 
+      case OSDRM_PROCESS_EVENT.PV_EVALUATION_WAIVED:
+        return {
+          to,
+          subject: `Évaluation PV dispensée : ${ref}`,
+          template: RESEND_TEMPLATES.PV_EVALUATION_WAIVED,
+          variables: {
+            isReminder,
+            reference: ref,
+            evaluateur: data.evaluateur,
+            motif: data.reason,
+          },
+        };
+
       case OSDRM_PROCESS_EVENT.QR_UPLOADED:
         return {
           to,

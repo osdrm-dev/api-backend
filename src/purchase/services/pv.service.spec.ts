@@ -27,6 +27,7 @@ describe('PVService', () => {
   const evaluations = {
     assertAllDone: jest.fn(),
     resetAfterSupplierChange: jest.fn(),
+    freezeEvaluators: jest.fn(),
     getExpectedEvaluatorUsers: jest.fn(async () => ({
       reference: 'DA-1',
       users: [
@@ -35,7 +36,10 @@ describe('PVService', () => {
       ],
     })),
   };
-  const notification = { createNotification: jest.fn() };
+  const notification = {
+    createNotification: jest.fn(),
+    stopActiveReminders: jest.fn(),
+  };
 
   beforeEach(async () => {
     jest.clearAllMocks();
@@ -144,5 +148,35 @@ describe('PVService', () => {
         suppliers: [{ supplierId: 's1', order: 1 }],
       } as any),
     ).resolves.toBeDefined();
+  });
+
+  it('updatePV with an empty suppliers array -> NO_SUPPLIER, nothing deleted', async () => {
+    await expect(
+      service.updatePV('p1', 9, { suppliers: [] } as any),
+    ).rejects.toMatchObject({ code: 'PURCHASE_PV_NO_SUPPLIER' });
+    expect(pvRepository.deleteSuppliersById).not.toHaveBeenCalled();
+  });
+
+  it('updatePV freezes evaluators and stops old reminders before notifying', async () => {
+    await service.updatePV('p1', 9, {
+      suppliers: [{ supplierId: 's1', order: 1 }],
+    } as any);
+    expect(evaluations.freezeEvaluators).toHaveBeenCalledWith('p1');
+    expect(notification.stopActiveReminders).toHaveBeenCalledWith(
+      'p1',
+      'a@x.com',
+    );
+    expect(notification.stopActiveReminders).toHaveBeenCalledWith(
+      'p1',
+      'b@x.com',
+    );
+  });
+
+  it('one failed notification does not skip the other evaluators', async () => {
+    notification.createNotification.mockRejectedValueOnce(new Error('mail'));
+    await service.updatePV('p1', 9, {
+      suppliers: [{ supplierId: 's1', order: 1 }],
+    } as any);
+    expect(notification.createNotification).toHaveBeenCalledTimes(2);
   });
 });
