@@ -5,6 +5,8 @@ import { getIPAdress } from './hostinfo.util';
 
 const isProd = process.env.NODE_ENV === 'production';
 const logLevel = process.env.LOG_LEVEL;
+// Absolute path in prod, outside the release dir that each deploy deletes.
+const logDir = process.env.LOG_DIR || 'logs';
 // Computed once: these don't change while the process runs.
 const hostname = getHostname();
 const ip = getIPAdress();
@@ -13,7 +15,7 @@ const ip = getIPAdress();
 const fileTransports = isProd
   ? [
       new DailyRotateFile({
-        filename: 'logs/error-%DATE%.log',
+        filename: `${logDir}/error-%DATE%.log`,
         datePattern: 'YYYY-MM-DD-HH',
         level: 'error',
         zippedArchive: true,
@@ -21,7 +23,7 @@ const fileTransports = isProd
         maxFiles: '72h',
       }),
       new DailyRotateFile({
-        filename: 'logs/combined-%DATE%.log',
+        filename: `${logDir}/combined-%DATE%.log`,
         datePattern: 'YYYY-MM-DD-HH',
         level: logLevel,
         zippedArchive: true,
