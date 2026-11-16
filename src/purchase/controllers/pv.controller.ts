@@ -61,8 +61,6 @@ export class PVController {
               supplierId: 'supplier-123',
               name: 'Fournisseur A',
               rang: 1,
-              reponseDansDelai: 'Oui',
-              conformiteSpecs: 'Conforme',
               offreFinanciere: 5000000,
               items: [
                 {
@@ -79,8 +77,6 @@ export class PVController {
               order: 2,
               name: 'Fournisseur B',
               rang: 2,
-              reponseDansDelai: 'Oui',
-              conformiteSpecs: 'Conforme',
               offreFinanciere: 5500000,
               items: [
                 {

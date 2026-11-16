@@ -57,7 +57,6 @@ export class AttachmentService {
       where: { id: dto.fileId },
     });
 
-    console.log('file here');
     if (!file) {
       throw new AppException(
         HttpStatus.NOT_FOUND,

@@ -37,6 +37,9 @@ async function bootstrap() {
 
   app.useLogger(app.get(WINSTON_MODULE_NEST_PROVIDER));
 
+  // Behind one Nginx hop: req.ip = the address Nginx saw, not a forgeable header.
+  app.set('trust proxy', 1);
+
   // Servir les fichiers statiques
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
     prefix: '/uploads/',
@@ -77,6 +80,7 @@ async function bootstrap() {
       'X-RateLimit-Limit',
       'X-RateLimit-Remaining',
       'X-RateLimit-Reset',
+      'X-Request-Id',
     ],
     maxAge: 3600,
   });

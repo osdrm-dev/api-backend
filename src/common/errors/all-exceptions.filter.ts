@@ -111,10 +111,11 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const res = ctx.getResponse();
     const req = ctx.getRequest();
+    const tag = `[user=${req.user?.id ?? 'anonymous'} trace=${req.traceId ?? '-'}]`;
     if (res.headersSent) {
       // Response already started: can't send JSON, so log and close the stream.
       this.logger.error(
-        `${req.method} ${req.url}: error after headers sent`,
+        `${req.method} ${req.url}: error after headers sent ${tag}`,
         exception instanceof Error ? exception.stack : String(exception),
       );
       res.end();
@@ -127,14 +128,14 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const message = is5xx ? 'Internal server error' : n.message;
     const code = n.code;
 
-    const line = `${req.method} ${req.url} -> ${n.status} ${code}: ${n.message}`;
+    const line = `${req.method} ${req.url} -> ${n.status} ${code}: ${n.message} ${tag}`;
     if (is5xx) {
       this.logger.error(
         line,
         exception instanceof Error ? exception.stack : String(exception),
       );
     } else {
-      this.logger.warn(`${line} (user: ${req.user?.id ?? 'anonymous'})`);
+      this.logger.warn(line);
     }
 
     res.status(n.status).json({
@@ -144,6 +145,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       fields: n.fields,
       params: n.params,
       path: req.url,
+      traceId: req.traceId,
       timestamp: new Date().toISOString(),
     });
   }

@@ -27,6 +27,10 @@ import { AttachmentService } from './services/attachment.service';
 import { SubmitService } from './services/submit.service';
 import { BCService } from './services/bc.service';
 import { DocumentStepService } from 'src/purchase/services/step.service';
+import { PVEvaluationController } from './controllers/pv-evaluation.controller';
+import { PendingPVEvaluationController } from './controllers/pending-pv-evaluation.controller';
+import { PVEvaluationService } from './services/pv-evaluation.service';
+import { NotificationModule } from '../notification/notification.module';
 import { PVRepository } from '../repository/purchase/pv.repository';
 
 @Module({
@@ -35,12 +39,15 @@ import { PVRepository } from '../repository/purchase/pv.repository';
     PurchaseValidationModule,
     BudgetModule,
     PdfSigningModule,
+    NotificationModule,
   ],
   controllers: [
     PurchaseController,
     QuotationController,
     DerogationController,
     PVController,
+    PVEvaluationController,
+    PendingPVEvaluationController,
     AttachmentController,
     BCController,
     BRController,
@@ -55,6 +62,7 @@ import { PVRepository } from '../repository/purchase/pv.repository';
     DerogationService,
     WorkflowService,
     PVService,
+    PVEvaluationService,
     PVRepository,
     AttachmentService,
     SubmitService,
@@ -67,6 +75,7 @@ import { PVRepository } from '../repository/purchase/pv.repository';
     DerogationService,
     WorkflowService,
     PVService,
+    PVEvaluationService,
   ],
 })
 export class PurchaseModule {}

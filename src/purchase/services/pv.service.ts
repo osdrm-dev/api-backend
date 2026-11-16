@@ -14,12 +14,17 @@ import { WINSTON_MODULE_PROVIDER } from 'nest-winston';
 import { Logger } from 'winston';
 import { assertIsOwningBuyer } from '../../utils/purchase-guards';
 import { AppException, ErrorCode } from 'src/common/errors';
+import { NotificationService } from 'src/notification/services/nofitication.service';
+import { OSDRM_PROCESS_EVENT } from 'src/notification/constants/notification.constants';
+import { PVEvaluationService } from './pv-evaluation.service';
 
 @Injectable()
 export class PVService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly pvRepository: PVRepository,
+    private readonly pvEvaluationService: PVEvaluationService,
+    private readonly notificationService: NotificationService,
     @Inject(WINSTON_MODULE_PROVIDER) private readonly logger: Logger,
   ) {}
 
@@ -31,23 +36,6 @@ export class PVService {
       ...(supplier.supplierId && {
         supplier: { connect: { id: supplier.supplierId } },
       }),
-      reponseDansDelai: supplier.reponseDansDelai,
-      annexe1: supplier.annexe1,
-      devisSpecifications: supplier.devisSpecifications,
-      regulariteFiscale: supplier.regulariteFiscale,
-      copiecin: supplier.copiecin,
-      conformiteSpecs: supplier.conformiteSpecs,
-      distanceBureaux: supplier.distanceBureaux,
-      delaiLivraison: supplier.delaiLivraison,
-      sav: supplier.sav,
-      disponibiliteArticles: supplier.disponibiliteArticles,
-      qualiteArticles: supplier.qualiteArticles,
-      experienceAnterieure: supplier.experienceAnterieure,
-      producteurOuSousTraitant: supplier.producteurOuSousTraitant,
-      echantillonBat: supplier.echantillonBat,
-      validiteOffre: supplier.validiteOffre,
-      modePaiement: supplier.modePaiement,
-      delaiPaiement: supplier.delaiPaiement,
       offreFinanciere: supplier.offreFinanciere,
       items: supplier.items
         ? {
@@ -158,7 +146,9 @@ export class PVService {
   async updatePV(purchaseId: string, userId: number, dto: UpdatePVDto) {
     const purchase = await this.prisma.purchase.findUnique({
       where: { id: purchaseId },
-      include: { pv: true },
+      include: {
+        pv: { include: { suppliers: { select: { supplierId: true } } } },
+      },
     });
 
     if (!purchase)
@@ -193,8 +183,21 @@ export class PVService {
       );
     }
 
+    let suppliersChanged = false;
+    const newIds = (dto.suppliers ?? []).map((s) => s.supplierId);
+    if (dto.suppliers?.length === 0) {
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_PV_NO_SUPPLIER,
+        'A PV must keep at least one supplier',
+      );
+    }
     if (dto.suppliers) {
       await this.validateSuppliers(dto.suppliers);
+      const oldIds = new Set(purchase.pv.suppliers.map((s) => s.supplierId));
+      suppliersChanged =
+        oldIds.size !== new Set(newIds).size ||
+        newIds.some((id) => !oldIds.has(id));
       await this.pvRepository.deleteSuppliersById(purchase.pv.id);
     }
 
@@ -213,9 +216,46 @@ export class PVService {
       },
     });
 
+    if (suppliersChanged) {
+      await this.pvEvaluationService.resetAfterSupplierChange(pv.id, newIds);
+      await this.pvEvaluationService.freezeEvaluators(purchaseId);
+      try {
+        await this.requestEvaluations(purchaseId);
+      } catch (error) {
+        this.logger.warn('PV evaluation notifications failed', {
+          purchaseId,
+          error: (error as Error).message,
+        });
+      }
+    }
+
     this.logger.info('PV mis à jour', { pvId: pv.id, purchaseId, userId });
 
     return { ...pv, message: 'PV mis a jour avec succes' };
+  }
+
+  private async requestEvaluations(purchaseId: string) {
+    const { reference, users } =
+      await this.pvEvaluationService.getExpectedEvaluatorUsers(purchaseId);
+    for (const { email } of users) {
+      if (!email) continue;
+      try {
+        await this.notificationService.stopActiveReminders(purchaseId, email);
+        await this.notificationService.createNotification(
+          OSDRM_PROCESS_EVENT.PV_EVALUATION_REQUESTED,
+          [email],
+          purchaseId,
+          { reference },
+          true,
+        );
+      } catch (error) {
+        this.logger.warn('PV evaluation notification failed', {
+          purchaseId,
+          email,
+          error: (error as Error).message,
+        });
+      }
+    }
   }
 
   async submitPV(purchaseId: string, userId: number) {
@@ -255,6 +295,8 @@ export class PVService {
         'Add at least one supplier before submitting the PV',
       );
     }
+
+    await this.pvEvaluationService.assertAllDone(purchaseId);
 
     const totalAmount = purchase.items.reduce(
       (sum, item) => sum + Number(item.amount),

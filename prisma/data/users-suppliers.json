@@ -130,6 +130,32 @@
       "phone": "+261 34 55 123 45",
       "email": "contact@boismada.mg",
       "label": "Mobilier scolaire"
+    },
+    {
+      "key": "sup5",
+      "name": "MobiSchool SARL",
+      "status": "active",
+      "nif": "5005005005",
+      "stat": "STAT005",
+      "rcs": "RCS005",
+      "region": "Analamanga",
+      "address": "Ankorondrano, Antananarivo",
+      "phone": "+261 34 55 222 33",
+      "email": "contact@mobischool.mg",
+      "label": "Mobilier scolaire"
+    },
+    {
+      "key": "sup6",
+      "name": "Menuiserie Nationale",
+      "status": "active",
+      "nif": "6006006006",
+      "stat": "STAT006",
+      "rcs": "RCS006",
+      "region": "Analamanga",
+      "address": "Zone Ivato",
+      "phone": "+261 34 55 333 44",
+      "email": "contact@menuiserie-nationale.mg",
+      "label": "Mobilier scolaire"
     }
   ]
 }

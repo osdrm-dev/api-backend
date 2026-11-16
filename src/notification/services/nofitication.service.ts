@@ -242,6 +242,35 @@ export class NotificationService {
           },
         };
 
+      case OSDRM_PROCESS_EVENT.PV_EVALUATION_REQUESTED:
+        return {
+          to,
+          subject: `${isReminder ? '[RAPPEL] ' : ''}Évaluation PV requise : ${ref}`,
+          template: RESEND_TEMPLATES.PV_EVALUATION_REQUESTED,
+          variables: { isReminder, reference: ref },
+        };
+
+      case OSDRM_PROCESS_EVENT.PV_EVALUATIONS_COMPLETE:
+        return {
+          to,
+          subject: `${isReminder ? '[RAPPEL] ' : ''}Évaluations PV terminées : ${ref}`,
+          template: RESEND_TEMPLATES.PV_EVALUATIONS_COMPLETE,
+          variables: { isReminder, reference: ref },
+        };
+
+      case OSDRM_PROCESS_EVENT.PV_EVALUATION_WAIVED:
+        return {
+          to,
+          subject: `Évaluation PV dispensée : ${ref}`,
+          template: RESEND_TEMPLATES.PV_EVALUATION_WAIVED,
+          variables: {
+            isReminder,
+            reference: ref,
+            evaluateur: data.evaluateur,
+            motif: data.reason,
+          },
+        };
+
       case OSDRM_PROCESS_EVENT.QR_UPLOADED:
         return {
           to,

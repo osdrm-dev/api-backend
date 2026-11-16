@@ -61,10 +61,7 @@ export class RateLimitMiddleware implements NestMiddleware {
   }
 
   private getClientIp(req: Request): string {
-    return (
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0] ||
-      req.socket.remoteAddress ||
-      'unknown'
-    );
+    // req.ip honours 'trust proxy' (main.ts): a client-forged X-Forwarded-For is ignored.
+    return req.ip ?? 'unknown';
   }
 }

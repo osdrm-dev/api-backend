@@ -115,7 +115,6 @@ export class PurchaseService {
       ...purchaseData
     } = createDto;
 
-    console.log(purchaseData);
     const purchase = await this.prisma.purchase.create({
       data: {
         reference,

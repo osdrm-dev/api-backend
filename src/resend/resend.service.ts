@@ -81,9 +81,8 @@ export class ResendService {
       await this.client.emails.send({ from: this.from, to, subject, html });
       this.logger.log(`Email (template: ${template}) envoyé à ${to}`);
     } catch (error) {
-      console.log('errr ', to, error);
       this.logger.error(
-        `Erreur envoi email template ${template}`,
+        `Erreur envoi email template ${template} à ${to}`,
         (error as Error).stack,
       );
       throw new AppException(
