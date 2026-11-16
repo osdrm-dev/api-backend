@@ -440,13 +440,35 @@ export class QuotationService {
 
     const hasEnoughQuotes = uploaded >= required;
 
-    // if (!hasEnoughQuotes && !useDerogation) {
-    //   throw new BadRequestException(
-    //     `Devis insuffisants (${uploaded}/${required}). Cochez la case dérogation pour continuer malgré le manque de devis.`,
-    //   );
-    // }
+    // Complete quotes are the only condition: no validators, straight to PV.
+    if (hasEnoughQuotes) {
+      await this.prisma.purchase.update({
+        where: { id: purchaseId },
+        data: {
+          currentStep: PurchaseStep.PV,
+          status: PurchaseStatus.PUBLISHED,
+        },
+      });
+      return {
+        id: purchase.id,
+        reference: purchase.reference,
+        status: PurchaseStatus.PUBLISHED,
+        currentStep: PurchaseStep.PV,
+        workflow: [],
+        message: "Devis complets. Passage à l'étape PV.",
+      };
+    }
 
-    if (useDerogation && !derogationJustification?.trim()) {
+    if (!useDerogation) {
+      throw new AppException(
+        HttpStatus.BAD_REQUEST,
+        ErrorCode.PURCHASE_QUOTES_INSUFFICIENT,
+        `Not enough quotations (${uploaded}/${required}); upload more or request a derogation`,
+      );
+    }
+
+    // Only a derogation still goes through the QR validator chain.
+    if (!derogationJustification?.trim()) {
       throw new AppException(
         HttpStatus.BAD_REQUEST,
         ErrorCode.PURCHASE_DEROGATION_JUSTIFICATION_REQUIRED,
@@ -462,16 +484,15 @@ export class QuotationService {
       );
     }
 
-    if (useDerogation && !hasEnoughQuotes) {
-      await this.prisma.derogation.create({
-        data: {
-          purchaseId,
-          reason: 'Nombre de devis insuffisant',
-          justification: derogationJustification ?? '',
-          status: DerogationStatus.VALIDATED,
-        },
-      });
-    }
+    await this.prisma.derogation.create({
+      data: {
+        purchaseId,
+        reason: 'Nombre de devis insuffisant',
+        justification: derogationJustification ?? '',
+        status: DerogationStatus.VALIDATED,
+      },
+    });
+
     const requiredRoles = this.workflowConfig.getRequireValidators(
       PurchaseStep.QR,
       purchase.operationType,
@@ -503,12 +524,7 @@ export class QuotationService {
       },
     });
 
-    let newStatus: PurchaseStatus;
-    if (useDerogation && !hasEnoughQuotes) {
-      newStatus = PurchaseStatus.IN_DEROGATION;
-    } else {
-      newStatus = PurchaseStatus.PENDING_APPROVAL;
-    }
+    const newStatus = PurchaseStatus.IN_DEROGATION;
 
     await this.prisma.purchase.update({
       where: { id: purchaseId },
@@ -521,11 +537,7 @@ export class QuotationService {
       status: newStatus,
       currentStep: PurchaseStep.QR,
       workflow: workflow.validators,
-      message: useDerogation
-        ? 'Devis soumis pour validation QR avec dérogation.'
-        : hasEnoughQuotes
-          ? 'Devis complets soumis pour validation QR.'
-          : 'Devis soumis pour validation QR.',
+      message: 'Devis soumis pour validation QR avec dérogation.',
     };
   }
 }

@@ -195,9 +195,9 @@ export class QuotationController {
 
   @Post('submit')
   @ApiOperation({
-    summary: 'Soumettre les devis pour validation avec ou sans dérogation',
+    summary: 'Soumettre les devis (passage au PV ou dérogation)',
     description:
-      'Crée un workflow QR et publie pour validation. Accepte une dérogation si devis insuffisants.',
+      "Devis complets : passage direct à l'étape PV, sans validateurs. Devis insuffisants : refusé, sauf dérogation justifiée, qui crée un workflow QR soumis à validation.",
   })
   @ApiParam({ name: 'purchaseId', description: 'ID de la DA' })
   @ApiBody({
@@ -219,10 +219,10 @@ export class QuotationController {
   })
   @ApiSuccessResponse('Devis soumis', {
     id: 'da-123',
-    status: 'PENDING_APPROVAL',
-    currentStep: 'QR',
+    status: 'PUBLISHED',
+    currentStep: 'PV',
     workflow: [],
-    message: 'Devis complets soumis pour validation QR.',
+    message: "Devis complets. Passage à l'étape PV.",
   })
   @ApiNotFoundResponse('DA')
   @ApiBadRequestResponse('Devis insuffisants ou justification manquante')
