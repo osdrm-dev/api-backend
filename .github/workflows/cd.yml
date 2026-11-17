@@ -27,11 +27,13 @@ jobs:
           envs: DATABASE_URL,REDIS_URL,RESEND_ENABLED_EVENTS,RESEND_FRONTEND_URL,RESEND_FROM,RESEND_API_KEY,DEFAULT_USER_PASSWORD
           script: |
             set -e
-            mkdir -p ${{ vars.APP_DIR }} ${{ vars.APP_DIR }}/logs
+            mkdir -p ${{ vars.APP_DIR }} ${{ vars.APP_DIR }}/logs ${{ vars.APP_DIR }}/uploads
             {
               echo "NODE_ENV=production"
               echo "LOG_LEVEL=info"
               echo "LOG_DIR=${{ vars.APP_DIR }}/logs"
+              # Outside current/: each deploy deletes the previous release folder.
+              echo "UPLOAD_DIR=${{ vars.APP_DIR }}/uploads"
               echo "PORT=3000"
               echo "DATABASE_URL=${DATABASE_URL}"
               echo "REDIS_URL=${REDIS_URL}"
