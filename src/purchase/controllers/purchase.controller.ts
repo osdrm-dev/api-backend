@@ -187,6 +187,16 @@ export class PurchaseController {
   async getMyPurchases(@Request() req, @Query() filters: FilterPurchaseDto) {
     return this.purchaseService.getMyPurchases(req.user.id, filters);
   }
+  @Get('closed')
+  @ApiOperation({
+    summary: 'Lister les dossiers clotures (etape DONE)',
+    description: 'Visible par tous les utilisateurs connectes.',
+  })
+  @ApiCommonResponses()
+  async getClosedPurchases(@Query() filters: FilterPurchaseDto) {
+    return this.purchaseService.getClosedPurchases(filters);
+  }
+
   @Get('buyer-workspace')
   @ApiOperation({
     summary: "Espace de travail de l'acheteur",

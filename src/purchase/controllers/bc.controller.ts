@@ -4,12 +4,10 @@ import {
   ApiOperation,
   ApiBearerAuth,
   ApiParam,
-  ApiBody,
 } from '@nestjs/swagger';
 import { BCService } from 'src/purchase/services/bc.service';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { CurrentUser } from 'src/auth/decorators/current-user.decorator';
-import { UploadBCDto } from '../dto/bc.dto';
 
 @ApiTags('BC Management')
 @ApiBearerAuth('JWT-auth')
@@ -18,18 +16,17 @@ import { UploadBCDto } from '../dto/bc.dto';
 export class BCController {
   constructor(private readonly bcService: BCService) {}
 
-  @Post('upload')
+  @Post('generate')
   @ApiOperation({
-    summary: "Uploader le Bon de Commande (1 seul, remplace l'ancien)",
+    summary:
+      'Générer le(s) Bon(s) de Commande PDF depuis les articles retenus du PV (1 par fournisseur) et lancer la validation BC',
   })
   @ApiParam({ name: 'purchaseId' })
-  @ApiBody({ type: UploadBCDto })
-  upload(
+  generate(
     @Param('purchaseId') purchaseId: string,
     @CurrentUser('id') userId: number,
-    @Body() dto: UploadBCDto,
   ) {
-    return this.bcService.uploadBC(purchaseId, userId, dto);
+    return this.bcService.generateBC(purchaseId, userId);
   }
 
   @Get()

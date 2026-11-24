@@ -753,13 +753,28 @@ export class PurchaseService {
   }
 
   async getMyPurchases(userId: number, filters: FilterPurchaseDto = {}) {
+    return this.listGroupedPurchases({ creatorId: userId }, filters);
+  }
+
+  /** Dossiers clôturés (étape DONE), visibles par tous les utilisateurs connectés. */
+  async getClosedPurchases(filters: FilterPurchaseDto = {}) {
+    return this.listGroupedPurchases(
+      { currentStep: PurchaseStep.DONE },
+      { ...filters, currentStep: undefined },
+    );
+  }
+
+  private async listGroupedPurchases(
+    baseWhere: any,
+    filters: FilterPurchaseDto,
+  ) {
     const pagination = parsePaginationParams(filters, {
       defaultPage: 1,
       defaultLimit: 10,
       maxLimit: 100,
     });
 
-    const where: any = { creatorId: userId };
+    const where: any = { ...baseWhere };
 
     if (filters.status) where.status = filters.status;
     if (filters.currentStep) where.currentStep = filters.currentStep;
