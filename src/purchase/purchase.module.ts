@@ -3,6 +3,7 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { PurchaseValidationModule } from '../purchaseValidation/purchase.module';
 import { BudgetModule } from '../budget/budget.module';
 import { PdfSigningModule } from '../pdf-signing/pdf-signing.module';
+import { FileStorageModule } from 'src/storage/file.module';
 
 import { PurchaseController } from './controllers/purchase.controller';
 import { QuotationController } from './controllers/quotation.controller';
@@ -40,6 +41,7 @@ import { PVRepository } from '../repository/purchase/pv.repository';
     BudgetModule,
     PdfSigningModule,
     NotificationModule,
+    FileStorageModule,
   ],
   controllers: [
     PurchaseController,
