@@ -77,15 +77,15 @@ export class ValidationActionService {
       );
     }
 
-    await Promise.all([
-      this.workflowService.updateValidator({
-        validatorId: validator.id,
-        userId,
-        decision: 'VALIDATED',
-        comment,
-      }),
-      this.workflowService.advanceWorkflow(currentWorkflow.id),
-    ]);
+    // Sequential: advanceWorkflow re-reads validators to compute isComplete,
+    // so it must see this validation already persisted.
+    await this.workflowService.updateValidator({
+      validatorId: validator.id,
+      userId,
+      decision: 'VALIDATED',
+      comment,
+    });
+    await this.workflowService.advanceWorkflow(currentWorkflow.id);
 
     const updatedValidators = currentWorkflow.validators.map((v: any) =>
       v.id === validator.id ? { ...v, isValidated: true } : v,
